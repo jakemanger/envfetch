@@ -14,41 +14,80 @@ across time and space using gps coordinates or `sf` polygons.
 You can install the development version of envfetch like so:
 
 ``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
+remotes::install_github('jakemanger/envfetch')
 ```
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+Use of envfetch starts with a table: a `dataframe`, `tibble` or `sf`
+object.
+
+Lets generate one for testing by sampling a grid over Australia for a
+range of times using the `throw` function:
 
 ``` r
-#library(envfetch)
-## basic example code
+# library(envfetch)
+
+# d <- throw(
+#   aoi=ext(c(110, 170, -70, 10)),
+#   time_interval=lubridate::interval()
+#   type='grid'
+# )
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+The data set should look like the following:
 
 ``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
+# summary(d)
 ```
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this. You could also
-use GitHub Actions to re-render `README.Rmd` every time you push. An
-example workflow can be found here:
-<https://github.com/r-lib/actions/tree/v1/examples>.
+Note, each data point has its own `sf::geometry` object along with its
+own `datetime` (a `lubridate::interval`).
 
-You can also embed plots, for example:
+This `geometry` may be a point or a polygon. You may also just use plain
+old `x` and `y` coordinates as separate columns.
 
-<img src="man/figures/README-pressure-1.png" width="100%" />
+Each individual data point will use the `datetime` object to decide what
+time range to extract and summarise data in. `datetime` can be a time
+range (`lubridate::interval`), a single date (e.g. `"20220101"`) or
+datetime `"2010-08-03 00:50:50"`.
 
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+In this example, let’s assume we have:
+
+-   some pre-downloaded netcdf file we would like to extract from (CLUM)
+
+-   and a data set from Google Earth Engine we would like to download
+    and extract (NDVI from MODIS)
+
+We also want to:
+
+-   calculate day and night time statistics for each data point and
+    time.
+
+To fetch the data, use the `fetch` function and supply it with the
+extraction functions you would like to use, e.g.:
+
+``` r
+# extracted <- d %>%
+#   fetch(
+#    
+#   )
+# TODO
+```
+
+Now, certain applications might require obtaining the same data at
+repeated time intervals. For instance, rather than acquiring data solely
+for the data point’s `datetime` time range, you may also need
+environmental data from repeated previous time periods. In this example,
+we will use the `.time_rep` variable to extract some of our
+environmental data from the past six months, with an average calculated
+for each two week block.
+
+``` r
+# rep_extracted <- d %>%
+#   fetch(
+#     
+#     .time_rep=time_steps(n_step=-13, every=lubridate::days(14))
+#   )
+# TODO
+```
