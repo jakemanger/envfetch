@@ -1,10 +1,8 @@
-source('./code/data_extraction_helpers.R')
-
 # set the gdalCache size to 30000 MB
 # as opposed to the default 1632 MB
 # so it can run much faster
 terra::gdalCache(30000)
-terraOptions(memfrac=0.9)
+terra::terraOptions(memfrac=0.9)
 
 #' Extract across times
 #'
@@ -19,9 +17,10 @@ terraOptions(memfrac=0.9)
 #' @export
 #'
 #' @examples
-extract_across_times <- function(points, r, extract_all_times_at_start = TRUE) {
+extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, method='simple', debug=FALSE) {
+  r <- terra::rast(r)
   if (extract_all_times_at_start) {
-    dates <- time(r)
+    dates <- terra::time(r)
     # get min and max times from points
     min_time <- min(lubridate::int_start(points$time_column))
     max_time <- max(lubridate::int_end(points$time_column))
@@ -45,9 +44,26 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE) {
     extracted <- terra::extract(x = r_within_time,
                                 y = points)
 
+    if (debug) {
+      print('Creating debug plot')
+      r_to_plot <- r_within_time[[1]]
+
+      lims <- sf::st_bbox(points)
+      r_lims <- sf::st_bbox(r_to_plot)
+      lims$xmin <- min(lims$xmin, r_lims$xmin)
+      lims$xmax <- max(lims$xmax, r_lims$xmax)
+      lims$ymin <- min(lims$ymin, r_lims$ymin)
+      lims$ymax <- max(lims$ymax, r_lims$ymax)
+
+      terra::plot(r_to_plot, xlim=c(lims$xmin, lims$xmax), ylim=c(lims$ymin, lims$ymax))
+      plot(points, axes=TRUE, add=TRUE)
+      title('Sampling points and a slice of data to extract from')
+      readline(prompt = "Paused as debug=TRUE, press enter to continue.")
+    }
+
     print('Summarising extracted data over specified times')
 
-    new_col_names <- unique(str_split_i(nms, '_', 1))
+    new_col_names <- unique(stringr::str_split_i(nms, '_', 1))
 
     points[, new_col_names] <- NA
 
@@ -56,7 +72,7 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE) {
       mx = lubridate::int_end(points$time_column[i])
       for (col_name in new_col_names) {
         col_names_to_summarise <-
-          tms >= mn & tms <= mx & str_starts(nms, col_name)
+          tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
         cols_to_summarise <-
           colnames(extracted) %in% nms[col_names_to_summarise]
         points[i, col_name] <-
@@ -64,18 +80,18 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE) {
       }
     }
   } else {
-    with_progress({
-      p <- progressor(steps = length(unique(points$time_column)) * 2)
+    progressr::with_progress({
+      p <- progressr::progressor(steps = length(unique(points$time_column)) * 2)
 
       extracted <- points$time_column %>%
         unique() %>%
         map(function(x) {
           extracted <-
-            extr(r, points %>% filter(as.character(time_column) == as.character(x)))
+            extr(r, points %>% dplyr::filter(as.character(time_column) == as.character(x)))
           p()
           return(extracted)
-        }) %>% bind_rows() %>%
-        as_tibble()
+        }) %>% bind_rows::bind_rows() %>%
+        tibble::as_tibble()
 
       # extracted <- points %>%
       #   purrr::transpose() %>%
@@ -87,7 +103,7 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE) {
       #   bind_rows() %>%
       #   as_tibble()
 
-      points <- points %>% bind_cols(extracted)
+      points <- points %>% dplyr::bind_cols(extracted)
     })
   }
 

@@ -1,6 +1,3 @@
-library(rgee)
-ee_Initialize(gcs = TRUE, drive = TRUE)
-
 #' Extract from google earth engine
 #'
 #' Use google earth engine to extract your chosen image collection bands
@@ -9,7 +6,6 @@ ee_Initialize(gcs = TRUE, drive = TRUE)
 #' @param points
 #' @param collection_name
 #' @param bands
-#' @param savepath
 #' @param scale
 #' @param time_buffer
 #' @param time_summarise_fun
@@ -18,9 +14,11 @@ ee_Initialize(gcs = TRUE, drive = TRUE)
 #' @export
 #'
 #' @examples
-extract_gee <- function(points, collection_name, bands, savepath, scale=250, time_buffer=16, time_summarise_fun='last') {
+extract_gee <- function(points, collection_name, bands, scale=250, time_buffer=16, time_summarise_fun='last', debug=FALSE) {
+  rgee::ee_Initialize(gcs = FALSE, drive = TRUE)
+
   print('Loading sf object on earth engine...')
-  pts <- st_geometry(points)[!duplicated(st_geometry(points))]
+  pts <- sf::st_geometry(points)[!duplicated(sf::st_geometry(points))]
 
   p <- rgee::sf_as_ee(pts)
 
@@ -36,20 +34,40 @@ extract_gee <- function(points, collection_name, bands, savepath, scale=250, tim
     select(bands)
 
   print('extracting...')
-  temp <- ee_extract(
+  temp <- rgee::ee_extract(
     x = ic,
     y = pts,
     scale = scale,
-    fun = ee$Reducer$mean(),
-    via = "drive",
+    fun = rgee::ee$Reducer$mean(),
     lazy = FALSE,
     sf = TRUE
   )
 
+  if (ncol(temp) == 2) {
+    warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
+  }
+
+  if (debug) {
+    missing_some_data <- apply(is.na(sf::st_drop_geometry(temp %>% dplyr::select(-c('id')))), 1, any)
+    missing_all_data <- apply(is.na(sf::st_drop_geometry(temp %>% dplyr::select(-c('id')))), 1, all)
+    temp$missing_status <- dplyr::if_else(
+      missing_all_data,
+      'All missing',
+      dplyr::if_else(missing_some_data, 'Some missing', 'None missing')
+    )
+    world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+    ggplot2::ggplot(data = world) +
+      ggplot2::geom_sf() +
+      ggplot2::geom_sf(data = temp, ggplot2::aes(color = missing_status), size = 2) +
+      ggplot2::scale_color_manual(values = c("blue", "orange", "red")) +
+      ggplot2::labs(color = "Missing Data") +
+      ggplot2::theme_minimal()
+  }
+
   print('Summarising extracted data over specified times')
 
-  geometry <- temp %>% st_geometry() %>% st_coordinates()
-  temp_for_indxing <- temp[,str_starts(colnames(temp), 'X')] %>% st_drop_geometry()
+  geometry <- temp %>% sf::st_geometry() %>% sf::st_coordinates()
+  temp_for_indxing <- temp[,str_starts(colnames(temp), 'X')] %>% sf::st_drop_geometry()
   clnames <- colnames(temp_for_indxing)
   tms <- as.Date(unlist(lapply(clnames, get_date_from_gee_colname)))
   nms <- str_split_i(clnames, '_', 4)
@@ -57,10 +75,10 @@ extract_gee <- function(points, collection_name, bands, savepath, scale=250, tim
   new_col_names <- unique(nms)
 
   points[, new_col_names] <- NA
-  points_geom <- st_geometry(points) %>% st_coordinates()
+  points_geom <- sf::st_geometry(points) %>% sf::st_coordinates()
 
-  with_progress({
-    p <- progressor(steps = nrow(points))
+  progressr::with_progress({
+    p <- progressr::progressor(steps = nrow(points))
 
     for (i in 1:nrow(points)) {
       mn = lubridate::int_start(points$time_column[i])
@@ -93,8 +111,6 @@ extract_gee <- function(points, collection_name, bands, savepath, scale=250, tim
 
   })
 
-  saveRDS(points, savepath)
-
   return(points)
 }
 
@@ -111,11 +127,11 @@ find_closest_date <- function(dates, x, find_closest_previous=TRUE) {
 
 
 get_date_from_gee_colname <- function(my_string) {
-  if (!str_starts(my_string, 'X'))
+  if (!stringr::str_starts(my_string, 'X'))
     return(NA)
 
   split_string <- strsplit(my_string, "_")[[1]]
   date <- paste(split_string[1:3], collapse = "-")
-  date <- str_remove(date, 'X')
+  date <- stringr::str_remove(date, 'X')
   return(date)
 }

@@ -1,5 +1,3 @@
-source('./code/calculate_daynight_time.R')
-
 #' Calculate the time (in specified units) one time period overlaps with another
 #'
 #' @param period1_start The start datetime of the first period

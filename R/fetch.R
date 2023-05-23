@@ -1,23 +1,3 @@
-library(tidyverse)
-library(sf)
-library(lubridate)
-library(terra)
-library(luna)
-library(stars)
-library(furrr)
-library(progressr)
-
-source('./code/data_extraction_helpers.R')
-source('./code/estimate_foo.R')
-source('./code/get_daynight_times.R')
-source('./code/get_clum_landuse.R')
-source('./code/extract_awap_data.R')
-source('./code/extract_soil_data.R')
-source('./code/extract_gee.R')
-
-handlers("progress")
-
-
 #' Fetch data for each row in your dataset using the supplied functions
 #'
 #' Used to gather all input data necessary for modelling
@@ -31,86 +11,89 @@ handlers("progress")
 #' @examples
 fetch <- function(
     points,
+    ...,
     use_cache=TRUE,
-    grouping_variables=c(
-      'time_column', 'site'
-    )
+    out_dir='./output/',
+    cache_dir=paste0(out_dir, 'cache/'),
+    .time_rep=NA
 ) {
+  print('Fetching your data... 🥏 🐕')
+
+  if (!dir.exists(out_dir)) dir.create(out_dir)
+  if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
+
+  col_names_used_in_func <- c('time_column', 'geometry')
+
+  if (!is.na(.time_rep)) {
+    # generate all time lag intervals we want to extract data for
+    points <- points %>%
+      create_time_lags(n_lags=.time_rep$n, time_lag=.time_rep$interval) %>%
+      distinct()
+    col_names_used_in_func <- c(col_names_used_in_func, 'original_time_column', 'lag_amount')
+  }
+
+  grouping_variables <- colnames(points)
+  grouping_variables <- grouping_variables[!(grouping_variables %in% col_names_used_in_func)]
+
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
   hash <- rlang::hash(points)
 
-  # let's first calculate/extract data that is the same for each time range
+  # capture the supplied as arguments
+  args <- c(...)
 
-  outpath <- paste0('./output/', hash, 'extracted_day_night_stats.rds')
-  if (!use_cache || !file.exists(outpath)) {
-    points <- points %>% get_daynight_times(savepath=outpath)
-  } else {
-    points <- readRDS(outpath)
+  # remove elements that aren't functions and raise a warning if any are
+  # detected
+  is_function <- sapply(args, function(x) {is.function(x) || purrr::is_formula(x)})
+  not_funcs <- args[!is_function]
+  if (length(not_funcs) > 0) {
+    warning(paste(not_funcs, 'ignored as it is not a function.\n'))
   }
+  funcs <- args[is_function]
 
-  outpath <- paste0('./output/', hash, 'extracted_clum.rds')
-  if (!use_cache || !file.exists(outpath)) {
-    points <- points %>% get_clum_landuse(savepath=outpath)
-  } else {
-    points <- readRDS(outpath)
-  }
+  # loop through the supplied functions
+  outs <- lapply(funcs, function(fun) {
+    # convert the formula to a function if it is a formula
+    fun <- purrr::as_mapper(fun)
 
-  # for extracting data across different time ranges, we will create new rows with
-  # each time range that we want, previously added data will be set to NA
+    # generate unique hash with dataset and function
+    # to save progress
+    # and either read cached output or run the function
+    outpath <- paste0(cache_dir, hash, '_', rlang::hash(fun), '.rds')
+    if (!use_cache || !file.exists(outpath)) {
+      out <- fun(points)
+      out <- out[,!(colnames(out) %in% colnames(points))]
+      out <- sf::st_drop_geometry(out)
+      saveRDS(out, outpath)
+    } else {
+      out <- readRDS(outpath)
+    }
+    return(out)
+  })
 
-  # generate all time lag intervals we want to extract data for
-  points <- points %>%
-    create_time_lags(n_lags=26, time_lag=days(14)) %>%
-    distinct()
-
-  outpath <- paste0('./output/', hash, 'extracted_modis.rds')
-  if (!use_cache || !file.exists(outpath)) {
-    points <- points %>% extract_gee(
-      collection_name='MODIS/006/MOD13Q1',
-      bands=c('NDVI', 'DetailedQA'),
-      time_buffer=16,
-      savepath=outpath
-    )
-  } else {
-    points <- readRDS(outpath)
-  }
-
-  outpath <- paste0('./output/', hash, 'extracted_soil_moisture.rds')
-  if (!use_cache || !file.exists(outpath)) {
-    points <- points %>% extract_soil_data(extract_all_times_at_start = TRUE, savepath=outpath)
-  } else {
-    points <- readRDS(outpath)
-  }
-
-  # outpath <- paste0('./output/', hash, 'extracted_awap.rds')
-  if (!use_cache || !file.exists(outpath)) {
-    points <- points %>% extract_awap_data(extract_all_times_at_start = TRUE, savepath=outpath)
-  } else {
-    points <- readRDS(outpath)
-  }
-
-  outpath <- paste0('./output/', hash, 'extracted_foo.rds')
-  browser()
-  if (!use_cache || !file.exists(outpath)) {
-    points <- points %>% estimate_foo(savepath=outpath)
-  } else {
-    points <- readRDS(outpath)
-  }
+  points <- dplyr::bind_cols(c(points, outs))
 
   # now take those time lagged points and set them as columns for their
   # original point
-  cols_to_get_vals_from <- colnames(points)[!(colnames(points) %in% c(grouping_variables, 'original_time_column', 'geometry', 'lag_amount'))]
-  points <- points %>%
-    select(-c(grouping_variables)) %>%
-    pivot_wider(
-      names_from = c('lag_amount'),
-      values_from = cols_to_get_vals_from
-  )
+  if (!is.na(.time_rep)) {
+    cols_to_get_vals_from <- colnames(points)[!(colnames(points) %in% c(grouping_variables, col_names_used_in_func))]
+    points <- points %>%
+      dplyr::select(-c(grouping_variables)) %>%
+      tidyr::pivot_wider(
+        names_from = c('lag_amount'),
+        values_from = cols_to_get_vals_from
+      )
+  }
   # remove columns with all NA values
   points <- points %>%
-    select(where(function(x) any(!is.na(x))))
+    dplyr::select(dplyr::where(function(x) any(!is.na(x))))
 
-  print('Check the output directory (./output) for csv files with your extracted points')
+  print(
+    paste0(
+      'Check the output directory (',
+      out_dir,
+      ') for csv files with your extracted points.'
+    )
+  )
 
   return(points)
 }
