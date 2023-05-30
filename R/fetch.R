@@ -35,7 +35,7 @@ fetch <- function(
     original_points <- points
     # generate all time lag intervals we want to extract data for
     points <- points %>%
-      create_time_lags(n_lag_range=c(.time_rep$n_before, .time_rep$n_after), time_lag=.time_rep$interval) %>%
+      create_time_lags(n_lag_range=c(.time_rep$n_start, .time_rep$n_end), time_lag=.time_rep$interval) %>%
       dplyr::distinct()
     col_names_used_in_func <- c(col_names_used_in_func, 'original_time_column', 'lag_amount')
   }

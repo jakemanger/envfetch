@@ -21,7 +21,7 @@ extracted <- d %>%
        bands=c('NDVI', 'DetailedQA'),
        time_buffer=16,
      ),
-    .time_rep=time_rep(interval=lubridate::days(14), n_before=-2),
+    .time_rep=time_rep(interval=lubridate::days(14), n_start=-2),
     out_filename='test2.csv',
     use_cache=TRUE
   )

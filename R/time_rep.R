@@ -1,32 +1,38 @@
-#' Create a time_rep object
+#' Creates a `time_rep` object for repeating time intervals
 #'
-#' @param interval The datetime interval. Should be a lubridate period, e.g.
-#' `lubridate::days(14)`.
-#' @param n_before The number of times this interval should be repeated before the original datetime.
-#' @param n_after The number of times this interval should be repeated after the original datetime.
+#' The `time_rep` function is used by the `fetch` function internally. It generates a list object with specified time intervals, and settings for repeated sampling
+#' of environmental data before and after an original datetime. The function validates input parameters to ensure that they
+#' are of the correct types and meet certain conditions.
 #'
-#' @return
+#' @param interval A lubridate period indicating the time interval to repeat. It should be positive, e.g. `lubridate::days(14)`.
+#' @param n_start An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is 0.
+#' @param n_end An integer indicating the number of steps after the original datetime to which the interval should continue repeating. Default is 0.
+#'
+#' @return A list object with three elements: `interval`, `n_start`, and `n_end`.
 #' @export
 #'
 #' @examples
-time_rep <- function(interval, n_before=0, n_after=0) {
+#' # Generate a time_rep object for a 14-day interval, starting 2 periods before and ending 3 periods after the original datetime
+#' time_rep(lubridate::days(14), -2, 3)
+#'
+time_rep <- function(interval, n_start=0, n_end=0) {
   stopifnot(lubridate:::is.period(interval))
-  stopifnot(n_before %% 1 == 0)
-  stopifnot(n_after %% 1 == 0)
+  stopifnot(n_start %% 1 == 0)
+  stopifnot(n_end %% 1 == 0)
 
   if (interval <= 0)
     stop(
       paste0(
         '`interval` must be a positive value. If you want to repeat times ',
-        'going back in time, set `n_before` to a negative value.'
+        'going back in time, set `n_start` to a negative value.'
       )
     )
 
   return(
     list(
       interval=interval,
-      n_before=n_before,
-      n_after=n_after
+      n_start=n_start,
+      n_end=n_end
     )
   )
 }

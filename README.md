@@ -28,9 +28,9 @@ ee_install(py_env = 'rgee')
 ee_Initialise()
 ```
 
-and follow the prompts (saying “Y” when prompted).
+and follow the prompts (saying `Y` when prompted).
 
-Note, these are taken from of the `rgee` page
+Note, these instructions are from of the `rgee` page
 [here](https://cran.r-project.org/web/packages/rgee/vignettes/rgee01.html).
 See this page if you run into problems.
 
@@ -146,9 +146,9 @@ extracted <- d |>
 
 In certain applications, you may need to obtain environmental data from
 repeated previous time periods. For example, we can extract data from
-the past six months relative to the time of each data point, with an
-average calculated for each two-week block, using the **`.time_rep`**
-variable.
+the past six months relative to the time (start time if an interval is
+provided) of each data point, with an average calculated for each
+two-week block, using the **`.time_rep`** variable.
 
 ``` r
 rep_extracted <- d |>
@@ -160,6 +160,6 @@ rep_extracted <- d |>
        bands=c('NDVI', 'DetailedQA'),
        time_buffer=16,
      ),
-    .time_rep=time_rep(interval=lubridate::days(14), n_before=-13),
+    .time_rep=time_rep(interval=lubridate::days(14), n_start=-13),
   )
 ```
