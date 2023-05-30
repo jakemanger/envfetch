@@ -2,18 +2,27 @@
 % Please edit documentation in R/time_rep.R
 \name{time_rep}
 \alias{time_rep}
-\title{Create a time_rep object}
+\title{Creates a \code{time_rep} object for repeating time intervals}
 \usage{
-time_rep(interval, n_before = 0, n_after = 0)
+time_rep(interval, n_start = 0, n_end = 0)
 }
 \arguments{
-\item{interval}{The datetime interval. Should be a lubridate period, e.g.
-\code{lubridate::days(14)}.}
+\item{interval}{A lubridate period indicating the time interval to repeat. It should be positive, e.g. \code{lubridate::days(14)}.}
 
-\item{n_before}{The number of times this interval should be repeated before the original datetime.}
+\item{n_start}{An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is 0.}
 
-\item{n_after}{The number of times this interval should be repeated after the original datetime.}
+\item{n_end}{An integer indicating the number of steps after the original datetime to which the interval should continue repeating. Default is 0.}
+}
+\value{
+A list object with three elements: \code{interval}, \code{n_start}, and \code{n_end}.
 }
 \description{
-Create a time_rep object
+The \code{time_rep} function is used by the \code{fetch} function internally. It generates a list object with specified time intervals, and settings for repeated sampling
+of environmental data before and after an original datetime. The function validates input parameters to ensure that they
+are of the correct types and meet certain conditions.
+}
+\examples{
+# Generate a time_rep object for a 14-day interval, starting 2 periods before and ending 3 periods after the original datetime
+time_rep(lubridate::days(14), -2, 3)
+
 }
