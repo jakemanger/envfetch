@@ -11,6 +11,7 @@ fetch(
   out_dir = file.path("./output/"),
   out_filename = paste0("output_", format(Sys.time(), "\%Y_\%m_\%d_\%H_\%M_\%S"),
     ".gpkg"),
+  overwrite = TRUE,
   cache_dir = file.path(out_dir, "cache/"),
   .time_rep = NA
 )
