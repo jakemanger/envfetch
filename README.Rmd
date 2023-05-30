@@ -29,7 +29,17 @@ You can install the development version of envfetch like so:
 remotes::install_github('jakemanger/envfetch')
 ```
 
-To enable Google Earth Engine support using the `extract_gee` function, follow instructions of the `rgee` page [here](https://github.com/r-spatial/rgee#how-to-use).
+To enable Google Earth Engine support using the `extract_gee` function, follow the below instructions:
+```
+library(rgee)
+
+ee_install(py_env = 'rgee')
+
+ee_Initialise()
+```
+and follow the prompts (saying "Y" when prompted).
+
+Note, these are taken from of the `rgee` page [here](https://cran.r-project.org/web/packages/rgee/vignettes/rgee01.html).
 
 ## Example
 
@@ -63,8 +73,8 @@ summary(d)
 
 And can be visualized using the plot function:
 
-```{r, echo = FALSE}
-plot(d)
+```{r}
+plot(d, axes=TRUE)
 ```
 
 Each data point in the table has a `sf::geometry` object along with a `datetime` (a `lubridate::interval`). Ensure data used with the envfetch package matches this format.

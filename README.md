@@ -18,8 +18,18 @@ remotes::install_github('jakemanger/envfetch')
 ```
 
 To enable Google Earth Engine support using the `extract_gee` function,
-follow instructions of the `rgee` page
-[here](https://github.com/r-spatial/rgee#how-to-use).
+follow the below instructions:
+
+    library(rgee)
+
+    ee_install(py_env = 'rgee')
+
+    ee_Initialise()
+
+and follow the prompts (saying “Y” when prompted).
+
+Note, these are taken from of the `rgee` page
+[here](https://cran.r-project.org/web/packages/rgee/vignettes/rgee01.html).
 
 ## Example
 
@@ -60,6 +70,10 @@ summary(d)
 ```
 
 And can be visualized using the plot function:
+
+``` r
+plot(d, axes=TRUE)
+```
 
 <img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
 
