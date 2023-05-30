@@ -20,16 +20,19 @@ remotes::install_github('jakemanger/envfetch')
 To enable Google Earth Engine support using the `extract_gee` function,
 follow the below instructions:
 
-    library(rgee)
+``` r
+library(rgee)
 
-    ee_install(py_env = 'rgee')
+ee_install(py_env = 'rgee')
 
-    ee_Initialise()
+ee_Initialise()
+```
 
 and follow the prompts (saying “Y” when prompted).
 
 Note, these are taken from of the `rgee` page
 [here](https://cran.r-project.org/web/packages/rgee/vignettes/rgee01.html).
+See this page if you run into problems.
 
 ## Example
 
@@ -100,11 +103,22 @@ datetime `"2010-08-03 00:50:50"`.
 -   allows you to repeat sampling across different times (see section 3,
     below).
 
+You can supply any data extraction function to `fetch`, but some useful
+built-in data extraction functions are provided:
+
+| Function name              | Description                                                                                                                        |
+|----------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `extract_across_times`     | Extract and summarise raster data across time periods for each row in your dataset.                                                |
+| `extract_gee`              | Use Google Earth Engine to extract your chosen image collection bands and summarise this information for each row in your dataset. |
+| `calculate_daynight_times` | Calculates the time since sunrise, time since sunset and day and night hours.                                                      |
+
 In this example, we will use:
 
--   A pre-downloaded NetCDF file (CLUM) for extraction
+-   `extract_across_times` to extract from a large pre-downloaded NetCDF
+    file
 
--   NDVI data from the MODIS MOD13Q1 dataset on Google Earth Engine
+-   `extract_gee` to extract NDVI data from the MODIS MOD13Q1 dataset on
+    Google Earth Engine
 
 To fetch the data, use the **`fetch`** function and supply it with the
 extraction functions you would like to use. You can supply your own

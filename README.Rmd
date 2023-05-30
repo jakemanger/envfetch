@@ -30,16 +30,18 @@ remotes::install_github('jakemanger/envfetch')
 ```
 
 To enable Google Earth Engine support using the `extract_gee` function, follow the below instructions:
-```
+
+``` r
 library(rgee)
 
 ee_install(py_env = 'rgee')
 
 ee_Initialise()
 ```
+
 and follow the prompts (saying "Y" when prompted).
 
-Note, these are taken from of the `rgee` page [here](https://cran.r-project.org/web/packages/rgee/vignettes/rgee01.html).
+Note, these are taken from of the `rgee` page [here](https://cran.r-project.org/web/packages/rgee/vignettes/rgee01.html). See this page if you run into problems.
 
 ## Example
 
@@ -47,8 +49,7 @@ Note, these are taken from of the `rgee` page [here](https://cran.r-project.org/
 
 Use of envfetch starts with a table: a `dataframe`, `tibble` or `sf` object.
 
-To begin, we need to create a data table containing a grid of points
-over Australia for a range of times.
+To begin, we need to create a data table containing a grid of points over Australia for a range of times.
 
 For most applications, you will have your own dataset. If you have your own data, load that in as a variable called `d`.
 
@@ -92,11 +93,19 @@ Each individual data point will use the `datetime` object to decide what time ra
 -   shows progress and estimated time to completion and
 -   allows you to repeat sampling across different times (see section 3, below).
 
+You can supply any data extraction function to `fetch`, but some useful built-in data extraction functions are provided:
+
+| Function name              | Description                                                                                                                        |
+|----------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `extract_across_times`     | Extract and summarise raster data across time periods for each row in your dataset.                                                |
+| `extract_gee`              | Use Google Earth Engine to extract your chosen image collection bands and summarise this information for each row in your dataset. |
+| `calculate_daynight_times` | Calculates the time since sunrise, time since sunset and day and night hours.                                                      |
+
 In this example, we will use:
 
--   A pre-downloaded NetCDF file (CLUM) for extraction
+-   `extract_across_times` to extract from a large pre-downloaded NetCDF file
 
--   NDVI data from the MODIS MOD13Q1 dataset on Google Earth Engine
+-   `extract_gee` to extract NDVI data from the MODIS MOD13Q1 dataset on Google Earth Engine
 
 To fetch the data, use the **`fetch`** function and supply it with the extraction functions you would like to use. You can supply your own custom function here, but ensure you use the anonymous function syntax so you can specify custom arguments. That is, if following `purrr` formula syntax: `~your_function(.x, custom_arg='arg_value')` or if following base R, `function(x) your_function(x, custom_arg='arg_value')`). Note, `.x` in the below example is your data set, `d`.
 
