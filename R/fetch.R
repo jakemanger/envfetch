@@ -31,8 +31,8 @@ fetch <- function(
 
   col_names_used_in_func <- c('time_column', 'geometry')
 
+  original_points <- points
   if (length(.time_rep) > 1) {
-    original_points <- points
     # generate all time lag intervals we want to extract data for
     points <- points %>%
       create_time_lags(n_lag_range=c(.time_rep$n_start, .time_rep$n_end), time_lag=.time_rep$interval) %>%
@@ -90,7 +90,7 @@ fetch <- function(
     extra_col_vals <- original_points %>% dplyr::select(c(extra_cols)) %>%
       sf::st_drop_geometry()
     points <- points %>%
-      dplyr::select(-c(extra_cols, 'time_column')) %>%
+      dplyr::select(-c('time_column')) %>%
       tidyr::pivot_wider(
         names_from = 'lag_amount',
         values_from = cols_to_get_vals_from,
