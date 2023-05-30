@@ -8,7 +8,11 @@
 #' @param what
 #' @param square
 #' @param flat_topped
-
+#'
+#' @return
+#' @export
+#'
+#' @examples
 throw <- function(
   offset = c(-180,-90),
   cellsize = c(10,10),

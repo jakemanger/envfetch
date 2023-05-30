@@ -17,7 +17,7 @@
 extract_gee <- function(points, collection_name, bands, scale=250, time_buffer=16, time_summarise_fun='last', debug=FALSE) {
   rgee::ee_Initialize(gcs = FALSE, drive = TRUE)
 
-  print('Loading sf object on earth engine...')
+  message('Loading sf object on earth engine...')
   pts <- sf::st_geometry(points)[!duplicated(sf::st_geometry(points))]
 
   p <- rgee::sf_as_ee(pts)
@@ -26,14 +26,14 @@ extract_gee <- function(points, collection_name, bands, scale=250, time_buffer=1
   min_date <- as.character(as.Date(min(lubridate::int_start(points$time_column))) - time_buffer)
   max_date <- as.character(as.Date(max(lubridate::int_end(points$time_column))) + time_buffer)
 
-  print('Loading image collection objects on earth engine...')
-  print(paste('Loading object:', collection_name, 'with bands', paste(bands, collapse = ', ')))
+  message('Loading image collection objects on earth engine...')
+  message(paste('Loading object:', collection_name, 'with bands', paste(bands, collapse = ', ')))
 
   ic <- rgee::ee$ImageCollection(collection_name)$
     filterDate(min_date, max_date)$
     select(bands)
 
-  print('extracting...')
+  message('extracting...')
   temp <- rgee::ee_extract(
     x = ic,
     y = pts,
@@ -64,13 +64,13 @@ extract_gee <- function(points, collection_name, bands, scale=250, time_buffer=1
       ggplot2::theme_minimal()
   }
 
-  print('Summarising extracted data over specified times')
+  message('Summarising extracted data over specified times')
 
   geometry <- temp %>% sf::st_geometry() %>% sf::st_coordinates()
-  temp_for_indxing <- temp[,str_starts(colnames(temp), 'X')] %>% sf::st_drop_geometry()
+  temp_for_indxing <- temp[,stringr::str_starts(colnames(temp), 'X')] %>% sf::st_drop_geometry()
   clnames <- colnames(temp_for_indxing)
   tms <- as.Date(unlist(lapply(clnames, get_date_from_gee_colname)))
-  nms <- str_split_i(clnames, '_', 4)
+  nms <- stringr::str_split_i(clnames, '_', 4)
 
   new_col_names <- unique(nms)
 
@@ -93,7 +93,7 @@ extract_gee <- function(points, collection_name, bands, scale=250, time_buffer=1
 
         if (time_summarise_fun == 'mean') {
           col_names_to_summarise <-
-            tms >= mn & tms <= mx & str_starts(nms, col_name)
+            tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
           cols_to_summarise <-
             colnames(temp_for_indxing) %in% nms[col_names_to_summarise]
           points[i, col_name] <-

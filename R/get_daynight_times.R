@@ -93,7 +93,7 @@ get_day_night_hours <- function(
 #'
 #' @examples
 get_daynight_times <- function(points, savepath='./output/extracted_day_night_stats.rds') {
-  print('Calculating time since sunrise')
+  message('Calculating time since sunrise')
   pb <- dplyr::progress_estimated(nrow(points))
   time_since_sunrises <- 1:nrow(points) %>%
     map(
@@ -112,7 +112,7 @@ get_daynight_times <- function(points, savepath='./output/extracted_day_night_st
 
   points <- points %>% bind_cols(time_since_sunrises=unlist(time_since_sunrises))
 
-  print('Calculating time since sunset')
+  message('Calculating time since sunset')
   pb <- progress_estimated(nrow(points))
   time_since_sunsets <- 1:nrow(points) %>%
     map(
@@ -130,7 +130,7 @@ get_daynight_times <- function(points, savepath='./output/extracted_day_night_st
 
   points <- points %>% bind_cols(time_since_sunsets=unlist(time_since_sunsets))
 
-  print('Calculating day and night hours')
+  message('Calculating day and night hours')
   pb <- progress_estimated(nrow(points))
   light_dark_minutes <- 1:nrow(points) %>%
     map(

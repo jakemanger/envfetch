@@ -34,7 +34,7 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, m
       stop('All requested data are after maximum time in data source')
     }
 
-    print('Extracting data points...')
+    message('Extracting data points...')
 
     r_within_time <-
       r[[which(dates >= min_time & dates <= max_time)]]
@@ -45,7 +45,7 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, m
                                 y = points)
 
     if (debug) {
-      print('Creating debug plot')
+      message('Creating debug plot')
       r_to_plot <- r_within_time[[1]]
 
       lims <- sf::st_bbox(points)
@@ -61,7 +61,7 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, m
       readline(prompt = "Paused as debug=TRUE, press enter to continue.")
     }
 
-    print('Summarising extracted data over specified times')
+    message('Summarising extracted data over specified times')
 
     new_col_names <- unique(stringr::str_split_i(nms, '_', 1))
 

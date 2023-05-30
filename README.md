@@ -17,32 +17,55 @@ You can install the development version of envfetch like so:
 remotes::install_github('jakemanger/envfetch')
 ```
 
+To enable Google Earth Engine support using the `extract_gee` function,
+follow instructions of the `rgee` page
+[here](https://github.com/r-spatial/rgee#how-to-use).
+
 ## Example
+
+### 1. Setup table of data with `throw`
 
 Use of envfetch starts with a table: a `dataframe`, `tibble` or `sf`
 object.
 
-Lets generate one for testing by sampling a grid over Australia for a
-range of times using the `throw` function:
+To begin, we need to create a data table containing a grid of points
+over Australia for a range of times.
+
+For most applications, you will have your own dataset. If you have your
+own data, load that in as a variable called `d`.
+
+However, for this example, we can generate this using the `throw`
+function.
 
 ``` r
-# library(envfetch)
+library(envfetch)
 
-# d <- throw(
-#   aoi=ext(c(110, 170, -70, 10)),
-#   time_interval=lubridate::interval()
-#   type='grid'
-# )
+d <- throw(
+  offset=c(115, -40),
+  cellsize=3,
+  n=10,
+  time_interval=lubridate::interval(start='2017-01-01', end='2017-01-02'),
+)
 ```
 
-The data set should look like the following:
+The data set should look like this:
 
 ``` r
-# summary(d)
+summary(d)
+#>             time_column                  geometry  
+#>  Intervals        :100          POINT        :100  
+#>  Earliest endpoint:2017-01-01   epsg:4326    :  0  
+#>  Latest endpoint  :2017-01-02   +proj=long...:  0  
+#>  Time zone        :UTC
 ```
 
-Note, each data point has its own `sf::geometry` object along with its
-own `datetime` (a `lubridate::interval`).
+And can be visualized using the plot function:
+
+<img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
+
+Each data point in the table has a `sf::geometry` object along with a
+`datetime` (a `lubridate::interval`). Ensure data used with the envfetch
+package matches this format.
 
 This `geometry` may be a point or a polygon. You may also just use plain
 old `x` and `y` coordinates as separate columns.
@@ -52,42 +75,63 @@ time range to extract and summarise data in. `datetime` can be a time
 range (`lubridate::interval`), a single date (e.g. `"20220101"`) or
 datetime `"2010-08-03 00:50:50"`.
 
-In this example, let’s assume we have:
+### 2. Extract from your data sources with `fetch`
 
--   some pre-downloaded netcdf file we would like to extract from (CLUM)
+**`fetch`**:
 
--   and a data set from Google Earth Engine we would like to download
-    and extract (NDVI from MODIS)
+-   passes your data through your supplied extraction functions,
+-   caches progress, so that if your function crashes somewhere, you can
+    continue where you left off,
+-   shows progress and estimated time to completion and
+-   allows you to repeat sampling across different times (see section 3,
+    below).
 
-We also want to:
+In this example, we will use:
 
--   calculate day and night time statistics for each data point and
-    time.
+-   A pre-downloaded NetCDF file (CLUM) for extraction
 
-To fetch the data, use the `fetch` function and supply it with the
-extraction functions you would like to use, e.g.:
+-   NDVI data from the MODIS MOD13Q1 dataset on Google Earth Engine
+
+To fetch the data, use the **`fetch`** function and supply it with the
+extraction functions you would like to use. You can supply your own
+custom function here, but ensure you use the anonymous function syntax
+so you can specify custom arguments. That is, if following `purrr`
+formula syntax: `~your_function(.x, custom_arg='arg_value')` or if
+following base R,
+`function(x) your_function(x, custom_arg='arg_value')`). Note, `.x` in
+the below example is your data set, `d`.
 
 ``` r
-# extracted <- d %>%
-#   fetch(
-#    
-#   )
-# TODO
+extracted <- d |>
+  fetch(
+    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+    ~extract_gee(
+       .x,
+       collection_name='MODIS/061/MOD13Q1',
+       bands=c('NDVI', 'DetailedQA'),
+       time_buffer=16,
+     )
+  )
 ```
 
-Now, certain applications might require obtaining the same data at
-repeated time intervals. For instance, rather than acquiring data solely
-for the data point’s `datetime` time range, you may also need
-environmental data from repeated previous time periods. In this example,
-we will use the `.time_rep` variable to extract some of our
-environmental data from the past six months, with an average calculated
-for each two week block.
+### 3. Obtain data for repeated time intervals
+
+In certain applications, you may need to obtain environmental data from
+repeated previous time periods. For example, we can extract data from
+the past six months relative to the time of each data point, with an
+average calculated for each two-week block, using the **`.time_rep`**
+variable.
 
 ``` r
-# rep_extracted <- d %>%
-#   fetch(
-#     
-#     .time_rep=time_steps(n_step=-13, every=lubridate::days(14))
-#   )
-# TODO
+rep_extracted <- d |>
+  fetch(
+    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+    ~extract_gee(
+       .x,
+       collection_name='MODIS/061/MOD13Q1',
+       bands=c('NDVI', 'DetailedQA'),
+       time_buffer=16,
+     ),
+    .time_rep=time_rep(interval=lubridate::days(14), n_before=-13),
+  )
 ```

@@ -7,7 +7,7 @@ d <- throw(
   time_interval=lubridate::interval(start='2017-01-01', end='2017-01-02'),
 )
 
-rep_extracted <- d %>%
+extracted <- d %>%
   fetch(
     ~extract_across_times(
       .x,
@@ -19,5 +19,7 @@ rep_extracted <- d %>%
        bands=c('NDVI', 'DetailedQA'),
        time_buffer=16,
      ),
-    use_cache=FALSE
-   )
+    .time_rep=time_rep(interval=lubridate::days(14), n_before=-13),
+    out_filename='test.csv',
+    use_cache=TRUE
+  )

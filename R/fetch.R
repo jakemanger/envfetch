@@ -2,8 +2,13 @@
 #'
 #' Used to gather all input data necessary for modelling
 #'
-#' @param points A tibble with three columns: "x", "y"(
-#' GPS points in lat and long EPSG 4326) and "time_column" (an interval),
+#' @param points A tibble with a `sf` "geometry" and a "time_column" (a `lubridate` interval),
+#' @param ... Anonymous functions you would like to use on each row of the dataset.
+#' @param use_cache Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.
+#' @param out_dir A directory to output your result. Is ignored if out_filename = NA.
+#' @param out_filename The path to output the result. Set to NA to not save the result and only return the result.
+#' @param cache_dir A directory to output cached progress. Is ignored if use_cache = FALSE.
+#' @param .time_rep A `time_rep` object. Used to repeat data extraction along repeating time intervals relative to the minimum time of each row in the dataset.
 #'
 #' @return
 #' @export
@@ -13,27 +18,28 @@ fetch <- function(
     points,
     ...,
     use_cache=TRUE,
-    out_dir='./output/',
-    cache_dir=paste0(out_dir, 'cache/'),
+    out_dir=file.path('./output/'),
+    out_filename=paste0('output_', format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), '.gpkg'),
+    cache_dir=file.path(out_dir, 'cache/'),
     .time_rep=NA
 ) {
-  print('Fetching your data... 🥏 🐕')
+  message('Fetching your data... 🥏 🐕')
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
 
   col_names_used_in_func <- c('time_column', 'geometry')
 
-  if (!is.na(.time_rep)) {
+  if (length(.time_rep) > 1) {
     # generate all time lag intervals we want to extract data for
     points <- points %>%
-      create_time_lags(n_lags=.time_rep$n, time_lag=.time_rep$interval) %>%
-      distinct()
+      create_time_lags(n_lag_range=c(.time_rep$n_before, .time_rep$n_after), time_lag=.time_rep$interval) %>%
+      dplyr::distinct()
     col_names_used_in_func <- c(col_names_used_in_func, 'original_time_column', 'lag_amount')
   }
 
-  grouping_variables <- colnames(points)
-  grouping_variables <- grouping_variables[!(grouping_variables %in% col_names_used_in_func)]
+  extra_cols <- colnames(points)
+  extra_cols <- extra_cols[!(extra_cols %in% col_names_used_in_func)]
 
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
   hash <- rlang::hash(points)
@@ -58,7 +64,7 @@ fetch <- function(
     # generate unique hash with dataset and function
     # to save progress
     # and either read cached output or run the function
-    outpath <- paste0(cache_dir, hash, '_', rlang::hash(fun), '.rds')
+    outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
     if (!use_cache || !file.exists(outpath)) {
       out <- fun(points)
       out <- out[,!(colnames(out) %in% colnames(points))]
@@ -72,28 +78,45 @@ fetch <- function(
 
   points <- dplyr::bind_cols(c(points, outs))
 
-  # now take those time lagged points and set them as columns for their
-  # original point
-  if (!is.na(.time_rep)) {
-    cols_to_get_vals_from <- colnames(points)[!(colnames(points) %in% c(grouping_variables, col_names_used_in_func))]
+  if (length(.time_rep) > 1) {
+    # now take those time lagged points and set them as columns for their
+    # original point
+    cols_to_get_vals_from <- colnames(points)[!(colnames(points) %in% c(extra_cols, col_names_used_in_func))]
+    extra_col_vals <- points %>% dplyr::select(c(extra_cols))
     points <- points %>%
-      dplyr::select(-c(grouping_variables)) %>%
+      dplyr::select(-c(extra_cols, 'time_column')) %>%
       tidyr::pivot_wider(
-        names_from = c('lag_amount'),
-        values_from = cols_to_get_vals_from
+        names_from = 'lag_amount',
+        values_from = cols_to_get_vals_from,
+        names_glue={"{.value}{ifelse(lag_amount != '', '_', '')}{lag_amount}"} # don't have an extra '_' at end if there was no lag for that row
       )
+
+    if (length(extra_cols) > 0) {
+      # add back any extra columns not used in the pivot_wider
+      extra_col_vals <- extra_col_vals[,!(colnames(extra_col_vals) %in% colnames(points))]
+      points <- points %>% dplyr::bind_cols(
+        extra_col_vals
+      )
+    }
   }
   # remove columns with all NA values
   points <- points %>%
     dplyr::select(dplyr::where(function(x) any(!is.na(x))))
 
-  print(
-    paste0(
-      'Check the output directory (',
-      out_dir,
-      ') for csv files with your extracted points.'
+  if (!is.na(out_filename)) {
+    out_path <- file.path(out_dir, out_filename)
+    message(paste('Saving to shapefile at', out_path))
+    sf::st_write(points, out_path)
+    message(
+      paste0(
+        'Check the output directory (',
+        out_dir,
+        ') for your saved shapefile with your extracted points.'
+      )
     )
-  )
+  }
+
+  message('Fetched!')
 
   return(points)
 }
