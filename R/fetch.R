@@ -20,6 +20,7 @@ fetch <- function(
     use_cache=TRUE,
     out_dir=file.path('./output/'),
     out_filename=paste0('output_', format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), '.gpkg'),
+    overwrite=TRUE,
     cache_dir=file.path(out_dir, 'cache/'),
     .time_rep=NA
 ) {
@@ -31,6 +32,7 @@ fetch <- function(
   col_names_used_in_func <- c('time_column', 'geometry')
 
   if (length(.time_rep) > 1) {
+    original_points <- points
     # generate all time lag intervals we want to extract data for
     points <- points %>%
       create_time_lags(n_lag_range=c(.time_rep$n_before, .time_rep$n_after), time_lag=.time_rep$interval) %>%
@@ -38,7 +40,7 @@ fetch <- function(
     col_names_used_in_func <- c(col_names_used_in_func, 'original_time_column', 'lag_amount')
   }
 
-  extra_cols <- colnames(points)
+  extra_cols <- colnames(original_points)
   extra_cols <- extra_cols[!(extra_cols %in% col_names_used_in_func)]
 
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
@@ -82,7 +84,8 @@ fetch <- function(
     # now take those time lagged points and set them as columns for their
     # original point
     cols_to_get_vals_from <- colnames(points)[!(colnames(points) %in% c(extra_cols, col_names_used_in_func))]
-    extra_col_vals <- points %>% dplyr::select(c(extra_cols))
+    extra_col_vals <- original_points %>% dplyr::select(c(extra_cols)) %>%
+      sf::st_drop_geometry()
     points <- points %>%
       dplyr::select(-c(extra_cols, 'time_column')) %>%
       tidyr::pivot_wider(
@@ -93,7 +96,9 @@ fetch <- function(
 
     if (length(extra_cols) > 0) {
       # add back any extra columns not used in the pivot_wider
-      extra_col_vals <- extra_col_vals[,!(colnames(extra_col_vals) %in% colnames(points))]
+      extra_col_vals <- extra_col_vals %>% dplyr::select(
+        colnames(extra_col_vals)[!(colnames(extra_col_vals) %in% colnames(points))]
+      )
       points <- points %>% dplyr::bind_cols(
         extra_col_vals
       )
@@ -106,7 +111,7 @@ fetch <- function(
   if (!is.na(out_filename)) {
     out_path <- file.path(out_dir, out_filename)
     message(paste('Saving to shapefile at', out_path))
-    sf::st_write(points, out_path)
+    sf::st_write(points, out_path, append=ifelse(overwrite, FALSE, NA))
     message(
       paste0(
         'Check the output directory (',
