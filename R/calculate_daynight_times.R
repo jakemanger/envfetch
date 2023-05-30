@@ -9,7 +9,7 @@
 #' @return Time in specified units where time periods overlap
 #'
 #' @examples
-time_in_period <- function(
+calculate_daynight_times <- function(
     period1_start,
     period1_finish,
     period2_start,

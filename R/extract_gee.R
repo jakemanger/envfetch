@@ -9,13 +9,16 @@
 #' @param scale
 #' @param time_buffer
 #' @param time_summarise_fun
+#' @param debug
+#' @param use_gcs
+#' @param use_drive
 #'
 #' @return
 #' @export
 #'
 #' @examples
-extract_gee <- function(points, collection_name, bands, scale=250, time_buffer=16, time_summarise_fun='last', debug=FALSE) {
-  rgee::ee_Initialize(gcs = FALSE, drive = TRUE)
+extract_gee <- function(points, collection_name, bands, scale=250, time_buffer=16, time_summarise_fun='last', debug=FALSE, use_gcs=FALSE, use_drive=FALSE) {
+  rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
   message('Loading sf object on earth engine...')
   pts <- sf::st_geometry(points)[!duplicated(sf::st_geometry(points))]

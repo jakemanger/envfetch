@@ -11,11 +11,13 @@ extract_gee(
   scale = 250,
   time_buffer = 16,
   time_summarise_fun = "last",
-  debug = FALSE
+  debug = FALSE,
+  use_gcs = FALSE,
+  use_drive = FALSE
 )
 }
 \arguments{
-\item{time_summarise_fun}{}
+\item{use_drive}{}
 }
 \description{
 Use google earth engine to extract your chosen image collection bands
