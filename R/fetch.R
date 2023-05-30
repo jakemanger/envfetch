@@ -43,6 +43,9 @@ fetch <- function(
   extra_cols <- colnames(original_points)
   extra_cols <- extra_cols[!(extra_cols %in% col_names_used_in_func)]
 
+  # remove unnecessary columns so caching can work here and to make things work faster
+  points <- points %>% dplyr::select(-c(extra_cols))
+
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
   hash <- rlang::hash(points)
 
