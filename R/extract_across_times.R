@@ -1,9 +1,3 @@
-# set the gdalCache size to 30000 MB
-# as opposed to the default 1632 MB
-# so it can run much faster
-terra::gdalCache(30000)
-terra::terraOptions(memfrac=0.9, progress=1)
-
 #' Extract across times
 #'
 #' @param points an sf object with the columns "time_column" and "geometry" describing
@@ -17,7 +11,15 @@ terra::terraOptions(memfrac=0.9, progress=1)
 #' @export
 #'
 #' @examples
-extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, method='simple', debug=FALSE) {
+extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, method='simple', debug=FALSE, override_terraoptions=TRUE) {
+  if (override_terraOptions) {
+    # set the gdalCache size to 30000 MB
+    # as opposed to the default 1632 MB
+    # so it can run much faster
+    terra::gdalCache(30000)
+    terra::terraOptions(memfrac=0.9, progress=1)
+  }
+
   message('Loading raster file')
   r <- terra::rast(r)
   if (extract_all_times_at_start) {
