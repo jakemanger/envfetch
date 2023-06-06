@@ -80,18 +80,24 @@ extract_across_times <- function(points, r, summarise_fun=function(x) {mean(x, n
 
   points[, new_col_names] <- NA
 
-  for (i in 1:nrow(points)) {
-    mn = lubridate::int_start(points$time_column[i])
-    mx = lubridate::int_end(points$time_column[i])
-    for (col_name in new_col_names) {
-      col_names_to_summarise <-
-        tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
-      cols_to_summarise <-
-        colnames(extracted) %in% nms[col_names_to_summarise]
-      points[i, col_name] <-
-        summarise_fun(as.numeric(extracted[i, cols_to_summarise]))
+  progressr::with_progress({
+    p <- progressr::progressor(steps=nrow(points))
+    for (i in 1:nrow(points)) {
+      mn = lubridate::int_start(points$time_column[i])
+      mx = lubridate::int_end(points$time_column[i])
+      for (col_name in new_col_names) {
+        col_names_to_summarise <-
+          tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
+        cols_to_summarise <-
+          colnames(extracted) %in% nms[col_names_to_summarise]
+        points[i, col_name] <-
+          summarise_fun(as.numeric(extracted[i, cols_to_summarise]))
+      }
+      p()
     }
-  }
+
+  })
+
 
   return(points)
 }
