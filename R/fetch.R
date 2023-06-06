@@ -50,7 +50,7 @@ fetch <- function(
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
   hash <- rlang::hash(points)
 
-  # capture the supplied as arguments
+  # capture the supplied ... arguments
   args <- c(...)
 
   # remove elements that aren't functions and raise a warning if any are
