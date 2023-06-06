@@ -40,15 +40,8 @@ extract_across_times <- function(points, r, summarise_fun=function(x) {mean(x, n
   }
 
   message('Finding relevant time slices')
-  dates_within_intervals <- sapply(
-    time_intervals,
-    function(interval) lubridate::`%within%`(dates, interval)
-  )
+  relevant_indices <- lubridate::`%within%`(dates, time_intervals)
 
-  # the result is a logical matrix where each row corresponds to a date and each column corresponds to an interval.
-  # an element of the matrix is TRUE if the date falls within the interval, and FALSE otherwise.
-  # to get a single logical vector indicating whether each date falls within any interval, we use the rowSums() function:
-  relevant_indices <- rowSums(dates_within_intervals) > 0
   # pad these values, so that data before and after can be used in your summarisation function
   relevant_indices <- pad_true(relevant_indices)
 
