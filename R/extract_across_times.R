@@ -137,25 +137,28 @@ extract_without_overusing_ram <- function(x, y) {
     chunk_size <- ceiling(length(times) / num_chunks)
     message(paste('Splitting job into', num_chunks, 'chunks'))
 
-    p <- progressr::progressor(steps = num_chunks)
+    progressr::with_progress({
+      p <- progressr::progressor(steps = num_chunks)
 
-    # initialize list to hold chunks
-    r_chunks <- vector("list", num_chunks)
+      # initialize list to hold chunks
+      r_chunks <- vector("list", num_chunks)
 
-    # divide raster into chunks
-    for (i in seq_len(num_chunks)) {
-      start_time <- times[((i - 1) * chunk_size) + 1]
-      end_time <- times[min(i * chunk_size, length(times))]
-      r_chunks[[i]] <- x[[which(times >= start_time & times <= end_time)]]
-    }
+      # divide raster into chunks
+      for (i in seq_len(num_chunks)) {
+        start_time <- times[((i - 1) * chunk_size) + 1]
+        end_time <- times[min(i * chunk_size, length(times))]
+        r_chunks[[i]] <- x[[which(times >= start_time & times <= end_time)]]
+      }
 
-    # perform extraction on each chunk and combine results
-    extracted <- do.call(rbind, lapply(r_chunks, function(chunk) {
-      ex <- terra::extract(x = chunk, y = y)
-      # update progress bar after each extraction
-      p(message = sprintf("Completed extraction on chunk %d of %d", i, num_chunks))
-      return(ex)
-    }))
+      # perform extraction on each chunk and combine results
+      extracted <- do.call(rbind, lapply(r_chunks, function(chunk) {
+        ex <- terra::extract(x = chunk, y = y)
+        # update progress bar after each extraction
+        p(message = sprintf("Completed extraction on chunk %d of %d", i, num_chunks))
+        return(ex)
+      }))
+      }
+    )
   } else {
     # perform extraction normally if raster fits in RAM
     extracted <- terra::extract(x = x, y = y)
