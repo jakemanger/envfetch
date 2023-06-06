@@ -25,6 +25,7 @@ fetch <- function(
     .time_rep=NA
 ) {
   message('Fetching your data... 🥏 🐕')
+  progressr::handlers('progress')
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
@@ -63,6 +64,7 @@ fetch <- function(
 
   # loop through the supplied functions
   outs <- lapply(funcs, function(fun) {
+    fun_string <- paste(as.character(fun), collapse='')
     # convert the formula to a function if it is a formula
     fun <- purrr::as_mapper(fun)
 
@@ -74,8 +76,12 @@ fetch <- function(
       out <- fun(points)
       out <- out[,!(colnames(out) %in% colnames(points))]
       out <- sf::st_drop_geometry(out)
-      saveRDS(out, outpath)
+      message(paste('🐶 Completed', fun_string))
+
+      if (use_cache)
+        saveRDS(out, outpath)
     } else {
+      message(paste('🕳️🦴 Dug up cached result of', fun_string))
       out <- readRDS(outpath)
     }
     return(out)

@@ -2,7 +2,7 @@
 # as opposed to the default 1632 MB
 # so it can run much faster
 terra::gdalCache(30000)
-terra::terraOptions(memfrac=0.9)
+terra::terraOptions(memfrac=0.9, progress=1)
 
 #' Extract across times
 #'
@@ -18,6 +18,7 @@ terra::terraOptions(memfrac=0.9)
 #'
 #' @examples
 extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, method='simple', debug=FALSE) {
+  message('Loading raster file')
   r <- terra::rast(r)
   if (extract_all_times_at_start) {
     dates <- terra::time(r)
@@ -38,11 +39,14 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, m
 
     r_within_time <-
       r[[which(dates >= min_time & dates <= max_time)]]
+
     nms <- names(r_within_time)
     tms <- terra::time(r_within_time)
 
-    extracted <- terra::extract(x = r_within_time,
-                                y = points)
+    extracted <- extract_without_overusing_ram(
+      x = r_within_time,
+      y = points
+    )
 
     if (debug) {
       message('Creating debug plot')
@@ -108,4 +112,55 @@ extract_across_times <- function(points, r, extract_all_times_at_start = TRUE, m
   }
 
   return(points)
+}
+
+extract_without_overusing_ram <- function(x, y) {
+  mem_info_func <- purrr::quietly(terra::mem_info)
+  mem_info <- mem_info_func(x)$result
+  ram_required <- mem_info['needed']
+  ram_available <- mem_info['available']
+
+  message(
+    paste(
+      ram_required,
+      'Kbs of RAM is required for extraction and',
+      ram_available,
+      'Kbs of RAM is available'
+    )
+  )
+
+  if (ram_required > ram_available) {
+    # split raster into chunks based on available RAM
+    times <- terra::time(x)
+
+    num_chunks <- ceiling(ram_required / ram_available)
+    chunk_size <- ceiling(length(times) / num_chunks)
+    message(paste('Splitting job into', num_chunks, 'chunks'))
+
+    p <- progressr::progressor(steps = num_chunks)
+
+    # initialize list to hold chunks
+    r_chunks <- vector("list", num_chunks)
+
+    # divide raster into chunks
+    for (i in seq_len(num_chunks)) {
+      start_time <- times[((i - 1) * chunk_size) + 1]
+      end_time <- times[min(i * chunk_size, length(times))]
+      r_chunks[[i]] <- x[[which(times >= start_time & times <= end_time)]]
+    }
+
+    # perform extraction on each chunk and combine results
+    extracted <- do.call(rbind, lapply(r_chunks, function(chunk) {
+      ex <- terra::extract(x = chunk, y = y)
+      # update progress bar after each extraction
+      p(message = sprintf("Completed extraction on chunk %d of %d", i, num_chunks))
+      return(ex)
+    }))
+  } else {
+    # perform extraction normally if raster fits in RAM
+    extracted <- terra::extract(x = x, y = y)
+  }
+  message('Completed extraction')
+
+  return(extracted)
 }
