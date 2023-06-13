@@ -148,7 +148,7 @@ extract_without_overusing_ram <- function(x, y) {
       extractions <- lapply(r_chunks, function(chunk) {
         ex <- terra::extract(x = chunk, y = y)
         # update progress bar after each extraction
-        p(message = sprintf("Completed extraction on chunk %d of %d", i, num_chunks))
+        p()
         return(ex)
       })
       # perform extraction on each chunk and combine results
