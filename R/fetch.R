@@ -92,7 +92,6 @@ fetch <- function(
   points <- dplyr::bind_cols(c(points, outs))
 
   if (length(.time_rep) > 1) {
-    browser()
     # now take those time lagged points and set them as columns for their
     # original point
     cols_to_get_vals_from <- colnames(points)[!(colnames(points) %in% c(extra_cols, col_names_used_in_func))]

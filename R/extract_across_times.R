@@ -12,11 +12,19 @@
 #' @export
 #'
 #' @examples
-extract_across_times <- function(points, r, summarise_fun=function(x) {mean(x, na.rm=TRUE)}, time_buffer=lubridate::days(0), debug=FALSE, override_terraOptions=TRUE) {
+extract_across_times <- function(
+  points,
+  r,
+  summarise_fun=function(x) {mean(x, na.rm=TRUE)},
+  time_buffer=lubridate::days(0),
+  debug=FALSE,
+  override_terraOptions=TRUE,
+  chunk=TRUE
+) {
   if (override_terraOptions) {
     # set the gdalCache size to 30000 MB
     # as opposed to the default 1632 MB
-    # so it can run much faster
+    # so it can run much faster with big files
     terra::gdalCache(30000)
     terra::terraOptions(memfrac=0.9, progress=1)
   }
@@ -40,7 +48,8 @@ extract_across_times <- function(points, r, summarise_fun=function(x) {mean(x, n
   }
 
   message('Finding relevant time slices')
-  relevant_indices <- lubridate::`%within%`(dates, time_intervals)
+  # relevant_indices <- lubridate::`%within%`(dates, time_intervals)
+  relevant_indices <- sapply(dates, function(date) any(lubridate::`%within%`(date, time_intervals)))
 
   # pad these values, so that data before and after can be used in your summarisation function
   relevant_indices <- pad_true(relevant_indices)
@@ -54,7 +63,8 @@ extract_across_times <- function(points, r, summarise_fun=function(x) {mean(x, n
 
   extracted <- extract_without_overusing_ram(
     x = r_within_time,
-    y = points
+    y = points,
+    chunk = chunk
   )
 
   if (debug) {
@@ -109,7 +119,7 @@ pad_true <- function(vec) {
   return(vec)
 }
 
-extract_without_overusing_ram <- function(x, y) {
+extract_without_overusing_ram <- function(x, y, chunk=TRUE) {
   mem_info_func <- purrr::quietly(terra::mem_info)
   mem_info <- mem_info_func(x)$result
   ram_required <- mem_info['needed']
@@ -124,7 +134,7 @@ extract_without_overusing_ram <- function(x, y) {
     )
   )
 
-  if (ram_required > ram_available) {
+  if (chunk == TRUE && ram_required > ram_available) {
     # split raster into chunks based on available RAM
     times <- terra::time(x)
 
