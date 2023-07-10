@@ -160,6 +160,6 @@ rep_extracted <- d |>
        bands=c('NDVI', 'DetailedQA'),
        time_buffer=16,
      ),
-    .time_rep=time_rep(interval=lubridate::days(14), n_start=-13),
+    .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
   )
 ```

@@ -35,7 +35,7 @@ get_time_since_sunrise <- function(
     lon
 ) {
   start_date <- as_date(start)
-  times <- getSunlightTimes(start_date, lat=lat, lon=lon, tz='UTC')
+  times <- suncalc::getSunlightTimes(start_date, lat=lat, lon=lon, tz='UTC')
   return(difftime(start, times$sunrise))
 }
 
@@ -46,7 +46,7 @@ get_time_since_sunset <- function(
 ) {
   start_date <- as_date(start)
   get
-  times <- getSunlightTimes(start_date, lat=lat, lon=lon, tz='UTC')
+  times <- suncalc::getSunlightTimes(start_date, lat=lat, lon=lon, tz='UTC')
   return(difftime(start, times$sunset))
 }
 
@@ -65,8 +65,8 @@ get_day_night_hours <- function(
   for (i in 1:length(dates)) {
     date <- dates[i]
     # get the sunrise and sunset times for those days
-    yesterday_times <- getSunlightTimes(date-1, lat=lat, lon=lon, tz='UTC')
-    times <- getSunlightTimes(date, lat=lat, lon=lon, tz='UTC')
+    yesterday_times <- suncalc::getSunlightTimes(date-1, lat=lat, lon=lon, tz='UTC')
+    times <- suncalc::getSunlightTimes(date, lat=lat, lon=lon, tz='UTC')
     new_night <- time_in_period(start, finish, yesterday_times$sunset, times$sunrise)
     new_day <- time_in_period(start, finish, times$sunrise, times$sunset)
     nights <- append(nights, new_night)
