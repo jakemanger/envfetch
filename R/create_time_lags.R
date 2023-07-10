@@ -46,9 +46,8 @@ create_time_lags <- function(
       lag_amount,
       rep(
         paste(
-          as.numeric(lubridate::as.period(min)) / (as.numeric(lubridate::days(1))),
-          '-',
-          as.numeric(lubridate::as.period(max)) / (as.numeric(lubridate::days(1))),
+          abs(as.numeric(lubridate::as.period(min)) / (as.numeric(lubridate::days(1)))),
+          abs(as.numeric(lubridate::as.period(max)) / (as.numeric(lubridate::days(1)))),
           sep='_'
         ),
         length(times_to_lag)
