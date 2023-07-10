@@ -73,23 +73,36 @@ extract_gee <- function(
         lazy = FALSE,
         sf = TRUE
       )
+
+      # use this to make sure the correct columns
+      # are sampled below
+      temp[is.na(temp)] <- 'No data'
       return(temp)
     })
 
     temp <- dplyr::bind_rows(temps)
+    # nas are created by bind rows without the same number of columns,
+    # so we use this string trick to make sure we don't mix up no data with
+    # NAs introduced by bind_rows
+    temp[is.na(temp)] <- 'No sample'
+    temp_no_geom <- temp %>% sf::st_drop_geometry()
+    temp_no_geom[temp_no_geom=='No data'] <- NA
+    sf::st_geometry(temp_no_geom) <- sf::st_geometry(temp)
+    temp <- temp_no_geom
   })
 
   # return to original order
-  temp <- temp[order(pts$original_order),]
-  pts <- pts[order(pts$original_order),]
+  changed_order <- pts_chunks %>% bind_rows() %>% sf::st_drop_geometry() %>% select('original_order')
+  pts <- pts[changed_order$original_order,]
+  points <- NULL # to avoid accidentally using this in future
 
   if (ncol(temp) == 2) {
     warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
   }
 
   if (debug) {
-    missing_some_data <- apply(is.na(sf::st_drop_geometry(temp %>% dplyr::select(-c('id')))), 1, any)
-    missing_all_data <- apply(is.na(sf::st_drop_geometry(temp %>% dplyr::select(-c('id')))), 1, all)
+    missing_some_data <- apply(is.na(sf::st_drop_geometry(temp)), 1, any)
+    missing_all_data <- apply(is.na(sf::st_drop_geometry(temp)), 1, all)
     temp$missing_status <- dplyr::if_else(
       missing_all_data,
       'All missing',
@@ -114,44 +127,40 @@ extract_gee <- function(
 
   new_col_names <- unique(nms)
 
-  points[, new_col_names] <- NA
-  points_geom <- sf::st_geometry(points) %>% sf::st_coordinates()
+  pts[, new_col_names] <- NA
+  # pts_geom <- sf::st_geometry(pts) %>% sf::st_coordinates()
 
   progressr::with_progress({
-    p <- progressr::progressor(steps = nrow(points))
+    p <- progressr::progressor(steps = nrow(pts))
 
-    for (i in 1:nrow(points)) {
-      mn = lubridate::int_start(points$time_column[i])
-      mx = lubridate::int_end(points$time_column[i])
+    for (i in 1:nrow(pts)) {
+      mn = lubridate::int_start(pts$time_column[i])
+      mx = lubridate::int_end(pts$time_column[i])
 
       for (col_name in new_col_names) {
+        row_times <- tms[nms == col_name]
+        row_values <- temp_for_indxing[i, nms == col_name]
+        row_times <- row_times[row_values != 'No sample']
+        row_values <- row_values[row_values != 'No sample']
 
-        if (time_summarise_fun == 'mean') {
-          col_names_to_summarise <-
-            tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
-          cols_to_summarise <-
-            colnames(temp_for_indxing) %in% nms[col_names_to_summarise]
-          points[i, col_name] <-
-            mean(as.numeric(temp_for_indxing[i, cols_to_summarise]), na.rm = TRUE)
-
-        } else if (time_summarise_fun == 'last') {
-          col_names_to_summarise <- tms == tms[find_closest_date(tms, mn, find_closest_previous=TRUE)] & nms == col_name
-          value <- temp_for_indxing[i, col_names_to_summarise]
+        if (time_summarise_fun == 'last') {
+          last_index <- find_closest_date(row_times, mn, find_closest_previous=TRUE)
+          value <- row_values[last_index]
           if (length(value) == 0) {
+            browser()
             stop('last value not found in extracted data. Increase your time_buffer to get a correct result')
           }
-          points[i, col_name] <- value
+          pts[i, col_name] <- value
         } else {
-          stop('time_summarise_fun not implemented.')
+          pts[i, col_name] <- summarisation_fun(row_values)
         }
-
       }
       p()
     }
 
   })
 
-  return(points)
+  return(pts)
 }
 
 find_closest_date <- function(dates, x, find_closest_previous=TRUE) {
