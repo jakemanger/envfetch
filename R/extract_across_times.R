@@ -47,12 +47,11 @@ extract_across_times <- function(
     stop('All requested data are after maximum time in data source')
   }
 
+  # trim r and dates exteriors before finding time slices for speed
   message('Finding relevant time slices')
-  # relevant_indices <- lubridate::`%within%`(dates, time_intervals)
-  relevant_indices <- sapply(dates, function(date) any(lubridate::`%within%`(date, time_intervals)))
-
-  # pad these values, so that data before and after can be used in your summarisation function
-  relevant_indices <- pad_true(relevant_indices)
+  r <- r[[dates <= max_time & dates >= min_time]]
+  dates <- terra::time(r)
+  relevant_indices <- find_relevant_time_slices(dates, time_intervals)
 
   message('Extracting data points...')
 
@@ -172,3 +171,16 @@ extract_without_overusing_ram <- function(x, y, chunk=TRUE) {
 
   return(extracted)
 }
+
+find_relevant_time_slices <- function(dates, time_intervals) {
+  unique_time_intervals <- unique(time_intervals)
+  relevant_indices <- sapply(
+    dates,
+    function(date) any(lubridate::`%within%`(date, unique_time_intervals))
+  )
+  # pad these values, so that data before and after can be used in the
+  # summarisation function
+  relevant_indices <- pad_true(relevant_indices)
+  return(relevant_indices)
+}
+
