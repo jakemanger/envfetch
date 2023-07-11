@@ -12,11 +12,19 @@
 #' @export
 #'
 #' @examples
-extract_across_times <- function(points, r, summarise_fun=function(x) {mean(x, na.rm=TRUE)}, time_buffer=lubridate::days(0), debug=FALSE, override_terraOptions=TRUE) {
+extract_across_times <- function(
+  points,
+  r,
+  summarise_fun=function(x) {mean(x, na.rm=TRUE)},
+  time_buffer=lubridate::days(0),
+  debug=FALSE,
+  override_terraOptions=TRUE,
+  chunk=TRUE
+) {
   if (override_terraOptions) {
     # set the gdalCache size to 30000 MB
     # as opposed to the default 1632 MB
-    # so it can run much faster
+    # so it can run much faster with big files
     terra::gdalCache(30000)
     terra::terraOptions(memfrac=0.9, progress=1)
   }
@@ -39,11 +47,11 @@ extract_across_times <- function(points, r, summarise_fun=function(x) {mean(x, n
     stop('All requested data are after maximum time in data source')
   }
 
+  # trim r and dates exteriors before finding time slices for speed
   message('Finding relevant time slices')
-  relevant_indices <- lubridate::`%within%`(dates, time_intervals)
-
-  # pad these values, so that data before and after can be used in your summarisation function
-  relevant_indices <- pad_true(relevant_indices)
+  r <- r[[dates <= max_time & dates >= min_time]]
+  dates <- terra::time(r)
+  relevant_indices <- find_relevant_time_slices(dates, time_intervals)
 
   message('Extracting data points...')
 
@@ -54,7 +62,8 @@ extract_across_times <- function(points, r, summarise_fun=function(x) {mean(x, n
 
   extracted <- extract_without_overusing_ram(
     x = r_within_time,
-    y = points
+    y = points,
+    chunk = chunk
   )
 
   if (debug) {
@@ -109,7 +118,7 @@ pad_true <- function(vec) {
   return(vec)
 }
 
-extract_without_overusing_ram <- function(x, y) {
+extract_without_overusing_ram <- function(x, y, chunk=TRUE) {
   mem_info_func <- purrr::quietly(terra::mem_info)
   mem_info <- mem_info_func(x)$result
   ram_required <- mem_info['needed']
@@ -124,7 +133,7 @@ extract_without_overusing_ram <- function(x, y) {
     )
   )
 
-  if (ram_required > ram_available) {
+  if (chunk == TRUE && ram_required > ram_available) {
     # split raster into chunks based on available RAM
     times <- terra::time(x)
 
@@ -148,7 +157,7 @@ extract_without_overusing_ram <- function(x, y) {
       extractions <- lapply(r_chunks, function(chunk) {
         ex <- terra::extract(x = chunk, y = y)
         # update progress bar after each extraction
-        p(message = sprintf("Completed extraction on chunk %d of %d", i, num_chunks))
+        p()
         return(ex)
       })
       # perform extraction on each chunk and combine results
@@ -162,3 +171,16 @@ extract_without_overusing_ram <- function(x, y) {
 
   return(extracted)
 }
+
+find_relevant_time_slices <- function(dates, time_intervals) {
+  unique_time_intervals <- unique(time_intervals)
+  relevant_indices <- sapply(
+    dates,
+    function(date) any(lubridate::`%within%`(date, unique_time_intervals))
+  )
+  # pad these values, so that data before and after can be used in the
+  # summarisation function
+  relevant_indices <- pad_true(relevant_indices)
+  return(relevant_indices)
+}
+

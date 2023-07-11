@@ -22,6 +22,7 @@ fetch <- function(
     out_filename=paste0('output_', format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), '.gpkg'),
     overwrite=TRUE,
     cache_dir=file.path(out_dir, 'cache/'),
+    time_column_name='time_column',
     .time_rep=NA
 ) {
   message('Fetching your data... 🥏 🐕')
@@ -29,6 +30,8 @@ fetch <- function(
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
+
+  points$time_column <- points %>% parse_time_column(time_column_name)
 
   col_names_used_in_func <- c('time_column', 'geometry')
 
@@ -119,7 +122,16 @@ fetch <- function(
   if (!is.na(out_filename)) {
     out_path <- file.path(out_dir, out_filename)
     message(paste('Saving to shapefile at', out_path))
-    sf::st_write(points, out_path, append=ifelse(overwrite, FALSE, NA))
+    if (overwrite && file.exists(out_path)) {
+      file.remove(out_path)
+    }
+    if (getFileExtension(out_path) == 'csv') {
+      # user probably wants x and y coordinates and this stuffs up with csv as
+      # commas are used in the default output geometry column
+      sf::st_write(points, out_path, append=ifelse(overwrite, FALSE, NA), layer_options = "GEOMETRY=AS_XY")
+    } else {
+      sf::st_write(points, out_path, append=ifelse(overwrite, FALSE, NA))
+    }
     message(
       paste0(
         'Check the output directory (',
@@ -132,4 +144,9 @@ fetch <- function(
   message('Fetched!')
 
   return(points)
+}
+
+getFileExtension <- function(file) {
+  splt <- strsplit(file, ".", fixed=T)[[1]][]
+  return(splt[length(splt)])
 }

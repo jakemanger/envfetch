@@ -26,9 +26,12 @@ create_time_lags <- function(
   new_time_column <- lubridate::interval()
   lag_amount <- c()
 
-  for (lag in n_lag_range[1]:n_lag_range[2]) {
-    max <- time_lag * lag
-    min <- time_lag * (lag-1)
+  start_range <- seq(n_lag_range[1], n_lag_range[2], by = 1)
+  start_range <- start_range[1:length(start_range)-1]
+
+  for (start in start_range) {
+    min <- start * time_lag
+    max <- (start + 1) * time_lag
     new_time_column <- c(
       new_time_column,
       lubridate::interval(
@@ -43,9 +46,9 @@ create_time_lags <- function(
       lag_amount,
       rep(
         paste(
-          as.numeric(lubridate::as.period(min)) / (as.numeric(lubridate::days(1))),
-          '-',
-          as.numeric(lubridate::as.period(max)) / (as.numeric(lubridate::days(1)))
+          abs(as.numeric(lubridate::as.period(min)) / (as.numeric(lubridate::days(1)))),
+          abs(as.numeric(lubridate::as.period(max)) / (as.numeric(lubridate::days(1)))),
+          sep='_'
         ),
         length(times_to_lag)
       )
@@ -54,7 +57,6 @@ create_time_lags <- function(
 
   x$original_time_column <- x$time_column
   x$lag_amount <- ''
-
 
   d <- x %>% dplyr::add_row(
     geometry = new_geometries_column,
