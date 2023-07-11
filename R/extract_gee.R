@@ -37,14 +37,13 @@ extract_gee <- function(
 ) {
   rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
-  pts <- points
-  pts$original_order <- 1:nrow(pts)  # use a id column to return array back to original order
+  points$original_order <- 1:nrow(points)  # use a id column to return array back to original order
 
   # chunk incorporating the start date of intervals to ensure efficient memory usage on gee's end
   # otherwise, gee will need to extract raster data from the full time range of
   # the dataset
-  pts$start_time <- as.Date(lubridate::int_start(pts$time_column))
-  pts_chunks <- split_time_chunks(pts, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
+  points$start_time <- as.Date(lubridate::int_start(points$time_column))
+  pts_chunks <- split_time_chunks(points, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
 
   progressr::with_progress({
     p <- progressr::progressor(steps = length(pts_chunks)*3)
@@ -89,12 +88,14 @@ extract_gee <- function(
     temp_no_geom[temp_no_geom=='No data'] <- NA
     sf::st_geometry(temp_no_geom) <- sf::st_geometry(temp)
     temp <- temp_no_geom
+    temp_no_geom <- NULL
   })
 
   # return to original order
   changed_order <- pts_chunks %>% bind_rows() %>% sf::st_drop_geometry() %>% select('original_order')
-  pts <- pts[changed_order$original_order,]
-  points <- NULL # to avoid accidentally using this in future
+  points <- points[changed_order$original_order,]
+  # remove unnecessary columns
+  points <- points %>% dplyr::select(-c('original_order', 'start_time'))
 
   if (ncol(temp) == 2) {
     warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
@@ -119,7 +120,6 @@ extract_gee <- function(
 
   message('Summarising extracted data over specified times')
 
-  geometry <- temp %>% sf::st_geometry() %>% sf::st_coordinates()
   temp_for_indxing <- temp[,stringr::str_starts(colnames(temp), 'X')] %>% sf::st_drop_geometry()
   clnames <- colnames(temp_for_indxing)
   tms <- as.Date(unlist(lapply(clnames, get_date_from_gee_colname)))
@@ -127,15 +127,14 @@ extract_gee <- function(
 
   new_col_names <- unique(nms)
 
-  pts[, new_col_names] <- NA
-  # pts_geom <- sf::st_geometry(pts) %>% sf::st_coordinates()
+  points[, new_col_names] <- NA
 
   progressr::with_progress({
-    p <- progressr::progressor(steps = nrow(pts))
+    p <- progressr::progressor(steps = nrow(points))
 
-    for (i in 1:nrow(pts)) {
-      mn = lubridate::int_start(pts$time_column[i])
-      mx = lubridate::int_end(pts$time_column[i])
+    for (i in 1:nrow(points)) {
+      mn = lubridate::int_start(points$time_column[i])
+      mx = lubridate::int_end(points$time_column[i])
 
       for (col_name in new_col_names) {
         row_times <- tms[nms == col_name]
@@ -150,9 +149,9 @@ extract_gee <- function(
             browser()
             stop('last value not found in extracted data. Increase your time_buffer to get a correct result')
           }
-          pts[i, col_name] <- value
+          points[i, col_name] <- value
         } else {
-          pts[i, col_name] <- summarisation_fun(row_values)
+          points[i, col_name] <- summarisation_fun(row_values)
         }
       }
       p()
@@ -160,7 +159,7 @@ extract_gee <- function(
 
   })
 
-  return(pts)
+  return(points)
 }
 
 find_closest_date <- function(dates, x, find_closest_previous=TRUE) {
