@@ -8,7 +8,7 @@
 #' @param bands
 #' @param scale
 #' @param time_buffer
-#' @param time_summarise_fun
+#' @param summarise_fun
 #' @param debug
 #' @param use_gcs
 #' @param use_drive
@@ -25,7 +25,7 @@ extract_gee <- function(
   bands,
   scale=250,
   time_buffer=lubridate::days(20),
-  time_summarise_fun='last',
+  summarise_fun='last',
   debug=FALSE,
   initialise_gee=TRUE,
   use_gcs=FALSE,
@@ -151,8 +151,9 @@ extract_gee <- function(
         row_values <- temp_for_indxing[i, nms == col_name]
         row_times <- row_times[row_values != 'No sample']
         row_values <- row_values[row_values != 'No sample']
+        row_values <- as.numeric(row_values)
 
-        if (time_summarise_fun == 'last') {
+        if (is.character(summarise_fun) && summarise_fun == 'last') {
           last_index <- find_closest_datetime(row_times, mn, find_closest_previous=TRUE)
           value <- row_values[last_index]
           if (length(value) == 0) {
@@ -160,7 +161,8 @@ extract_gee <- function(
           }
           points[i, col_name] <- value
         } else {
-          points[i, col_name] <- summarisation_fun(row_values)
+          index <- lubridate::`%within%`(row_times, points$time_column[i])
+          points[i, col_name] <- summarise_fun(row_values[index])
         }
       }
       p()
@@ -187,7 +189,6 @@ find_closest_datetime <- function(dates, x, find_closest_previous=TRUE) {
     return(which(abs(dates-x) == min(abs(dates - x))))
   }
 }
-
 
 get_date_from_gee_colname <- function(my_string) {
   if (!stringr::str_starts(my_string, 'X'))
