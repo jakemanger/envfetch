@@ -10,6 +10,9 @@ test_that("correct_results_returned_last", {
     ),
     crs=4326
   )
+
+  rgee::ee_Initialize()
+
   out <- points %>% fetch(
     ~extract_gee(
       .x,
@@ -47,6 +50,9 @@ test_that("correct_results_returned_mean", {
     ),
     crs=4326
   )
+
+  rgee::ee_Initialize()
+
   out <- points %>% fetch(
     ~extract_gee(
       .x,
