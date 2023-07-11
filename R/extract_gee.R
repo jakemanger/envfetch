@@ -41,6 +41,16 @@ extract_gee <- function(
 
   points$original_order <- 1:nrow(points)  # use a id column to return array back to original order
 
+  # sort the data by time for efficient processing
+  points <- points[order(as.Date(lubridate::int_start(points$time_column))),]
+
+  # convert points time column to UTC, as it is used by gee
+  time_column_after_sort <- points$time_column
+  points$time_column <- lubridate::interval(
+    with_tz(lubridate::int_start(points$time_column), 'UTC'),
+    with_tz(lubridate::int_end(points$time_column), 'UTC'),
+  )
+
   # chunk incorporating the start date of intervals to ensure efficient memory usage on gee's end
   # otherwise, gee will need to extract raster data from the full time range of
   # the dataset
@@ -55,52 +65,18 @@ extract_gee <- function(
       p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
 
       # get min and max dates from the points tibble
-      min_date <- as.character(as.Date(min(lubridate::int_start(chunk$time_column)) - time_buffer))
-      max_date <- as.character(as.Date(max(lubridate::int_end(chunk$time_column)) + time_buffer))
+      min_datetime <- min(lubridate::int_start(chunk$time_column)) - time_buffer
+      max_datetime <- max(lubridate::int_end(chunk$time_column)) + time_buffer
+      min_datetime <- format(min_datetime, "%Y-%m-%dT%H:%M:%S")
+      max_datetime <- format(max_datetime, "%Y-%m-%dT%H:%M:%S")
 
       p(paste('Loading image collection object:', collection_name, 'with bands', paste(bands, collapse = ', ')))
 
-      info <- rgee::ee_print( rgee::ee$ImageCollection(collection_name))
-      if (info$img_time_start > min_date) {
-        stop(
-          paste0(
-            'Minimum date of ', min_date, ' in input is less than the',
-            ' minimum date of the image collection, ', collection_name,
-            '(', info$img_time_start, ')'
-          )
-        )
-      }
-      if (info$img_time_end < max_date) {
-        stop(
-          paste0(
-            'Maximum date of ', max_date, ' in input is more than the',
-            ' maximum date of the image collection, ', collection_name,
-            '(', info$img_time_end, ')'
-          )
-        )
-      }
-      if (info$img_time_end < min_date) {
-        stop(
-          paste0(
-            'Minimum date of ', min_date, ' in input is greater than the',
-            ' maximum date of the image collection, ', collection_name,
-            '(', info$img_time_end, ')'
-          )
-        )
-      }
-      if (info$img_time_start > max_date) {
-        stop(
-          paste0(
-            'Maximum date of ', max_date, ' in input is less than the',
-            ' minimum date of the image collection, ', collection_name,
-            '(', info$img_time_start, ')'
-          )
-        )
-      }
+      check_dataset(min_datetime, max_datetime, collection_name)
 
       ic <- rgee::ee$ImageCollection(collection_name)$
         filterBounds(p_feature)$
-        filterDate(min_date, max_date)$
+        filterDate(min_datetime, max_datetime)$
         select(bands)
 
       p('extracting...')
@@ -130,12 +106,6 @@ extract_gee <- function(
     temp <- temp_no_geom
     temp_no_geom <- NULL
   })
-
-  # return to original order
-  changed_order <- pts_chunks %>% bind_rows() %>% sf::st_drop_geometry() %>% select('original_order')
-  points <- points[changed_order$original_order,]
-  # remove unnecessary columns
-  points <- points %>% dplyr::select(-c('original_order', 'start_time'))
 
   if (ncol(temp) == 2) {
     warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
@@ -183,7 +153,7 @@ extract_gee <- function(
         row_values <- row_values[row_values != 'No sample']
 
         if (time_summarise_fun == 'last') {
-          last_index <- find_closest_date(row_times, mn, find_closest_previous=TRUE)
+          last_index <- find_closest_datetime(row_times, mn, find_closest_previous=TRUE)
           value <- row_values[last_index]
           if (length(value) == 0) {
             stop('last value not found in extracted data. Increase your time_buffer to get a correct result')
@@ -195,15 +165,21 @@ extract_gee <- function(
       }
       p()
     }
-
   })
+
+  # return points to its original order and assign back the time column
+  points$time_column <- time_column_after_sort
+  points <- points %>% arrange(original_order)
+
+  # remove unnecessary columns
+  points <- points %>% dplyr::select(-c('original_order', 'start_time'))
 
   return(points)
 }
 
-find_closest_date <- function(dates, x, find_closest_previous=TRUE) {
-  dates <- as.Date(dates)
-  x <- as.Date(x)
+find_closest_datetime <- function(dates, x, find_closest_previous=TRUE) {
+  dates <- as_datetime(dates)
+  x <- as_datetime(x)
   if (find_closest_previous) {
     # add filter to only include dates earlier than x
     return(which(abs(dates[dates < x]-x) == min(abs(dates[dates < x] - x))))
@@ -224,8 +200,6 @@ get_date_from_gee_colname <- function(my_string) {
 }
 
 split_time_chunks <- function(df, time_col='start_time', max_time_range, max_rows) {
-  # sort the data by time
-  df <- df[order(df[[time_col]]),]
 
   # initialize an empty list to hold the chunks
   list_of_dfs <- list()
@@ -248,4 +222,46 @@ split_time_chunks <- function(df, time_col='start_time', max_time_range, max_row
   }
 
   return(list_of_dfs)
+}
+
+check_dataset <- function(min_datetime, max_datetime, collection_name) {
+  date_info <- rgee::ee_get_date_ic(rgee::ee$ImageCollection(collection_name), time_end=TRUE)
+  min_date_on_rgee <- min(date_info$time_start)
+  max_date_on_rgee <- max(date_info$time_end)
+  if (min_date_on_rgee > min_datetime) {
+    stop(
+      paste0(
+        'Minimum date of ', min_datetime, ' in input is less than the',
+        ' minimum date of the image collection, ', collection_name,
+        '(', min_date_on_rgee, ')'
+      )
+    )
+  }
+  if (max_date_on_rgee < max_datetime) {
+    stop(
+      paste0(
+        'Maximum date of ', max_datetime, ' in input is more than the',
+        ' maximum date of the image collection, ', collection_name,
+        '(', max_date_on_rgee, ')'
+      )
+    )
+  }
+  if (max_date_on_rgee < min_datetime) {
+    stop(
+      paste0(
+        'Minimum date of ', min_datetime, ' in input is greater than the',
+        ' maximum date of the image collection, ', collection_name,
+        '(', max_date_on_rgee, ')'
+      )
+    )
+  }
+  if (min_date_on_rgee > max_datetime) {
+    stop(
+      paste0(
+        'Maximum date of ', max_datetime, ' in input is less than the',
+        ' minimum date of the image collection, ', collection_name,
+        '(', min_date_on_rgee, ')'
+      )
+    )
+  }
 }
