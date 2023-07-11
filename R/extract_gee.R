@@ -27,6 +27,7 @@ extract_gee <- function(
   time_buffer=lubridate::days(20),
   time_summarise_fun='last',
   debug=FALSE,
+  initialise_gee=TRUE,
   use_gcs=FALSE,
   use_drive=FALSE,
   max_chunk_time_day_range=128,
@@ -35,7 +36,8 @@ extract_gee <- function(
   cache_progress=TRUE,
   cache_dir='./'
 ) {
-  rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
+  if (initialise_gee)
+    rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
   points$original_order <- 1:nrow(points)  # use a id column to return array back to original order
 
@@ -57,6 +59,44 @@ extract_gee <- function(
       max_date <- as.character(as.Date(max(lubridate::int_end(chunk$time_column)) + time_buffer))
 
       p(paste('Loading image collection object:', collection_name, 'with bands', paste(bands, collapse = ', ')))
+
+      info <- rgee::ee_print( rgee::ee$ImageCollection(collection_name))
+      if (info$img_time_start > min_date) {
+        stop(
+          paste0(
+            'Minimum date of ', min_date, ' in input is less than the',
+            ' minimum date of the image collection, ', collection_name,
+            '(', info$img_time_start, ')'
+          )
+        )
+      }
+      if (info$img_time_end < max_date) {
+        stop(
+          paste0(
+            'Maximum date of ', max_date, ' in input is more than the',
+            ' maximum date of the image collection, ', collection_name,
+            '(', info$img_time_end, ')'
+          )
+        )
+      }
+      if (info$img_time_end < min_date) {
+        stop(
+          paste0(
+            'Minimum date of ', min_date, ' in input is greater than the',
+            ' maximum date of the image collection, ', collection_name,
+            '(', info$img_time_end, ')'
+          )
+        )
+      }
+      if (info$img_time_start > max_date) {
+        stop(
+          paste0(
+            'Maximum date of ', max_date, ' in input is less than the',
+            ' minimum date of the image collection, ', collection_name,
+            '(', info$img_time_start, ')'
+          )
+        )
+      }
 
       ic <- rgee::ee$ImageCollection(collection_name)$
         filterBounds(p_feature)$
@@ -146,7 +186,6 @@ extract_gee <- function(
           last_index <- find_closest_date(row_times, mn, find_closest_previous=TRUE)
           value <- row_values[last_index]
           if (length(value) == 0) {
-            browser()
             stop('last value not found in extracted data. Increase your time_buffer to get a correct result')
           }
           points[i, col_name] <- value
@@ -193,7 +232,7 @@ split_time_chunks <- function(df, time_col='start_time', max_time_range, max_row
 
   while (nrow(df) > 0) {
     # get the index of the last row within the max time range
-    last_row_in_range <- sum(df[[time_col]] <= (df[[time_col]][1] + days(max_time_range)))
+    last_row_in_range <- sum(df[[time_col]] <= (df[[time_col]][1] + lubridate::days(max_time_range)))
 
     # if that is greater than the max number of rows, get only the first max_rows
     if (last_row_in_range > max_rows) {
