@@ -106,11 +106,11 @@ datetime `"2010-08-03 00:50:50"`.
 You can supply any data extraction function to `fetch`, but some useful
 built-in data extraction functions are provided:
 
-| Function name              | Description                                                                                                                        |
-|----------------------------|------------------------------------------------------------------------------------------------------------------------------------|
-| `extract_across_times`     | Extract and summarise raster data across time periods for each row in your dataset.                                                |
-| `extract_gee`              | Use Google Earth Engine to extract your chosen image collection bands and summarise this information for each row in your dataset. |
-| `calculate_daynight_times` | Calculates the time since sunrise, time since sunset and day and night hours.                                                      |
+| Function name          | Description                                                                                                                        |
+|------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `extract_across_times` | Extract and summarise raster data across time periods for each row in your dataset.                                                |
+| `extract_gee`          | Use Google Earth Engine to extract your chosen image collection bands and summarise this information for each row in your dataset. |
+| `get_daynight_times`   | Calculates the time since sunrise, time since sunset and day and night hours for each row in your dataset.                         |
 
 In this example, we will use:
 

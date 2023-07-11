@@ -13,6 +13,12 @@ parse_time_column <- function(
   if (lubridate::is.interval(time_column))
     return(time_column)
 
+  if (is_date(time_column)) {
+    # if it's just a date,
+    # convert to an interval from the start to the end of that date
+    time_column <- date_to_interval(time_column)
+    return(time_column)
+  }
   if (all(is.character(time_column))) {
     if (stringr::str_detect(time_column, '--')) {
       # if you detect the format that lubridate saves to
@@ -21,11 +27,12 @@ parse_time_column <- function(
       return(time_column)
     }
 
-    # if it's just a datetime, load it as a datetime
+    # if it's just a date string, load it as a date
     # and then convert to an interval from the start to the end of that date
-    if (all(is.Date(time_column))) {
+    if (is_date(time_column)) {
+      warning('Loading date in UTC timezone, as no timezone was specified.')
       dates <- lubridate::ymd(time_column)
-      time_column <- lubridate::interval(dates, dates)
+      time_column <- date_to_interval(dates)
       return(time_column)
     }
 
@@ -47,4 +54,23 @@ string_to_interval <- function(time_column) {
   ends <- lapply(date_strings, `[[`, 2)
 
   return(lubridate::interval(start = starts, end = ends))
+}
+
+
+is_date <- function(x) {
+  tryCatch({
+    lubridate::as_date(x)
+    TRUE
+  }, warning = function(w) {
+    FALSE
+  }, error = function(e) {
+    FALSE
+  })
+}
+
+date_to_interval <- function(x) {
+  time_column <- lubridate::interval(
+    lubridate::floor_date(x),
+    x + lubridate::days(1) - lubridate::seconds(1)
+  )
 }
