@@ -1,19 +1,51 @@
-#' Fetch data for each row in your dataset using the supplied functions
+#' Fetch data from each row using anonymous functions
 #'
-#' Used to gather all input data necessary for modelling
+#' This function passes your data through your supplied extraction functions,
+#' caches progress, so that if your function crashes somewhere, you can continue where you left off,
+#' shows progress and estimated time to completion and
+#' allows you to repeat sampling across different times.
 #'
-#' @param points A tibble with a `sf` "geometry" and a "time_column" (a `lubridate` interval),
+#' @param points A tibble with a `sf` "geometry" and a column with time (a `lubridate` interval or date), specified by the `time_column_name` parameter.
 #' @param ... Anonymous functions you would like to use on each row of the dataset.
 #' @param use_cache Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.
 #' @param out_dir A directory to output your result. Is ignored if out_filename = NA.
 #' @param out_filename The path to output the result. Set to NA to not save the result and only return the result.
+#' @param overwrite Overwrite output file if exists.
 #' @param cache_dir A directory to output cached progress. Is ignored if use_cache = FALSE.
-#' @param .time_rep A `time_rep` object. Used to repeat data extraction along repeating time intervals relative to the minimum time of each row in the dataset.
+#' @param time_column_name Name of the time column in the dataset. Defaults to 'time_column'.
+#' @param .time_rep A `time_rep` object. Used to repeat data extraction along repeating time intervals before and after the original datetime.
+#' This can be relative to the start or the end of the input time interval (specified by the `relative_to_start` argument of `time_rep`). Defaults to the start.
 #'
-#' @return
-#' @export
+#' @return tibble An augmented tibble with additional data fetched using supplied functions.
 #'
 #' @examples
+#' \dontrun{
+#' extracted <- d %>%
+#'   fetch(
+#'     ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+#'     ~extract_gee(
+#'        .x,
+#'        collection_name='MODIS/061/MOD13Q1',
+#'        bands=c('NDVI', 'DetailedQA'),
+#'        time_buffer=16,
+#'      )
+#'   )
+#'
+#' # repeatedly extract and summarise data every fortnight for the last six months
+#' # relative to the start of the time column in `d`
+#' rep_extracted <- d %>%
+#'   fetch(
+#'     ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+#'     ~extract_gee(
+#'        .x,
+#'        collection_name='MODIS/061/MOD13Q1',
+#'        bands=c('NDVI', 'DetailedQA'),
+#'        time_buffer=16,
+#'      ),
+#'     .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
+#'   )
+#'}
+#' @export
 fetch <- function(
     points,
     ...,

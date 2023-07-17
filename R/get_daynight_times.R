@@ -1,21 +1,23 @@
-#' Get day and night time-related information
+#' get_daynight_times
 #'
-#' Calculates the time since sunrise, time since sunset and day and night hours
-#' for your points `sf` object
+#' This function calculates time since sunrise, time since sunset, and day and
+#' night hours for points in an `sf` object. The function also optionally saves
+#' the output as an RDS file.
 #'
-#' @param points An `sf` object that contains a geometry and a column with the
-#' datetime as a `lubridate::interval`: `time_column`
-#' @param save Whether to save extracted day and night time information
-#' as an rds file.
-#' @param savepath The path to save your extracted day and night time information
-#' as an rds file.
-#' @param units The units of time to return. Defaults to 'hours'.
+#' @param points An `sf` object containing geometry and a time_column with datetime
+#' as a `lubridate::interval`.
+#' @param save A logical value indicating whether to save the extracted day and night
+#' time information as an RDS file. Default is `FALSE`.
+#' @param savepath The path to save the RDS file, defaults to './output/extracted_day_night_stats.rds'.
+#' @param units A string specifying the units of time to return, defaults to 'hours'.
 #'
-#' @return the input `points` object with day and night time-related information
-#' column-binded.
-#' @export
+#' @return An `sf` object containing the original points and additional day and night time-related information.
 #'
 #' @examples
+#' \dontrun{
+#' sf_with_times <- get_daynight_times(points_sf, save=TRUE, savepath='./daynight.rds', units='minutes')
+#' }
+#' @export
 get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_day_night_stats.rds', units='hours') {
   message('Calculating time since sunrise')
   pb <- dplyr::progress_estimated(nrow(points))
@@ -94,18 +96,30 @@ get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_
   return(points)
 }
 
-
-#' Calculate the time (in specified units) one time period overlaps with another
+#' calculate_daynight_times
 #'
-#' @param period1_start The start datetime of the first period
-#' @param period1_finish The finish datetime of the first period
-#' @param period2_start The start datetime of the second period
-#' @param period2_finish The finish datetime of the second period
-#' @param units Time units to output. Defaults to 'hours'.
+#' This function calculates the overlap in time, in specified units, between two
+#' time periods defined by start and end times. It is specifically designed for
+#' handling time overlaps related to day and night hours.
 #'
-#' @return Time in specified units where time periods overlap
+#' @param period1_start A POSIXct object representing the start time of the first period.
+#' @param period1_finish A POSIXct object representing the finish time of the first period.
+#' @param period2_start A POSIXct object representing the start time of the second period.
+#' @param period2_finish A POSIXct object representing the finish time of the second period.
+#' @param units A string representing the units in which to output the time, defaults to 'hours'.
+#'
+#' @return A numeric representing the time overlap between two periods in specified units.
 #'
 #' @examples
+#' \dontrun{
+#' overlap_hours <- calculate_daynight_times(
+#'   period1_start = as.POSIXct('2023-07-17 06:00:00'),
+#'   period1_finish = as.POSIXct('2023-07-17 18:00:00'),
+#'   period2_start = as.POSIXct('2023-07-17 12:00:00'),
+#'   period2_finish = as.POSIXct('2023-07-17 20:00:00'),
+#'   units = 'hours'
+#' )
+#' }
 calculate_daynight_times <- function(
     period1_start,
     period1_finish,
@@ -126,6 +140,21 @@ calculate_daynight_times <- function(
   )
 }
 
+#' get_time_since_sunrise
+#'
+#' This function calculates the time elapsed since sunrise given a specific location and time.
+#'
+#' @param start A POSIXct object representing the start time.
+#' @param lat The latitude of the location.
+#' @param lon The longitude of the location.
+#' @param units A string representing the units in which to output the time, defaults to 'hours'.
+#'
+#' @return A numeric representing the time elapsed since sunrise.
+#'
+#' @examples
+#' \dontrun{
+#' time_since_sunrise <- get_time_since_sunrise(start = Sys.time(), lat = 51.5074, lon = 0.1278, units = 'minutes')
+#' }
 get_time_since_sunrise <- function(
     start,
     lat,
@@ -142,6 +171,21 @@ get_time_since_sunrise <- function(
   return(time_since_sunrise)
 }
 
+#' get_time_since_sunset
+#'
+#' This function calculates the time elapsed since sunset given a specific location and time.
+#'
+#' @param start A POSIXct object representing the start time.
+#' @param lat The latitude of the location.
+#' @param lon The longitude of the location.
+#' @param units A string representing the units in which to output the time, defaults to 'hours'.
+#'
+#' @return A numeric representing the time elapsed since sunset.
+#'
+#' @examples
+#' \dontrun{
+#' time_since_sunset <- get_time_since_sunset(start = Sys.time(), lat = 51.5074, lon = 0.1278, units = 'minutes')
+#' }
 get_time_since_sunset <- function(
     start,
     lat,
@@ -159,6 +203,22 @@ get_time_since_sunset <- function(
   return(time_since_sunset)
 }
 
+#' get_day_night_hours
+#'
+#' This function calculates the number of day and night hours for a given time range and location.
+#'
+#' @param start A POSIXct object representing the start time.
+#' @param finish A POSIXct object representing the end time.
+#' @param lat The latitude of the location.
+#' @param lon The longitude of the location.
+#' @param units A string representing the units in which to output the time, defaults to 'hours'.
+#'
+#' @return A list containing the number of day and night hours.
+#'
+#' @examples
+#' \dontrun{
+#' day_night_hours <- get_day_night_hours(start = Sys.time(), finish = Sys.time() + lubridate::hours(24), lat = 51.5074, lon = 0.1278, units = 'minutes')
+#' }
 get_day_night_hours <- function(
     start,
     finish,
@@ -186,17 +246,29 @@ get_day_night_hours <- function(
   return(unlist(list(nights=nights, days=days)))
 }
 
-#' Calculate the time (in specified units) one time period overlaps with another
+#' time_in_period
 #'
-#' @param period1_start The start datetime of the first period
-#' @param period1_finish The finish datetime of the first period
-#' @param period2_start The start datetime of the second period
-#' @param period2_finish The finish datetime of the second period
-#' @param units Time units to output. Defaults to 'hours'.
+#' This function calculates the overlap in time, in specified units, between two
+#' time periods defined by start and end times.
 #'
-#' @return Time in specified units where time periods overlap
+#' @param period1_start A POSIXct object representing the start time of the first period.
+#' @param period1_finish A POSIXct object representing the finish time of the first period.
+#' @param period2_start A POSIXct object representing the start time of the second period.
+#' @param period2_finish A POSIXct object representing the finish time of the second period.
+#' @param units A string representing the units in which to output the time, defaults to 'hours'.
+#'
+#' @return A numeric representing the time overlap between two periods in specified units.
 #'
 #' @examples
+#' \dontrun{
+#' overlap_hours <- time_in_period(
+#'   period1_start = as.POSIXct('2023-07-17 06:00:00'),
+#'   period1_finish = as.POSIXct('2023-07-17 18:00:00'),
+#'   period2_start = as.POSIXct('2023-07-17 12:00:00'),
+#'   period2_finish = as.POSIXct('2023-07-17 20:00:00'),
+#'   units = 'hours'
+#' )
+#' }
 time_in_period <- function(
     period1_start,
     period1_finish,

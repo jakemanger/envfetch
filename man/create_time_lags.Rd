@@ -2,33 +2,49 @@
 % Please edit documentation in R/create_time_lags.R
 \name{create_time_lags}
 \alias{create_time_lags}
-\title{Create time lagged rows (filled with NA values) using the 'time_column' column
-as the starting time.}
+\title{create_time_lags}
 \usage{
 create_time_lags(
   x,
   n_lag_range = c(1, 14),
-  time_lag = days(14),
-  lag_amount_units = days(1),
+  time_lag = lubridate::days(14),
+  lag_amount_units = lubridate::days(1),
+  relative_to_start = TRUE,
   timezone = "Australia/Perth"
 )
 }
 \arguments{
-\item{x}{Your original starting tibble.}
+\item{x}{A tibble containing the original data.}
 
-\item{time_lag}{The size of the time lag in a duration (e.g. \code{days()})}
+\item{n_lag_range}{A numeric vector of length 2 defining the range of lag times.}
 
-\item{lag_amount_units}{A lubridate object or a numeric in seconds that
-determines the lag_amount column's unit.}
+\item{time_lag}{A duration object specifying the size of the time lag.}
 
-\item{timezone}{The timezone for dates}
+\item{lag_amount_units}{A duration object or a numeric in seconds that
+determines the unit for the 'lag_amount' column.}
 
-\item{n_lags}{The number of time lags}
+\item{relative_to_start}{A logical value indicating whether the lag should be
+relative to the start or the end of the input time interval.}
+
+\item{timezone}{A string specifying the timezone for the dates.}
 }
 \value{
-A tibble with additional time-lagged rows
+A tibble with the original data and additional time-lagged rows.
 }
 \description{
-Create time lagged rows (filled with NA values) using the 'time_column' column
-as the starting time.
+This function creates time-lagged rows in a tibble using the 'time_column'
+as the reference point. The new rows are filled with NA values and have
+their time interval shifted by a specified lag duration.
+}
+\examples{
+\dontrun{
+lagged_tibble <- create_time_lags(
+  x = original_tibble,
+  n_lag_range = c(1, 14),
+  time_lag = lubridate::days(14),
+  lag_amount_units = lubridate::days(1),
+  relative_to_start = TRUE,
+  timezone = 'Australia/Perth'
+)
+}
 }

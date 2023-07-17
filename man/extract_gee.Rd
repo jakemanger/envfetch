@@ -2,24 +2,112 @@
 % Please edit documentation in R/extract_gee.R
 \name{extract_gee}
 \alias{extract_gee}
-\title{Extract from google earth engine}
+\title{Extracts specified bands from an image collection using Google Earth Engine}
 \usage{
 extract_gee(
   points,
   collection_name,
   bands,
   scale = 250,
-  time_buffer = 16,
-  time_summarise_fun = "last",
+  time_buffer = lubridate::days(20),
+  summarise_fun = "last",
   debug = FALSE,
+  initialise_gee = TRUE,
   use_gcs = FALSE,
-  use_drive = FALSE
+  use_drive = FALSE,
+  max_chunk_time_day_range = 128,
+  max_feature_collection_size = 10000,
+  ee_reducer_fun = rgee::ee$Reducer$mean(),
+  cache_progress = TRUE,
+  cache_dir = "./"
 )
 }
 \arguments{
-\item{use_drive}{}
+\item{points}{An sf object containing the locations to be sampled.
+This should contain a column 'time_column' of type lubridate::interval.}
+
+\item{collection_name}{A character string representing the Google Earth Engine
+image collection from which to extract data.}
+
+\item{bands}{A vector of character strings representing the band names to extract
+from the image collection.}
+
+\item{scale}{A numeric value representing the scale at which to perform the
+extraction in meters. Default is 250.}
+
+\item{time_buffer}{A lubridate duration representing the amount of time to add
+before and after each time interval when filtering the image
+collection. Default is lubridate::days(20).}
+
+\item{summarise_fun}{A function or string representing the function used to summarise
+the data extracted for each interval. Default is 'last', which returns
+the value closest to the start of the interval.}
+
+\item{debug}{A logical indicating whether to produce debugging plots. Default is FALSE.}
+
+\item{initialise_gee}{A logical indicating whether to initialise Google Earth Engine
+within the function. Default is TRUE.}
+
+\item{use_gcs}{A logical indicating whether to use Google Cloud Storage for
+larger requests. Default is FALSE.}
+
+\item{use_drive}{A logical indicating whether to use Google Drive for larger
+requests. Default is FALSE.}
+
+\item{max_chunk_time_day_range}{An integer representing the maximum number of days to include
+in each time chunk when splitting the dataset for efficient
+memory use on Google Earth Engine's end. Default is 128.}
+
+\item{max_feature_collection_size}{An integer representing the maximum number of features
+(rows) to include in each chunk when splitting the
+dataset for efficient memory use on Google Earth Engine's end.
+Default is 10000.}
+
+\item{ee_reducer_fun}{A Google Earth Engine reducer function representing the function
+used to aggregate the data extracted from each image. Default is
+rgee::ee$Reducer$mean().}
+
+\item{cache_progress}{A logical indicating whether to cache the progress of the extraction
+for resuming in case of interruptions. Default is TRUE.}
+
+\item{cache_dir}{A string representing the directory in which to save the cache files.
+Default is './'.}
+}
+\value{
+A dataframe or sf object with the same rows as the input \code{points}, and new columns
+representing the extracted data. The new column names correspond to the \code{bands} parameter.
 }
 \description{
-Use google earth engine to extract your chosen image collection bands
-and then summarise this information for each row in your dataset (\code{points})
+This function uses Google Earth Engine to extract specified bands from an
+image collection. The function summarises this information for each row in
+your dataset (\code{points}). The function handles memory constraints on Google
+Earth Engine's end by extracting data in time chunks based on the start date
+of each interval in the dataset. This function is best used within the
+\code{fetch} function.
+}
+\examples{
+\dontrun{
+#' extracted <- d \%>\%
+  fetch(
+    ~extract_gee(
+       .x,
+       collection_name='MODIS/061/MOD13Q1',
+       bands=c('NDVI', 'DetailedQA'),
+       time_buffer=16,
+     )
+  )
+
+# repeatedly extract and summarise data every fortnight for the last six months
+# relative to the start of the time column in `d`
+rep_extracted <- d \%>\%
+  fetch(
+    ~extract_gee(
+       .x,
+       collection_name='MODIS/061/MOD13Q1',
+       bands=c('NDVI', 'DetailedQA'),
+       time_buffer=16,
+     ),
+    .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
+  )
+}
 }

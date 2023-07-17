@@ -4,14 +4,16 @@
 \alias{time_rep}
 \title{Creates a \code{time_rep} object for repeating time intervals}
 \usage{
-time_rep(interval, n_start = 0, n_end = 0)
+time_rep(interval, n_start = -1, n_end = 0, relative_to_start = TRUE)
 }
 \arguments{
 \item{interval}{A lubridate period indicating the time interval to repeat. It should be positive, e.g. \code{lubridate::days(14)}.}
 
-\item{n_start}{An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is 0.}
+\item{n_start}{An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is -1.}
 
 \item{n_end}{An integer indicating the number of steps after the original datetime to which the interval should continue repeating. Default is 0.}
+
+\item{relative_to_start}{Whether to create repeating time intervals relative to the start of the input time interval or end.}
 }
 \value{
 A list object with three elements: \code{interval}, \code{n_start}, and \code{n_end}.
@@ -22,7 +24,9 @@ of environmental data before and after an original datetime. The function valida
 are of the correct types and meet certain conditions.
 }
 \examples{
-# Generate a time_rep object for a 14-day interval, starting 2 periods before and ending 3 periods after the original datetime
+# Generates a time_rep object for a 14-day interval, starting 14 days before the original datetime and ending at the original datetime.
+time_rep(lubridate::days(14))
+# Generate a time_rep object for multiple 14-day intervals, between 28 periods before and ending 42 periods after the original datetime
 time_rep(lubridate::days(14), -2, 3)
 
 }

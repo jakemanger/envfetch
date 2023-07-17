@@ -2,29 +2,67 @@
 % Please edit documentation in R/extract_across_times.R
 \name{extract_across_times}
 \alias{extract_across_times}
-\title{Extract across times}
+\title{Extract values from a raster across time}
 \usage{
 extract_across_times(
   points,
   r,
-  extract_all_times_at_start = TRUE,
-  method = "simple",
-  debug = FALSE
+  summarise_fun = function(x) {
+     mean(x, na.rm = TRUE)
+ },
+  time_buffer = lubridate::days(0),
+  debug = FALSE,
+  override_terraOptions = TRUE,
+  chunk = TRUE
 )
 }
 \arguments{
-\item{points}{an sf object with the columns "time_column" and "geometry" describing
-where and when you want to extract data}
+\item{points}{An sf object containing the locations to be sampled.
+This should contain a column 'time_column' of type lubridate::interval.}
 
-\item{r}{A SpatRaster (from the terra package) with the data you want to extract from}
+\item{r}{A SpatRaster object from the terra package. This is the raster data
+source from which the data will be extracted.}
 
-\item{extract_all_times_at_start}{boolean (for speed optimisation). for best
-speed, set to true if there are more different times than there are points.
-set to false if there are more points than there are times.}
+\item{summarise_fun}{A function used to summarise multiple data points
+found within a time interval. Default is \code{mean(x, na.rm=TRUE)}.}
+
+\item{time_buffer}{Time buffer used to adjust the time interval for data extraction.
+The function always uses the time before and after the interval to prevent errors
+when summarising the earliest and latest times. Default is 0 days.}
+
+\item{debug}{If TRUE, pauses the function and displays a plot for each extracted
+point. This is useful for debugging unexpected extracted values. Default is FALSE.}
+
+\item{override_terraOptions}{If TRUE, overrides terra's default terraOptions
+with those specified in the envfetch's package. Default is TRUE.}
+
+\item{chunk}{If TRUE, performs extraction in chunks to handle large files and
+manage memory usage efficiently. Default is TRUE.}
 }
 \value{
-points with extracted data column binded
+A modified version of the input 'points' with an additional column
+containing the extracted data.
 }
 \description{
-Extract across times
+This function extracts raster data across a specified time range. It allows
+users to extract raster data within a given time buffer and summarise the
+extracted data using a custom function.
+}
+\examples{
+\dontrun{
+\dontrun{
+extracted <- d \%>\%
+  fetch(
+    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+  )
+
+# repeatedly extract and summarise data every fortnight for the last six months
+# relative to the start of the time column in `d`
+rep_extracted <- d \%>\%
+  fetch(
+      ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+      .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
+    )
+  }
+}
 }

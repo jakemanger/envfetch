@@ -18,6 +18,7 @@ Imports:
     dplyr,
     googleCloudStorageR,
     lubridate,
+    magrittr,
     progressr,
     purrr,
     rgee,

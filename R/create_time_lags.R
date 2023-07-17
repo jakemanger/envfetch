@@ -1,23 +1,36 @@
-#' Create time lagged rows (filled with NA values) using the 'time_column' column
-#' as the starting time.
+#' create_time_lags
 #'
-#' @param x Your original starting tibble.
-#' @param n_lags The number of time lags
-#' @param time_lag The size of the time lag in a duration (e.g. `days()`)
-#' @param lag_amount_units A lubridate object or a numeric in seconds that
-#' determines the lag_amount column's unit.
-#' @param relative_to_start Whether to create repeating time intervals relative
-#' to the start of the input time interval or end.
-#' @param timezone The timezone for dates
+#' This function creates time-lagged rows in a tibble using the 'time_column'
+#' as the reference point. The new rows are filled with NA values and have
+#' their time interval shifted by a specified lag duration.
 #'
-#' @return A tibble with additional time-lagged rows
+#' @param x A tibble containing the original data.
+#' @param n_lag_range A numeric vector of length 2 defining the range of lag times.
+#' @param time_lag A duration object specifying the size of the time lag.
+#' @param lag_amount_units A duration object or a numeric in seconds that
+#' determines the unit for the 'lag_amount' column.
+#' @param relative_to_start A logical value indicating whether the lag should be
+#' relative to the start or the end of the input time interval.
+#' @param timezone A string specifying the timezone for the dates.
+#'
+#' @return A tibble with the original data and additional time-lagged rows.
 #'
 #' @examples
+#' \dontrun{
+#' lagged_tibble <- create_time_lags(
+#'   x = original_tibble,
+#'   n_lag_range = c(1, 14),
+#'   time_lag = lubridate::days(14),
+#'   lag_amount_units = lubridate::days(1),
+#'   relative_to_start = TRUE,
+#'   timezone = 'Australia/Perth'
+#' )
+#' }
 create_time_lags <- function(
     x,
     n_lag_range=c(1, 14),
-    time_lag=days(14),
-    lag_amount_units=days(1),
+    time_lag=lubridate::days(14),
+    lag_amount_units=lubridate::days(1),
     relative_to_start=TRUE,
     timezone='Australia/Perth'
 ) {

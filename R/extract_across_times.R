@@ -1,17 +1,46 @@
-#' Extract across times
+#' Extract values from a raster across time
 #'
-#' @param points an sf object with the columns "time_column" and "geometry" describing
-#' where and when you want to extract data
-#' @param r A SpatRaster (from the terra package) with the data you want to extract from
-#' @param summarise_fun The function to summarise multiple data points found within a interval with. Defaults to `mean(x, na.rm=TRUE)`.
-#' @param time_buffer The time buffer to use to use when finding data points to extract for use when summarising. Note the time that is located before and after that found in the dataset is always used by default to avoid errors when summarising the earliest and latest times.
-#' @param debug Whether to pause and display a plot with information about data for each extracted point. Useful for debugging unexpected extracted values.
-#' @param override_terraOptions Whether to override terra's terraOptions with envfetch's defaults. Defaults to True.
+#' This function extracts raster data across a specified time range. It allows
+#' users to extract raster data within a given time buffer and summarise the
+#' extracted data using a custom function.
 #'
-#' @return points with extracted data column binded
-#' @export
+#' @param points An sf object containing the locations to be sampled.
+#' This should contain a column 'time_column' of type lubridate::interval.
+#' @param r A SpatRaster object from the terra package. This is the raster data
+#' source from which the data will be extracted.
+#' @param summarise_fun A function used to summarise multiple data points
+#' found within a time interval. Default is `mean(x, na.rm=TRUE)`.
+#' @param time_buffer Time buffer used to adjust the time interval for data extraction.
+#' The function always uses the time before and after the interval to prevent errors
+#' when summarising the earliest and latest times. Default is 0 days.
+#' @param debug If TRUE, pauses the function and displays a plot for each extracted
+#' point. This is useful for debugging unexpected extracted values. Default is FALSE.
+#' @param override_terraOptions If TRUE, overrides terra's default terraOptions
+#' with those specified in the envfetch's package. Default is TRUE.
+#' @param chunk If TRUE, performs extraction in chunks to handle large files and
+#' manage memory usage efficiently. Default is TRUE.
+#'
+#' @return A modified version of the input 'points' with an additional column
+#' containing the extracted data.
 #'
 #' @examples
+#' \dontrun{
+#' \dontrun{
+#' extracted <- d %>%
+#'   fetch(
+#'     ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+#'   )
+#'
+#' # repeatedly extract and summarise data every fortnight for the last six months
+#' # relative to the start of the time column in `d`
+#' rep_extracted <- d %>%
+#'   fetch(
+#'       ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+#'       .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
+#'     )
+#'   }
+#' }
+#' @export
 extract_across_times <- function(
   points,
   r,
@@ -82,7 +111,7 @@ extract_across_times <- function(
 
     terra::plot(r_to_plot, xlim=c(lims$xmin, lims$xmax), ylim=c(lims$ymin, lims$ymax))
     plot(points, axes=TRUE, add=TRUE)
-    title('Sampling points and a slice of data to extract from')
+    graphics::title('Sampling points and a slice of data to extract from')
     readline(prompt = "Paused as debug=TRUE, press enter to continue.")
   }
 

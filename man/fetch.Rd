@@ -2,7 +2,7 @@
 % Please edit documentation in R/fetch.R
 \name{fetch}
 \alias{fetch}
-\title{Fetch data for each row in your dataset using the supplied functions}
+\title{Fetch data from each row using anonymous functions}
 \usage{
 fetch(
   points,
@@ -13,11 +13,12 @@ fetch(
     ".gpkg"),
   overwrite = TRUE,
   cache_dir = file.path(out_dir, "cache/"),
+  time_column_name = "time_column",
   .time_rep = NA
 )
 }
 \arguments{
-\item{points}{A tibble with a \code{sf} "geometry" and a "time_column" (a \code{lubridate} interval),}
+\item{points}{A tibble with a \code{sf} "geometry" and a column with time (a \code{lubridate} interval or date), specified by the \code{time_column_name} parameter.}
 
 \item{...}{Anonymous functions you would like to use on each row of the dataset.}
 
@@ -27,10 +28,49 @@ fetch(
 
 \item{out_filename}{The path to output the result. Set to NA to not save the result and only return the result.}
 
+\item{overwrite}{Overwrite output file if exists.}
+
 \item{cache_dir}{A directory to output cached progress. Is ignored if use_cache = FALSE.}
 
-\item{.time_rep}{A \code{time_rep} object. Used to repeat data extraction along repeating time intervals relative to the minimum time of each row in the dataset.}
+\item{time_column_name}{Name of the time column in the dataset. Defaults to 'time_column'.}
+
+\item{.time_rep}{A \code{time_rep} object. Used to repeat data extraction along repeating time intervals before and after the original datetime.
+This can be relative to the start or the end of the input time interval (specified by the \code{relative_to_start} argument of \code{time_rep}). Defaults to the start.}
+}
+\value{
+tibble An augmented tibble with additional data fetched using supplied functions.
 }
 \description{
-Used to gather all input data necessary for modelling
+This function passes your data through your supplied extraction functions,
+caches progress, so that if your function crashes somewhere, you can continue where you left off,
+shows progress and estimated time to completion and
+allows you to repeat sampling across different times.
+}
+\examples{
+\dontrun{
+extracted <- d \%>\%
+  fetch(
+    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+    ~extract_gee(
+       .x,
+       collection_name='MODIS/061/MOD13Q1',
+       bands=c('NDVI', 'DetailedQA'),
+       time_buffer=16,
+     )
+  )
+
+# repeatedly extract and summarise data every fortnight for the last six months
+# relative to the start of the time column in `d`
+rep_extracted <- d \%>\%
+  fetch(
+    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+    ~extract_gee(
+       .x,
+       collection_name='MODIS/061/MOD13Q1',
+       bands=c('NDVI', 'DetailedQA'),
+       time_buffer=16,
+     ),
+    .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
+  )
+}
 }
