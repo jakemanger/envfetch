@@ -6,6 +6,8 @@
 #' @param time_lag The size of the time lag in a duration (e.g. `days()`)
 #' @param lag_amount_units A lubridate object or a numeric in seconds that
 #' determines the lag_amount column's unit.
+#' @param relative_to_start Whether to create repeating time intervals relative
+#' to the start of the input time interval or end.
 #' @param timezone The timezone for dates
 #'
 #' @return A tibble with additional time-lagged rows

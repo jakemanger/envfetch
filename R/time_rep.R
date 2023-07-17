@@ -7,6 +7,7 @@
 #' @param interval A lubridate period indicating the time interval to repeat. It should be positive, e.g. `lubridate::days(14)`.
 #' @param n_start An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is -1.
 #' @param n_end An integer indicating the number of steps after the original datetime to which the interval should continue repeating. Default is 0.
+#' @param relative_to_start Whether to create repeating time intervals relative to the start of the input time interval or end.
 #'
 #' @return A list object with three elements: `interval`, `n_start`, and `n_end`.
 #' @export
@@ -17,10 +18,11 @@
 #' # Generate a time_rep object for multiple 14-day intervals, between 28 periods before and ending 42 periods after the original datetime
 #' time_rep(lubridate::days(14), -2, 3)
 #'
-time_rep <- function(interval, n_start=-1, n_end=0) {
+time_rep <- function(interval, n_start=-1, n_end=0, relative_to_start=TRUE) {
   stopifnot(lubridate:::is.period(interval))
   stopifnot(n_start %% 1 == 0)
   stopifnot(n_end %% 1 == 0)
+  stopifnot(is.logical(relative_to_start))
 
   if (n_start == 0 && n_end == 0) {
     stop(
@@ -40,7 +42,8 @@ time_rep <- function(interval, n_start=-1, n_end=0) {
     list(
       interval=interval,
       n_start=n_start,
-      n_end=n_end
+      n_end=n_end,
+      relative_to_start=relative_to_start
     )
   )
 }
