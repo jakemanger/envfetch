@@ -30,7 +30,10 @@ extract_across_times <- function(
   }
 
   message('Loading raster file')
-  r <- terra::rast(r)
+
+  if (is.character(r)) {
+    r <- terra::rast(r)
+  }
   dates <- terra::time(r)
   time_intervals <- points$time_column
   lubridate::int_start(time_intervals) <- lubridate::int_start(time_intervals) - time_buffer
@@ -153,6 +156,7 @@ extract_without_overusing_ram <- function(x, y, chunk=TRUE) {
         end_index <- min(i * chunk_size, length(times))
         r_chunks[[i]] <- x[[start_index:end_index]]
       }
+
 
       extractions <- lapply(r_chunks, function(chunk) {
         ex <- terra::extract(x = chunk, y = y)

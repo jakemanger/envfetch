@@ -20,7 +20,7 @@ get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_
   message('Calculating time since sunrise')
   pb <- dplyr::progress_estimated(nrow(points))
   time_since_sunrises <- 1:nrow(points) %>%
-    map(
+    purrr::map(
       function(x) {
         pb$tick()$print()
         start_time <- lubridate::int_start(points$time_column[x])
@@ -35,12 +35,12 @@ get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_
     )
 
 
-  points <- points %>% bind_cols(time_since_sunrises=unlist(time_since_sunrises))
+  points <- points %>% dplyr::bind_cols(time_since_sunrises=unlist(time_since_sunrises))
 
   message('Calculating time since sunset')
-  pb <- progress_estimated(nrow(points))
+  pb <- dplyr::progress_estimated(nrow(points))
   time_since_sunsets <- 1:nrow(points) %>%
-    map(
+    purrr::map(
       function(x) {
         pb$tick()$print()
         start_time <- lubridate::int_start((points$time_column[x]))
@@ -54,12 +54,12 @@ get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_
       }
     )
 
-  points <- points %>% bind_cols(time_since_sunsets=unlist(time_since_sunsets))
+  points <- points %>% dplyr::bind_cols(time_since_sunsets=unlist(time_since_sunsets))
 
   message('Calculating day and night hours')
-  pb <- progress_estimated(nrow(points))
+  pb <- dplyr::progress_estimated(nrow(points))
   light_dark_minutes <- 1:nrow(points) %>%
-    map(
+    purrr::map(
       function(x) {
         pb$tick()$print()
         start_time <- lubridate::int_start((points$time_column[x]))
@@ -75,18 +75,18 @@ get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_
       }
     )
 
-  out <- bind_rows(light_dark_minutes)
+  out <- dplyr::bind_rows(light_dark_minutes)
   out[is.na(out)] <- 0
 
   night_hours <- rowSums(out[,grepl("night", names(out))])
   day_hours <- rowSums(out[,grepl("day", names(out))])
 
-  day_night_hours <- tibble(
+  day_night_hours <- tibble::tibble(
     day_hours=day_hours,
     night_hours=night_hours
   )
 
-  points <- points %>% bind_cols(day_night_hours)
+  points <- points %>% dplyr::bind_cols(day_night_hours)
 
   if (save)
     saveRDS(points, savepath)
@@ -132,7 +132,7 @@ get_time_since_sunrise <- function(
     lon,
     units='hours'
 ) {
-  start_date <- as_date(start)
+  start_date <- lubridate::as_date(start)
   times <- suncalc::getSunlightTimes(start_date, lat=lat, lon=lon, tz='UTC')
   time_since_sunrise <- difftime(start, times$sunrise, units=units)
   if (time_since_sunrise < 0) {
@@ -148,7 +148,7 @@ get_time_since_sunset <- function(
     lon,
     units='hours'
 ) {
-  start_date <- as_date(start)
+  start_date <- lubridate::as_date(start)
   get
   times <- suncalc::getSunlightTimes(start_date, lat=lat, lon=lon, tz='UTC')
   time_since_sunset <- difftime(start, times$sunset, units=units)
@@ -166,8 +166,8 @@ get_day_night_hours <- function(
     lon,
     units='hours'
 ) {
-  start_date <- as_date(start)
-  finish_date <- as_date(finish)
+  start_date <- lubridate::as_date(start)
+  finish_date <- lubridate::as_date(finish)
   dates <- seq(as.Date(start_date), as.Date(finish_date)+1, by='day')
 
   nights <- list()

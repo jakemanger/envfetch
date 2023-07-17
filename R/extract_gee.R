@@ -47,8 +47,8 @@ extract_gee <- function(
   # convert points time column to UTC, as it is used by gee
   time_column_after_sort <- points$time_column
   points$time_column <- lubridate::interval(
-    with_tz(lubridate::int_start(points$time_column), 'UTC'),
-    with_tz(lubridate::int_end(points$time_column), 'UTC'),
+    lubridate::with_tz(lubridate::int_start(points$time_column), 'UTC'),
+    lubridate::with_tz(lubridate::int_end(points$time_column), 'UTC'),
   )
 
   # chunk incorporating the start date of intervals to ensure efficient memory usage on gee's end
@@ -171,7 +171,7 @@ extract_gee <- function(
 
   # return points to its original order and assign back the time column
   points$time_column <- time_column_after_sort
-  points <- points %>% arrange(original_order)
+  points <- points %>% dplyr::arrange(original_order)
 
   # remove unnecessary columns
   points <- points %>% dplyr::select(-c('original_order', 'start_time'))
@@ -180,8 +180,8 @@ extract_gee <- function(
 }
 
 find_closest_datetime <- function(dates, x, find_closest_previous=TRUE) {
-  dates <- as_datetime(dates)
-  x <- as_datetime(x)
+  dates <- lubridate::as_datetime(dates)
+  x <- lubridate::as_datetime(x)
   if (find_closest_previous) {
     # add filter to only include dates earlier than x
     return(which(abs(dates[dates < x]-x) == min(abs(dates[dates < x] - x))))

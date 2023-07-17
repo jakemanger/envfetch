@@ -16,6 +16,7 @@ create_time_lags <- function(
     n_lag_range=c(1, 14),
     time_lag=days(14),
     lag_amount_units=days(1),
+    relative_to_start=TRUE,
     timezone='Australia/Perth'
 ) {
   geometries_to_lag <- x$geometry
@@ -32,11 +33,18 @@ create_time_lags <- function(
   for (start in start_range) {
     min <- start * time_lag
     max <- (start + 1) * time_lag
+
+    if (relative_to_start) {
+      relative_time <- lubridate::int_start(times_to_lag)
+    } else {
+      relative_time <- lubridate::int_end(times_to_lag)
+    }
+
     new_time_column <- c(
       new_time_column,
       lubridate::interval(
-        start=lubridate::int_end(times_to_lag) + min,
-        end=lubridate::int_end(times_to_lag) + max,
+        start=relative_time + min,
+        end=relative_time + max,
         tz=timezone
       )
     )

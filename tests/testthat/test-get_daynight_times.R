@@ -1,5 +1,3 @@
-context('get_daynight_times')
-
 test_that("times_calculated_correctly", {
   point <- sf::st_point(c(115.798, -31.95))
   points <- sf::st_sfc(point)
