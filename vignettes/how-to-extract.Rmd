@@ -1,0 +1,98 @@
+---
+title: "How to extract"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{How to extract}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(envfetch)
+library(tidyverse)
+```
+
+## Introduction
+The envfetch package is designed to extract, and summarise environmental data across time and space using GPS coordinates or sf polygons. It offers an effective way to handle data extraction from local files and an online database like Google Earth Engine.
+
+This vignette demonstrates the usage of envfetch package functions using a synthetic dataset.
+
+## Setup
+Firstly, we generate a synthetic dataset using the throw function. The dataset will represent a grid of points over Australia for a range of times.
+
+```{r}
+d <- throw(
+  offset = c(115, -40),
+  cellsize = 3,
+  n = 10,
+  time_interval = lubridate::interval(start = '2017-01-01', end = '2017-01-02'),
+)
+```
+
+The generated dataset, d, can be visualized:
+
+```{r}
+plot(d, axes = TRUE)
+```
+
+and appears like the following:
+```{r}
+d
+```
+
+Note the presence of a column with the time (this can be a `lubridate::interval` or a date string, e.g. `'2017-01-01'`)
+and a column with the geometry (from the `sf` package).
+
+## Data Extraction
+
+The main function for data extraction is fetch. It accepts one or several extraction functions as arguments.
+
+### Using extract_across_times
+The extract_across_times function is designed to extract and summarise raster data across time periods for each row in your dataset.
+Here, we identify the column with time to the fetch function with the `time_column_name` parameter.
+
+```{r eval=FALSE}
+extracted <- d %>%
+  fetch(
+    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+    time_column_name='time_column'
+  )
+```
+
+### Using extract_gee
+The extract_gee function allows fetching data from the Google Earth Engine. Here we extract NDVI data from the MODIS MOD13Q1 dataset.
+
+```{r eval=FALSE}
+extracted <- d %>%
+  fetch(
+    ~extract_gee(
+      .x,
+      collection_name = 'MODIS/061/MOD13Q1',
+      bands = c('NDVI', 'DetailedQA'),
+      time_buffer = 16
+    )
+  )
+```
+
+### Fetching Data for Repeated Time Intervals
+In some cases, you may need to obtain environmental data from repeated previous time periods. The fetch function supports this via the .time_rep parameter.
+
+```{r eval=FALSE}
+rep_extracted <- d %>%
+  fetch(
+    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+    ~extract_gee(
+       .x,
+       collection_name = 'MODIS/061/MOD13Q1',
+       bands = c('NDVI', 'DetailedQA'),
+       time_buffer = 16
+    ),
+    .time_rep = time_rep(interval = lubridate::days(14), n_start = -12),
+  )
+```
+
+## Conclusion
+The envfetch package offers an efficient and flexible approach for extracting and summarising environmental data. It provides several built-in functions and allows users to define custom extraction functions to handle a variety of data sources and formats.
+
+For a complete overview of the available functions and their usage, refer to the package documentation.
