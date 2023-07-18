@@ -9,6 +9,7 @@ parse_time_column <- function(
     )
 
   time_column <- d %>% sf::st_drop_geometry() %>% dplyr::pull(time_column_name)
+  check_for_na(time_column)
 
   if (lubridate::is.interval(time_column))
     return(time_column)
@@ -20,7 +21,7 @@ parse_time_column <- function(
     return(time_column)
   }
   if (all(is.character(time_column))) {
-    if (stringr::str_detect(time_column, '--')) {
+    if (any(stringr::str_detect(time_column, '--'))) {
       # if you detect the format that lubridate saves to
       # but unfortunately can't load
       time_column <- time_column %>% string_to_interval()
@@ -45,13 +46,22 @@ parse_time_column <- function(
   }
 }
 
+check_for_na <- function(x) {
+  if (any(is.na(x))) {
+    indices <- which(is.na(lubridate::int_end(x)))
+    stop(
+      paste('NA values detected for the time column at index:', indices, '\n')
+    )
+  }
+}
+
 string_to_interval <- function(time_column) {
   # we need to see if the datetime is an interval and if so, convert it to
   # a lubridate interval
   date_strings <- strsplit(time_column, "--")
 
-  starts <- lapply(date_strings, `[[`, 1)
-  ends <- lapply(date_strings, `[[`, 2)
+  starts <- unlist(lapply(date_strings, `[[`, 1))
+  ends <- unlist(lapply(date_strings, `[[`, 2))
 
   return(lubridate::interval(start = starts, end = ends))
 }
