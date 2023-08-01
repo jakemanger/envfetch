@@ -16,7 +16,7 @@ envfetch_vs_terra <- function(summarise_fun) {
   # extract with envfetch
   out <- d %>%
     fetch(
-      ~extract_across_times(
+      ~extract_over_time(
         .x,
         r,
         summarise_fun=summarise_fun
@@ -80,7 +80,7 @@ test_that('chunking_doesnt_change_output', {
 
   chunked_out <- d %>%
     fetch(
-      ~extract_across_times(
+      ~extract_over_time(
         .x,
         system.file('testdata', 'test_tmin.nc', package='envfetch'),
         chunk=TRUE
@@ -92,7 +92,7 @@ test_that('chunking_doesnt_change_output', {
 
   out <- d %>%
     fetch(
-      ~extract_across_times(
+      ~extract_over_time(
         .x,
         system.file('testdata', 'test_tmin.nc', package='envfetch'),
         chunk=FALSE

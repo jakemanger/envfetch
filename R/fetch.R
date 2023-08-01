@@ -111,7 +111,7 @@ fetch <- function(
     # and either read cached output or run the function
     outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
     if (!use_cache || !file.exists(outpath)) {
-      out <- fun(points, time_column_name=time_column_name)
+      out <- fun(points)
       out <- out[,!(colnames(out) %in% colnames(points))]
       out <- sf::st_drop_geometry(out)
       message(paste('🐶 Completed', fun_string))

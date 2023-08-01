@@ -1,8 +1,7 @@
-#' Extract values from a raster across time
+#' Extract values from a raster over time
 #'
-#' This function extracts raster data across a specified time range. It allows
-#' users to extract raster data within a given time buffer and summarise the
-#' extracted data using a custom function.
+#' This function extracts raster data over time ranges of each row and
+#' summarise the extracted data using a custom function.
 #'
 #' @param points An sf object containing the locations to be sampled.
 #' This should contain a column of type lubridate::interval to represent the time.
@@ -30,20 +29,20 @@
 #' \dontrun{
 #' extracted <- d %>%
 #'   fetch(
-#'     ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+#'     ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
 #'   )
 #'
 #' # repeatedly extract and summarise data every fortnight for the last six months
 #' # relative to the start of the time column in `d`
 #' rep_extracted <- d %>%
 #'   fetch(
-#'       ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+#'       ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
 #'       .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
 #'     )
 #'   }
 #' }
 #' @export
-extract_across_times <- function(
+extract_over_time <- function(
   points,
   r,
   summarise_fun=function(x) {mean(x, na.rm=TRUE)},
@@ -101,7 +100,7 @@ extract_across_times <- function(
   nms <- names(r_within_time)
   tms <- terra::time(r_within_time)
 
-  extracted <- extract_without_overusing_ram(
+  extracted <- extract_over_space(
     x = r_within_time,
     y = points,
     chunk = chunk
@@ -157,61 +156,6 @@ pad_true <- function(vec) {
   shift_left <- c(vec[-1], FALSE)             # shift left
   vec <- vec | shift_right | shift_left       # or operation to combine shifts
   return(vec)
-}
-
-extract_without_overusing_ram <- function(x, y, chunk=TRUE) {
-  mem_info_func <- purrr::quietly(terra::mem_info)
-  mem_info <- mem_info_func(x)$result
-  ram_required <- mem_info['needed']
-  ram_available <- mem_info['available']
-
-  message(
-    paste(
-      ram_required,
-      'Kbs of RAM is required for extraction and',
-      ram_available,
-      'Kbs of RAM is available'
-    )
-  )
-
-  if (chunk == TRUE && ram_required > ram_available) {
-    # split raster into chunks based on available RAM
-    times <- terra::time(x)
-
-    num_chunks <- ceiling(ram_required / ram_available)
-    chunk_size <- ceiling(length(times) / num_chunks)
-    message(paste('Splitting job into', num_chunks, 'chunks'))
-
-    progressr::with_progress({
-      p <- progressr::progressor(steps = num_chunks)
-
-      # initialize list to hold chunks
-      r_chunks <- vector("list", num_chunks)
-
-      # divide raster into chunks
-      for (i in seq_len(num_chunks)) {
-        start_index <- ((i - 1) * chunk_size) + 1
-        end_index <- min(i * chunk_size, length(times))
-        r_chunks[[i]] <- x[[start_index:end_index]]
-      }
-
-
-      extractions <- lapply(r_chunks, function(chunk) {
-        ex <- terra::extract(x = chunk, y = y)
-        # update progress bar after each extraction
-        p()
-        return(ex)
-      })
-      # perform extraction on each chunk and combine results
-      extracted <- do.call(cbind, extractions)
-    })
-  } else {
-    # perform extraction normally if raster fits in RAM
-    extracted <- terra::extract(x = x, y = y)
-  }
-  message('Completed extraction')
-
-  return(extracted)
 }
 
 find_relevant_time_slices <- function(dates, time_intervals) {
