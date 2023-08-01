@@ -1,0 +1,333 @@
+---
+title: "Benchmark against existing tools for local files"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{benchmark-against-existing-tools}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(envfetch)
+```
+
+## Need
+
+There are many existing R packages to extract raster data at locations of vector
+geometries (e.g. points). However, with large raster files and many data points 
+to extract, default implementations of these solutions are time intensive (due 
+to inefficient loading of raster files) or use too much RAM (causing crashes).
+
+The `envfetch` package addresses these problems by provided pre-implemented solutions
+to avoid overuse of RAM by processing data in smaller chunks and avoiding repeated processing
+by caching progress. It also provides efficient loading of raster files by only loading
+time-slices and indices required for the extraction.
+
+These implementations lead `envfetch` to outperform existing solutions to extract data in large raster
+files. It also prevents crashes due to overuse of RAM when using large data sets. A benchmark of these
+extractions against popular R extraction packages, `raster`, `terra`, `exactextractr`
+and `stars` using synthetic `sf` data points and a large public raster data set over a 20 and 40 year period is provided below.
+
+The raster data used in this benchmark contains Root Zone Soil Moisture predictions from the Australian Water Outlook project
+of the Australian Bureau of Meteorology. The data is freely downloadable in yearly netcdf format via: https://awo.bom.gov.au/products/historical/soilMoisture-rootZone/4.5,-27.509,134.221/nat,-25.609,134.362/r/d/2023-07-16
+
+## Setup
+```{r}
+library(envfetch)
+library(terra)
+library(sf)
+library(lubridate)
+
+# load a large netcdf raster data set
+path_to_ncs <- "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture/"
+nc_paths <- list.files(path_to_ncs, full.names=TRUE)
+r <- rast(nc_paths)
+
+create_p <- function(n_decades=7) {
+  # create a synthetic vector points data set
+  if (n_decades < 1 || n_decades > 7)
+    stop('n_decades must be between 1 and 7')
+  
+  dates <- c(
+    '1950-01-01',
+    '1960-01-01',
+    '1970-01-01',
+    '1980-01-01',
+    '1990-01-01',
+    '2000-01-01',
+    '2010-01-01',
+    '2020-01-01'
+  )
+  dates <- dates[1:n_decades]
+  
+  p <- st_sfc(crs=sf::st_crs(4326))
+  for (i in seq(dates)) {
+    date <- dates[i]
+    p <- rbind(
+      p,
+      throw(
+        offset=c(128, -30),
+        cellsize=1,
+        n=10,
+        time_interval=interval(start=as.Date(date), end=as.Date(date)+months(1))
+      )
+    )
+  }
+  return(p)
+}
+
+p <- create_p()
+
+# plot points to extract on raster
+plot(r[[1]])
+coords <- sf::st_coordinates(p)
+points(coords[,1], coords[,2])
+```
+
+## Benchmarks
+
+Because `raster`, `terra` and `exactextractr` solutions do not provide a method to calculate
+summary statistics for each individual time range in the data set, these will
+be calculated post-extraction using the following standard approach:
+```{r}
+calculate_summary_stat <- function(d, extracted) {
+  for (i in seq_len(nrow(d))) {
+      time <- d$time_column[i]
+      cols_to_average <- lubridate::`%within%`(times, time)
+      d$mean <- mean(as.numeric(extracted[i, cols_to_average]))
+  }
+  return(d$mean)
+}
+```
+
+A standard implementation using the `raster` package.
+```{r}
+library(raster)
+
+extract_with_raster <- function(p, calculate_summary=TRUE) {
+  r <- stack(nc_paths)
+  
+  dates <- getZ(r)
+  
+  min_date <- min(int_start(p$time_column))
+  max_date <- max(int_end(p$time_column))
+  r <- r[[dates >= min_date & dates <= max_date]]
+  
+  extracted <- extract(r, p)
+  
+  if (!calculate_summary)
+    return(extracted)
+  
+  return(calculate_summary_stat(p, extracted))
+}
+```
+
+A standard implementation using the `terra` package.
+```{r}
+library(terra)
+
+extract_with_terra <- function(p, calculate_summary=TRUE) {
+  r <- rast(nc_paths)
+  
+  dates <- time(r)
+  
+  min_date <- min(int_start(p$time_column))
+  max_date <- max(int_end(p$time_column))
+  r <- r[[dates >= min_date & dates <= max_date]]
+  
+  extracted <- extract(r, p)
+  
+  if (!calculate_summary)
+    return(extracted)
+  
+  return(calculate_summary_stat(p, extracted))
+}
+```
+
+A standard implementation using the `exactextractr` package.
+```{r}
+library(exactextractr)
+
+extract_with_exactextractr <- function(p, calculate_summary=TRUE) {
+  r <- rast(nc_paths)
+  
+  dates <- time(r)
+  
+  min_date <- min(int_start(p$time_column))
+  max_date <- max(int_end(p$time_column))
+  r <- r[[dates >= min_date & dates <= max_date]]
+  
+  extracted <- exact_extract(r, p)
+  
+  if (!calculate_summary)
+    return(extracted)
+  
+  return(calculate_summary_stat(p, extracted))
+}
+
+```
+
+A standard implementation using the `stars` package.
+```{r}
+library(stars)
+
+extract_with_stars <- function(p) {
+  r <- rast(nc_paths)
+  
+  dates <- time(r)
+  
+  min_date <- min(int_start(p$time_column))
+  max_date <- max(int_end(p$time_column))
+  r <- r[[dates >= min_date & dates <= max_date]]
+  
+  extracted <- st_extract(r, p, time_column='time_column', fun=mean)
+
+  return(extracted)
+}
+```
+
+A RAM- and time-efficient implementation using the `envfetch` package.
+```{r}
+library(envfetch)
+
+extract_with_envfetch <- function(p) {
+  r <- rast(nc_paths)
+  
+  extracted <- p %>%
+    fetch(
+      ~extract_across_times(.x, r, summarise_fun=mean),
+      out_filename = NA,
+      use_cache = FALSE
+    )
+  
+  return(extracted)
+}
+extract_with_envfetch_with_cache <- function(p) {
+  r <- rast(nc_paths)
+  
+  extracted <- p %>%
+    fetch(
+      ~extract_across_times(.x, r, summarise_fun=mean),
+      out_filename = NA
+    )
+  
+  return(extracted)
+}
+```
+
+
+## Benchmark comparison
+
+We can run a benchmark comparing these different approaches with the
+microbenchmark package. To check for crashes due to overuse of RAM, we also
+wrap these implementations with a try catch block.
+
+```{r}
+library(microbenchmark)
+
+catch_errors <- function(fun, n_decades=1) {
+  p <- create_p(n_decades = n_decades)
+  tryCatch({
+      return(fun(p))
+  }, error=function(e) {
+      return(e$message)
+  })
+}
+
+result_without_raster <- microbenchmark(
+  terra_1_decade=catch_errors(extract_with_terra, 1),
+  exactextractr_1_decade=catch_errors(extract_with_exactextractr, 1),
+  stars_1_decade=catch_errors(extract_with_stars, 1),
+  envfetch_1_decade_with_cache=catch_errors(extract_with_envfetch_with_cache, 1),
+  envfetch_1_decade=catch_errors(extract_with_envfetch, 1),
+  terra_2_decades=catch_errors(extract_with_terra, 2),
+  exactextractr_2_decades=catch_errors(extract_with_exactextractr, 2),
+  stars_2_decades=catch_errors(extract_with_stars, 2),
+  envfetch_2_decade_with_cache=catch_errors(extract_with_envfetch_with_cache, 2),
+  envfetch_2_decades=catch_errors(extract_with_envfetch, 2),
+  terra_4_decades=catch_errors(extract_with_terra, 4),
+  exactextractr_4_decades=catch_errors(extract_with_exactextractr, 4),
+  stars_4_decades=catch_errors(extract_with_stars, 4),
+  envfetch_4_decades_with_cache=catch_errors(extract_with_envfetch_with_cache, 4),
+  envfetch_4_decades=catch_errors(extract_with_envfetch, 4),
+  times=10
+)
+
+result_without_raster
+saveRDS(result_without_raster, 'result_without_raster.RDS')
+```
+
+```{r}
+# check returned values from each function
+terra_1_decade <- catch_errors(extract_with_terra, 1)
+exactextractr_1_decade <- catch_errors(extract_with_exactextractr, 1)
+stars_1_decade <- catch_errors(extract_with_stars, 1)
+envfetch_1_decade_with_cache <- catch_errors(extract_with_envfetch_with_cache, 1)
+envfetch_1_decade <- catch_errors(extract_with_envfetch, 1)
+terra_2_decades <- catch_errors(extract_with_terra, 2)
+exactextractr_2_decades <- catch_errors(extract_with_exactextractr, 2)
+stars_2_decades <- catch_errors(extract_with_stars, 2)
+envfetch_2_decade_with_cache <- catch_errors(extract_with_envfetch_with_cache, 2)
+envfetch_2_decades <- catch_errors(extract_with_envfetch, 2)
+terra_4_decades <- catch_errors(extract_with_terra, 4)
+exactextractr_4_decades <- catch_errors(extract_with_exactextractr, 4)
+stars_4_decades <- catch_errors(extract_with_stars, 4)
+envfetch_4_decades_with_cache <- catch_errors(extract_with_envfetch_with_cache, 4)
+envfetch_4_decades <- catch_errors(extract_with_envfetch, 4)
+
+```
+
+
+```{r}
+
+result <- microbenchmark(
+  raster_1_decade=catch_errors(extract_with_raster, 1),
+  terra_1_decade=catch_errors(extract_with_terra, 1),
+  exactextractr_1_decade=catch_errors(extract_with_exactextractr, 1),
+  stars_1_decade=catch_errors(extract_with_stars, 1),
+  envfetch_1_decade_with_cache=catch_errors(extract_with_envfetch_with_cache, 1),
+  envfetch_1_decade=catch_errors(extract_with_envfetch, 1),
+  raster_2_decades=catch_errors(extract_with_raster, 2),
+  terra_2_decades=catch_errors(extract_with_terra, 2),
+  exactextractr_2_decades=catch_errors(extract_with_exactextractr, 2),
+  stars_2_decades=catch_errors(extract_with_stars, 2),
+  envfetch_2_decade_with_cache=catch_errors(extract_with_envfetch_with_cache, 2),
+  envfetch_2_decades=catch_errors(extract_with_envfetch, 2),
+  raster_4_decades=catch_errors(extract_with_raster, 4),
+  terra_4_decades=catch_errors(extract_with_terra, 4),
+  exactextractr_4_decades=catch_errors(extract_with_exactextractr, 4),
+  stars_4_decades=catch_errors(extract_with_stars, 4),
+  envfetch_4_decades_with_cache=catch_errors(extract_with_envfetch_with_cache, 4),
+  envfetch_4_decades=catch_errors(extract_with_envfetch, 4),
+  times=10
+)
+
+result
+
+saveRDS(result, 'result')
+```
+
+
+### Faster processing of data
+```{r}
+library(ggplot2)
+autoplot(result)
+```
+
+
+### Avoiding overuse of RAM
+
+### Avoiding crashes
+With datasets that are larger than the RAM available on the computer, standard
+extraction implementations using the `raster`, `terra`, `exactextractr` and 
+`stars` cause crashes when attempting an extraction using their respective
+"extract" functions. Currently, the implementation of the `envfetch` package,
+processing data in smaller chunks, is the only pre-implemented solution to 
+avoid crashing.

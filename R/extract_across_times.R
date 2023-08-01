@@ -5,7 +5,7 @@
 #' extracted data using a custom function.
 #'
 #' @param points An sf object containing the locations to be sampled.
-#' This should contain a column 'time_column' of type lubridate::interval.
+#' This should contain a column of type lubridate::interval to represent the time.
 #' @param r A SpatRaster object from the terra package. This is the raster data
 #' source from which the data will be extracted.
 #' @param summarise_fun A function used to summarise multiple data points
@@ -19,6 +19,8 @@
 #' with those specified in the envfetch's package. Default is TRUE.
 #' @param chunk If TRUE, performs extraction in chunks to handle large files and
 #' manage memory usage efficiently. Default is TRUE.
+#' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
+#' is automatically selected.
 #'
 #' @return A modified version of the input 'points' with an additional column
 #' containing the extracted data.
@@ -48,7 +50,8 @@ extract_across_times <- function(
   time_buffer=lubridate::days(0),
   debug=FALSE,
   override_terraOptions=TRUE,
-  chunk=TRUE
+  chunk=TRUE,
+  time_column_name=NULL
 ) {
   if (override_terraOptions) {
     # set the gdalCache size to 30000 MB
@@ -64,13 +67,19 @@ extract_across_times <- function(
     r <- terra::rast(r)
   }
   dates <- terra::time(r)
-  time_intervals <- points$time_column
+
+  if (is.null(time_column_name)) {
+    time_column_name <- find_time_column_name(points)
+  }
+
+  time_intervals <- points %>% dplyr::pull(time_column_name)
+
   lubridate::int_start(time_intervals) <- lubridate::int_start(time_intervals) - time_buffer
   lubridate::int_end(time_intervals) <- lubridate::int_end(time_intervals) + time_buffer
 
   # get min and max times from points to check for errors
-  min_time <- min(lubridate::int_start(points$time_column))
-  max_time <- max(lubridate::int_end(points$time_column))
+  min_time <- min(lubridate::int_start(time_intervals))
+  max_time <- max(lubridate::int_end(time_intervals))
 
   if (min(dates) > max_time) {
     stop('All requested data are before minimum time in data source')
@@ -124,8 +133,8 @@ extract_across_times <- function(
   progressr::with_progress({
     p <- progressr::progressor(steps=nrow(points))
     for (i in 1:nrow(points)) {
-      mn = lubridate::int_start(points$time_column[i])
-      mx = lubridate::int_end(points$time_column[i])
+      mn = lubridate::int_start(points[i, time_column_name])
+      mx = lubridate::int_end(points[i, time_column_name])
       for (col_name in new_col_names) {
         col_names_to_summarise <-
           tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)

@@ -12,7 +12,8 @@
 #' @param out_filename The path to output the result. Set to NA to not save the result and only return the result.
 #' @param overwrite Overwrite output file if exists.
 #' @param cache_dir A directory to output cached progress. Is ignored if use_cache = FALSE.
-#' @param time_column_name Name of the time column in the dataset. Defaults to 'time_column'.
+#' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
+#' is automatically selected.
 #' @param .time_rep A `time_rep` object. Used to repeat data extraction along repeating time intervals before and after the original datetime.
 #' This can be relative to the start or the end of the input time interval (specified by the `relative_to_start` argument of `time_rep`). Defaults to the start.
 #'
@@ -54,7 +55,7 @@ fetch <- function(
     out_filename=paste0('output_', format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), '.gpkg'),
     overwrite=TRUE,
     cache_dir=file.path(out_dir, 'cache/'),
-    time_column_name='time_column',
+    time_column_name=NULL,
     .time_rep=NA
 ) {
   message('Fetching your data... 🥏 🐕')
@@ -63,9 +64,12 @@ fetch <- function(
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
 
-  points$time_column <- points %>% parse_time_column(time_column_name)
+  if (is.null(time_column_name)) {
+    time_column_name <- find_time_column_name(points)
+  }
+  points[,time_column_name] <- points %>% parse_time_column(time_column_name)
 
-  col_names_used_in_func <- c('time_column', 'geometry')
+  col_names_used_in_func <- c(time_column_name, 'geometry')
 
   original_points <- points
   if (length(.time_rep) > 1) {
@@ -107,7 +111,7 @@ fetch <- function(
     # and either read cached output or run the function
     outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
     if (!use_cache || !file.exists(outpath)) {
-      out <- fun(points)
+      out <- fun(points, time_column_name=time_column_name)
       out <- out[,!(colnames(out) %in% colnames(points))]
       out <- sf::st_drop_geometry(out)
       message(paste('🐶 Completed', fun_string))
@@ -130,7 +134,7 @@ fetch <- function(
     extra_col_vals <- original_points %>% dplyr::select(c(extra_cols)) %>%
       sf::st_drop_geometry()
     points <- points %>%
-      dplyr::select(-c('time_column')) %>%
+      dplyr::select(-c(time_column_name)) %>%
       tidyr::pivot_wider(
         names_from = 'lag_amount',
         values_from = cols_to_get_vals_from,

@@ -30,7 +30,7 @@ ee_Initialise()
 
 and follow the prompts (saying `Y` when prompted).
 
-Note, these instructions are from of the `rgee` page
+Note, these instructions are from the `rgee` page
 [here](https://cran.r-project.org/web/packages/rgee/vignettes/rgee01.html).
 See this page if you run into problems.
 
@@ -81,8 +81,8 @@ plot(d, axes=TRUE)
 <img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
 
 Each data point in the table has a `sf::geometry` object along with a
-`datetime` (a `lubridate::interval`). Ensure data used with the envfetch
-package matches this format.
+`datetime` (a `lubridate::interval` or a date string). Ensure data used
+with the envfetch package matches this format.
 
 This `geometry` may be a point or a polygon. You may also just use plain
 old `x` and `y` coordinates as separate columns.
@@ -98,8 +98,7 @@ datetime `"2010-08-03 00:50:50"`.
 
 -   passes your data through your supplied extraction functions,
 -   caches progress, so that if your function crashes somewhere, you can
-    continue where you left off,
--   shows progress and estimated time to completion and
+    continue where you left off and
 -   allows you to repeat sampling across different times (see section 3,
     below).
 

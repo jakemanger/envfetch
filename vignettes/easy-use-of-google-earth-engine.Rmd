@@ -1,0 +1,36 @@
+---
+title: "Easy use of Google Earth Engine"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Easy use of Google Earth Engine}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(envfetch)
+```
+
+## Need
+
+In cases where downloading of local files for extracting data are not possible 
+or practical, cloud solutions can provide a performant alternative. The largest
+and most commonly used cloud-based geospatial analysis platform is Google
+Earth Engine.
+
+Currently, there is only one R package with an implemented extraction function
+for Google earth engine. However, with large datasets or extraction tasks,
+standard use of this function can causes crashes or overuse of Google Earth
+Engine's memory limits, failing the extraction task. The `envfetch` package 
+implements the `extract_gee` function to address this problem.
+
+## Overuse of GEE memory limits with `rgee`
+
+## Completion of task by respecting GEE memory limits with the `extract_gee` package

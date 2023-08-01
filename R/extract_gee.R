@@ -8,7 +8,7 @@
 #' `fetch` function.
 #'
 #' @param points An sf object containing the locations to be sampled.
-#'               This should contain a column 'time_column' of type lubridate::interval.
+#'               This should contain a time column of type lubridate::interval.
 #' @param collection_name A character string representing the Google Earth Engine
 #'                        image collection from which to extract data.
 #' @param bands A vector of character strings representing the band names to extract
@@ -42,6 +42,8 @@
 #'                       for resuming in case of interruptions. Default is TRUE.
 #' @param cache_dir A string representing the directory in which to save the cache files.
 #'                  Default is './'.
+#' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
+#'                         is automatically selected.
 #' @return A dataframe or sf object with the same rows as the input `points`, and new columns
 #'         representing the extracted data. The new column names correspond to the `bands` parameter.
 #' @export
@@ -86,27 +88,32 @@ extract_gee <- function(
   max_feature_collection_size=10000,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   cache_progress=TRUE,
-  cache_dir='./'
+  cache_dir='./',
+  time_column_name=NULL
 ) {
   if (initialise_gee)
     rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
   points$original_order <- 1:nrow(points)  # use a id column to return array back to original order
 
+  if (is.null(time_column_name)) {
+    time_column_name <- find_time_column_name(points)
+  }
+
   # sort the data by time for efficient processing
-  points <- points[order(as.Date(lubridate::int_start(points$time_column))),]
+  points <- points[order(as.Date(lubridate::int_start(points %>% dplyr::pull(time_column_name)))),]
 
   # convert points time column to UTC, as it is used by gee
-  time_column_after_sort <- points$time_column
-  points$time_column <- lubridate::interval(
-    lubridate::with_tz(lubridate::int_start(points$time_column), 'UTC'),
-    lubridate::with_tz(lubridate::int_end(points$time_column), 'UTC'),
+  time_column_after_sort <- points %>% dplyr::pull(time_column_name)
+  points[,time_column_name] <- lubridate::interval(
+    lubridate::with_tz(lubridate::int_start(time_column_after_sort), 'UTC'),
+    lubridate::with_tz(lubridate::int_end(time_column_after_sort), 'UTC'),
   )
 
   # chunk incorporating the start date of intervals to ensure efficient memory usage on gee's end
   # otherwise, gee will need to extract raster data from the full time range of
   # the dataset
-  points$start_time <- as.Date(lubridate::int_start(points$time_column))
+  points$start_time <- as.Date(points %>% dplyr::pull(time_column_name))
   pts_chunks <- split_time_chunks(points, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
 
   progressr::with_progress({
@@ -117,8 +124,9 @@ extract_gee <- function(
       p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
 
       # get min and max dates from the points tibble
-      min_datetime <- min(lubridate::int_start(chunk$time_column)) - time_buffer
-      max_datetime <- max(lubridate::int_end(chunk$time_column)) + time_buffer
+      chunk_time_column <- chunk %>% dplyr::pull(time_column_name)
+      min_datetime <- min(lubridate::int_start(chunk_time_column)) - time_buffer
+      max_datetime <- max(lubridate::int_end(chunk_time_column)) + time_buffer
       min_datetime <- format(min_datetime, "%Y-%m-%dT%H:%M:%S")
       max_datetime <- format(max_datetime, "%Y-%m-%dT%H:%M:%S")
 
@@ -194,9 +202,10 @@ extract_gee <- function(
   progressr::with_progress({
     p <- progressr::progressor(steps = nrow(points))
 
+    points_time_column <- points %>% dplyr::pull(time_column_name)
     for (i in 1:nrow(points)) {
-      mn = lubridate::int_start(points$time_column[i])
-      mx = lubridate::int_end(points$time_column[i])
+      mn = lubridate::int_start(points_time_column[i])
+      mx = lubridate::int_end(points_time_column[i])
 
       for (col_name in new_col_names) {
         row_times <- tms[nms == col_name]
@@ -213,7 +222,7 @@ extract_gee <- function(
           }
           points[i, col_name] <- value
         } else {
-          index <- lubridate::`%within%`(row_times, points$time_column[i])
+          index <- lubridate::`%within%`(row_times, points_time_column[i])
           points[i, col_name] <- summarise_fun(row_values[index])
         }
       }
@@ -222,7 +231,7 @@ extract_gee <- function(
   })
 
   # return points to its original order and assign back the time column
-  points$time_column <- time_column_after_sort
+  points[,time_column_name] <- time_column_after_sort
   points <- points %>% dplyr::arrange(original_order)
 
   # remove unnecessary columns

@@ -32,10 +32,11 @@ create_time_lags <- function(
     time_lag=lubridate::days(14),
     lag_amount_units=lubridate::days(1),
     relative_to_start=TRUE,
+    time_column_name='time_column',
     timezone='Australia/Perth'
 ) {
   geometries_to_lag <- x$geometry
-  times_to_lag <- x$time_column
+  times_to_lag <- x %>% dplyr::pull(time_column_name)
 
   new_geometries_column <- sf::st_sfc(crs=sf::st_crs(sf::st_geometry(x)))
   original_time_column <- lubridate::interval()
@@ -78,12 +79,12 @@ create_time_lags <- function(
     )
   }
 
-  x$original_time_column <- x$time_column
+  x$original_time_column <- x %>% dplyr::pull(time_column_name)
   x$lag_amount <- ''
 
   d <- x %>% dplyr::add_row(
     geometry = new_geometries_column,
-    time_column = new_time_column,
+    !!time_column_name := new_time_column,
     original_time_column = original_time_column,
     lag_amount = lag_amount
   )
