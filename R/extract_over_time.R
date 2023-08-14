@@ -12,7 +12,7 @@
 #' can supply vectorised summarisation functions (using rowMeans or rowSums) or
 #' non-vectorised summarisation functions (e.g., `sum`, `mean`, `min`, `max`).
 #' If supplying a custom vectorised `temporal_fun`, set `is_vectorised_temporal_fun`
-#' to `TRUE`.
+#' to `TRUE` to ensure the vectorised approach is used for performance.
 #' @param spatial_extraction_fun A function used to extract points spatially for
 #' each time slice of the raster. Default is the default implementation of `extract_over_space`
 #' (extracts the `mean` of points within polygons or lines, removing NAs).
@@ -210,4 +210,3 @@ find_relevant_time_slices <- function(dates, time_intervals) {
   relevant_indices <- pad_true(relevant_indices)
   return(relevant_indices)
 }
-
