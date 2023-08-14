@@ -47,6 +47,12 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, extractio
     )
   )
 
+  if (identical(exactextractr::exact_extract, exactextractr::exact_extract)) {
+    if (any(sf::st_geometry_type(x) == "POINT")) {
+      stop("POINT detectd in input geometry. exactextractr::exact_extract only works with polygons. Use terra::extract instead.")
+    }
+  }
+
   if (chunk == TRUE && ram_required > ram_available) {
     # split raster into chunks based on available RAM
     times <- terra::time(r)
