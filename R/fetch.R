@@ -5,7 +5,7 @@
 #' shows progress and estimated time to completion and
 #' allows you to repeat sampling across different times.
 #'
-#' @param points A tibble with a `sf` "geometry" and a column with time (a `lubridate` interval or date), specified by the `time_column_name` parameter.
+#' @param x A tibble with a `sf` "geometry" and a column with time (a `lubridate` interval or date), specified by the `time_column_name` parameter.
 #' @param ... Anonymous functions you would like to use on each row of the dataset.
 #' @param use_cache Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.
 #' @param out_dir A directory to output your result. Is ignored if out_filename = NA.
@@ -48,7 +48,7 @@
 #'}
 #' @export
 fetch <- function(
-    points,
+    x,
     ...,
     use_cache=TRUE,
     out_dir=file.path('./output/'),
@@ -65,28 +65,28 @@ fetch <- function(
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
 
   if (is.null(time_column_name)) {
-    time_column_name <- find_time_column_name(points)
+    time_column_name <- find_time_column_name(x)
   }
-  points[,time_column_name] <- points %>% parse_time_column(time_column_name)
+  x[,time_column_name] <- x %>% parse_time_column(time_column_name)
 
   col_names_used_in_func <- c(time_column_name, 'geometry')
 
-  original_points <- points
+  original_x <- x
   if (length(.time_rep) > 1) {
     # generate all time lag intervals we want to extract data for
-    points <- points %>%
+    x <- x %>%
       create_time_lags(n_lag_range=c(.time_rep$n_start, .time_rep$n_end), time_lag=.time_rep$interval, relative_to_start=.time_rep$relative_to_start)
-    col_names_used_in_func <- c(col_names_used_in_func, 'original_time_column', 'lag_amount')
+    col_names_used_in_func <- c(col_names_used_in_func, 'envfetch__original_time_column', 'lag_amount')
   }
 
-  extra_cols <- colnames(original_points)
+  extra_cols <- colnames(original_x)
   extra_cols <- extra_cols[!(extra_cols %in% col_names_used_in_func)]
 
   # remove unnecessary columns so caching can work here and to make things work faster
-  points <- points %>% dplyr::select(-c(extra_cols))
+  x <- x %>% dplyr::select(-c(extra_cols))
 
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
-  hash <- rlang::hash(points)
+  hash <- rlang::hash(x)
 
   # capture the supplied ... arguments
   args <- c(...)
@@ -111,8 +111,8 @@ fetch <- function(
     # and either read cached output or run the function
     outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
     if (!use_cache || !file.exists(outpath)) {
-      out <- fun(points)
-      out <- out[,!(colnames(out) %in% colnames(points))]
+      out <- fun(x)
+      out <- out[,!(colnames(out) %in% colnames(x))]
       out <- sf::st_drop_geometry(out)
       message(paste('🐶 Completed', fun_string))
 
@@ -125,15 +125,15 @@ fetch <- function(
     return(out)
   })
 
-  points <- dplyr::bind_cols(c(points, outs))
+  x <- dplyr::bind_cols(c(x, outs))
 
   if (length(.time_rep) > 1) {
-    # now take those time lagged points and set them as columns for their
+    # now take those time lagged x and set them as columns for their
     # original point
-    cols_to_get_vals_from <- colnames(points)[!(colnames(points) %in% c(extra_cols, col_names_used_in_func))]
-    extra_col_vals <- original_points %>% dplyr::select(c(extra_cols)) %>%
+    cols_to_get_vals_from <- colnames(x)[!(colnames(x) %in% c(extra_cols, col_names_used_in_func))]
+    extra_col_vals <- original_x %>% dplyr::select(c(extra_cols)) %>%
       sf::st_drop_geometry()
-    points <- points %>%
+    x <- x %>%
       dplyr::select(-c(time_column_name)) %>%
       tidyr::pivot_wider(
         names_from = 'lag_amount',
@@ -144,15 +144,15 @@ fetch <- function(
     if (length(extra_cols) > 0) {
       # add back any extra columns not used in the pivot_wider
       extra_col_vals <- extra_col_vals %>% dplyr::select(
-        colnames(extra_col_vals)[!(colnames(extra_col_vals) %in% colnames(points))]
+        colnames(extra_col_vals)[!(colnames(extra_col_vals) %in% colnames(x))]
       )
-      points <- points %>% dplyr::bind_cols(
+      x <- x %>% dplyr::bind_cols(
         extra_col_vals
       )
     }
   }
   # remove columns with all NA values
-  points <- points %>%
+  x <- x %>%
     dplyr::select(dplyr::where(function(x) any(!is.na(x))))
 
   if (!is.na(out_filename)) {
@@ -164,22 +164,22 @@ fetch <- function(
     if (getFileExtension(out_path) == 'csv') {
       # user probably wants x and y coordinates and this stuffs up with csv as
       # commas are used in the default output geometry column
-      sf::st_write(points, out_path, append=ifelse(overwrite, FALSE, NA), layer_options = "GEOMETRY=AS_XY")
+      sf::st_write(x, out_path, append=ifelse(overwrite, FALSE, NA), layer_options = "GEOMETRY=AS_XY")
     } else {
-      sf::st_write(points, out_path, append=ifelse(overwrite, FALSE, NA))
+      sf::st_write(x, out_path, append=ifelse(overwrite, FALSE, NA))
     }
     message(
       paste0(
         'Check the output directory (',
         out_dir,
-        ') for your saved shapefile with your extracted points.'
+        ') for your saved shapefile with your extracted x.'
       )
     )
   }
 
   message('Fetched!')
 
-  return(points)
+  return(x)
 }
 
 getFileExtension <- function(file) {

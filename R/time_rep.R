@@ -5,8 +5,8 @@
 #' are of the correct types and meet certain conditions.
 #'
 #' @param interval A lubridate period indicating the time interval to repeat. It should be positive, e.g. `lubridate::days(14)`.
-#' @param n_start An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is -1.
-#' @param n_end An integer indicating the number of steps after the original datetime to which the interval should continue repeating. Default is 0.
+#' @param n_start An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is -1. Note this is inclusive.
+#' @param n_end An integer indicating the number of steps after the original datetime to which the interval should continue repeating. Default is 0. Note, this is exclusive.
 #' @param relative_to_start Whether to create repeating time intervals relative to the start of the input time interval or end.
 #'
 #' @return A list object with three elements: `interval`, `n_start`, and `n_end`.

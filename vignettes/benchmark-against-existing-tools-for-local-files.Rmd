@@ -97,10 +97,12 @@ Because `raster`, `terra` and `exactextractr` solutions do not provide a method 
 summary statistics for each individual time range in the data set, these will
 be calculated post-extraction using the following standard approach:
 ```{r}
-calculate_summary_stat <- function(d, extracted) {
+calculate_summary_stat <- function(d, extracted, times) {
   for (i in seq_len(nrow(d))) {
       time <- d$time_column[i]
       cols_to_average <- lubridate::`%within%`(times, time)
+      browser()
+      stopifnot(length(cols_to_average) == length(colnames(extracted)))
       d$mean <- mean(as.numeric(extracted[i, cols_to_average]))
   }
   return(d$mean)
@@ -120,12 +122,14 @@ extract_with_raster <- function(p, calculate_summary=TRUE) {
   max_date <- max(int_end(p$time_column))
   r <- r[[dates >= min_date & dates <= max_date]]
   
+  dates <- getZ(r)
+  
   extracted <- extract(r, p)
   
   if (!calculate_summary)
     return(extracted)
   
-  return(calculate_summary_stat(p, extracted))
+  return(calculate_summary_stat(p, extracted, dates))
 }
 ```
 
@@ -142,12 +146,14 @@ extract_with_terra <- function(p, calculate_summary=TRUE) {
   max_date <- max(int_end(p$time_column))
   r <- r[[dates >= min_date & dates <= max_date]]
   
-  extracted <- extract(r, p)
+  dates <- time(r)
+  
+  extracted <- extract(r, p, ID=FALSE)
   
   if (!calculate_summary)
     return(extracted)
   
-  return(calculate_summary_stat(p, extracted))
+  return(calculate_summary_stat(p, extracted, dates))
 }
 ```
 
@@ -164,12 +170,14 @@ extract_with_exactextractr <- function(p, calculate_summary=TRUE) {
   max_date <- max(int_end(p$time_column))
   r <- r[[dates >= min_date & dates <= max_date]]
   
+  dates <- time(r)
+  
   extracted <- exact_extract(r, p)
   
   if (!calculate_summary)
     return(extracted)
   
-  return(calculate_summary_stat(p, extracted))
+  return(calculate_summary_stat(p, extracted, dates))
 }
 
 ```
@@ -179,13 +187,14 @@ A standard implementation using the `stars` package.
 library(stars)
 
 extract_with_stars <- function(p) {
-  r <- rast(nc_paths)
+  r <- read_stars(nc_paths)
   
   dates <- time(r)
   
   min_date <- min(int_start(p$time_column))
   max_date <- max(int_end(p$time_column))
-  r <- r[[dates >= min_date & dates <= max_date]]
+
+  r <- r[,,, dates >= min_date & dates <= max_date]
   
   extracted <- st_extract(r, p, time_column='time_column', fun=mean)
 
@@ -223,40 +232,57 @@ extract_with_envfetch_with_cache <- function(p) {
 ```
 
 
+## Check values from each function
+
+Check returned values from each function
+
+```{r}
+p1 <- create_p(n_decades = 1)
+p2 <- create_p(n_decades = 2)
+p4 <- create_p(n_decades = 4)
+
+terra_1_decade <- extract_with_terra(p1)
+stars_1_decade <- extract_with_stars(p1)
+envfetch_1_decade_with_cache <- extract_with_envfetch_with_cache(p1)
+envfetch_1_decade <- extract_with_envfetch(p1)
+terra_2_decades <- extract_with_terra(p2)
+stars_2_decades <- extract_with_stars(p2)
+envfetch_2_decade_with_cache <- extract_with_envfetch_with_cache(p2)
+envfetch_2_decades <- extract_with_envfetch(p2)
+terra_4_decades <- extract_with_terra(p4)
+stars_4_decades <- extract_with_stars(p4)
+envfetch_4_decades_with_cache <- extract_with_envfetch_with_cache(p4)
+envfetch_4_decades <- extract_with_envfetch(p4)
+```
+
+
 ## Benchmark comparison
+
+### Extracting points
 
 We can run a benchmark comparing these different approaches with the
 microbenchmark package. To check for crashes due to overuse of RAM, we also
 wrap these implementations with a try catch block.
 
+Note, exactextractr only extracts with polygon objects, so that is not included
+in the following benchmark.
+
 ```{r}
 library(microbenchmark)
 
-catch_errors <- function(fun, n_decades=1) {
-  p <- create_p(n_decades = n_decades)
-  tryCatch({
-      return(fun(p))
-  }, error=function(e) {
-      return(e$message)
-  })
-}
-
 result_without_raster <- microbenchmark(
-  terra_1_decade=catch_errors(extract_with_terra, 1),
-  exactextractr_1_decade=catch_errors(extract_with_exactextractr, 1),
-  stars_1_decade=catch_errors(extract_with_stars, 1),
-  envfetch_1_decade_with_cache=catch_errors(extract_with_envfetch_with_cache, 1),
-  envfetch_1_decade=catch_errors(extract_with_envfetch, 1),
-  terra_2_decades=catch_errors(extract_with_terra, 2),
-  exactextractr_2_decades=catch_errors(extract_with_exactextractr, 2),
-  stars_2_decades=catch_errors(extract_with_stars, 2),
-  envfetch_2_decade_with_cache=catch_errors(extract_with_envfetch_with_cache, 2),
-  envfetch_2_decades=catch_errors(extract_with_envfetch, 2),
-  terra_4_decades=catch_errors(extract_with_terra, 4),
-  exactextractr_4_decades=catch_errors(extract_with_exactextractr, 4),
-  stars_4_decades=catch_errors(extract_with_stars, 4),
-  envfetch_4_decades_with_cache=catch_errors(extract_with_envfetch_with_cache, 4),
-  envfetch_4_decades=catch_errors(extract_with_envfetch, 4),
+  terra_1_decade=extract_with_terra(p1),
+  stars_1_decade=extract_with_stars(p1),
+  envfetch_1_decade_with_cache=extract_with_envfetch_with_cache(p1),
+  envfetch_1_decade=extract_with_envfetch(p1),
+  terra_2_decades=extract_with_terra(p2),
+  stars_2_decades=extract_with_stars(p2),
+  envfetch_2_decade_with_cache=extract_with_envfetch_with_cache(p2),
+  envfetch_2_decades=extract_with_envfetch(p2),
+  terra_4_decades=extract_with_terra(p4),
+  stars_4_decades=extract_with_stars(p4),
+  envfetch_4_decades_with_cache=extract_with_envfetch_with_cache(p4),
+  envfetch_4_decades=extract_with_envfetch(p4),
   times=10
 )
 
@@ -264,25 +290,6 @@ result_without_raster
 saveRDS(result_without_raster, 'result_without_raster.RDS')
 ```
 
-```{r}
-# check returned values from each function
-terra_1_decade <- catch_errors(extract_with_terra, 1)
-exactextractr_1_decade <- catch_errors(extract_with_exactextractr, 1)
-stars_1_decade <- catch_errors(extract_with_stars, 1)
-envfetch_1_decade_with_cache <- catch_errors(extract_with_envfetch_with_cache, 1)
-envfetch_1_decade <- catch_errors(extract_with_envfetch, 1)
-terra_2_decades <- catch_errors(extract_with_terra, 2)
-exactextractr_2_decades <- catch_errors(extract_with_exactextractr, 2)
-stars_2_decades <- catch_errors(extract_with_stars, 2)
-envfetch_2_decade_with_cache <- catch_errors(extract_with_envfetch_with_cache, 2)
-envfetch_2_decades <- catch_errors(extract_with_envfetch, 2)
-terra_4_decades <- catch_errors(extract_with_terra, 4)
-exactextractr_4_decades <- catch_errors(extract_with_exactextractr, 4)
-stars_4_decades <- catch_errors(extract_with_stars, 4)
-envfetch_4_decades_with_cache <- catch_errors(extract_with_envfetch_with_cache, 4)
-envfetch_4_decades <- catch_errors(extract_with_envfetch, 4)
-
-```
 
 
 ```{r}

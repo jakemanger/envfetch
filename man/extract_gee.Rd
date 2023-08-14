@@ -19,12 +19,13 @@ extract_gee(
   max_feature_collection_size = 10000,
   ee_reducer_fun = rgee::ee$Reducer$mean(),
   cache_progress = TRUE,
-  cache_dir = "./"
+  cache_dir = "./",
+  time_column_name = NULL
 )
 }
 \arguments{
 \item{points}{An sf object containing the locations to be sampled.
-This should contain a column 'time_column' of type lubridate::interval.}
+This should contain a time column of type lubridate::interval.}
 
 \item{collection_name}{A character string representing the Google Earth Engine
 image collection from which to extract data.}
@@ -72,6 +73,9 @@ for resuming in case of interruptions. Default is TRUE.}
 
 \item{cache_dir}{A string representing the directory in which to save the cache files.
 Default is './'.}
+
+\item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
+is automatically selected.}
 }
 \value{
 A dataframe or sf object with the same rows as the input \code{points}, and new columns

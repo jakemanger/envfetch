@@ -9,7 +9,7 @@ create_test_d <- function() {
   return(d)
 }
 
-envfetch_vs_terra <- function(summarise_fun) {
+envfetch_vs_terra <- function(temporal_fun) {
   d <- create_test_d()
   r <- terra::rast(system.file('testdata', 'test_tmin.nc', package='envfetch'))
 
@@ -19,7 +19,7 @@ envfetch_vs_terra <- function(summarise_fun) {
       ~extract_over_time(
         .x,
         r,
-        summarise_fun=summarise_fun
+        temporal_fun=temporal_fun
       ),
       .time_rep=time_rep(interval=lubridate::days(1), n_start=-2),
       use_cache=FALSE,
@@ -45,7 +45,7 @@ envfetch_vs_terra <- function(summarise_fun) {
 
       cols_to_average <- lubridate::`%within%`(times, time)
 
-      result <- summarise_fun(as.numeric(terra_out[i, cols_to_average]))
+      result <- temporal_fun(as.numeric(terra_out[i, cols_to_average]))
       terra_result_matrix[i, t+1] <- result
     }
   }
@@ -58,21 +58,21 @@ envfetch_vs_terra <- function(summarise_fun) {
 }
 
 test_that('correct_result_returned_mean', {
-  envfetch_vs_terra(summarise_fun=mean)
+  envfetch_vs_terra(temporal_fun=mean)
 })
 
 test_that('correct_result_returned_mean_na_rm', {
   fun <- function(x) {mean(x, na.rm=TRUE)}
-  envfetch_vs_terra(summarise_fun=fun)
+  envfetch_vs_terra(temporal_fun=fun)
 })
 
 test_that('correct_result_returned_sum', {
-  envfetch_vs_terra(summarise_fun=sum)
+  envfetch_vs_terra(temporal_fun=sum)
 })
 
 test_that('correct_result_returned_sum_na_rm', {
   fun <- function(x) {sum(x, na.rm=TRUE)}
-  envfetch_vs_terra(summarise_fun=fun)
+  envfetch_vs_terra(temporal_fun=fun)
 })
 
 test_that('chunking_doesnt_change_output', {
@@ -83,7 +83,15 @@ test_that('chunking_doesnt_change_output', {
       ~extract_over_time(
         .x,
         system.file('testdata', 'test_tmin.nc', package='envfetch'),
-        chunk=TRUE
+        spatial_extraction_fun=function(x, r) {
+          extract_over_space(
+            x = x,
+            r = r,
+            fun = mean,
+            na.rm = TRUE,
+            chunk = TRUE
+          )
+        }
       ),
       .time_rep=time_rep(interval=lubridate::days(14), n_start=-1),
       use_cache=FALSE,
@@ -95,7 +103,15 @@ test_that('chunking_doesnt_change_output', {
       ~extract_over_time(
         .x,
         system.file('testdata', 'test_tmin.nc', package='envfetch'),
-        chunk=FALSE
+        spatial_extraction_fun=function(x, r) {
+          extract_over_space(
+            x = x,
+            r = r,
+            fun = mean,
+            na.rm = TRUE,
+            chunk = FALSE
+          )
+        }
       ),
       .time_rep=time_rep(interval=lubridate::days(14), n_start=-1),
       use_cache=FALSE,

@@ -5,7 +5,7 @@
 \title{Fetch data from each row using anonymous functions}
 \usage{
 fetch(
-  points,
+  x,
   ...,
   use_cache = TRUE,
   out_dir = file.path("./output/"),
@@ -13,12 +13,12 @@ fetch(
     ".gpkg"),
   overwrite = TRUE,
   cache_dir = file.path(out_dir, "cache/"),
-  time_column_name = "time_column",
+  time_column_name = NULL,
   .time_rep = NA
 )
 }
 \arguments{
-\item{points}{A tibble with a \code{sf} "geometry" and a column with time (a \code{lubridate} interval or date), specified by the \code{time_column_name} parameter.}
+\item{x}{A tibble with a \code{sf} "geometry" and a column with time (a \code{lubridate} interval or date), specified by the \code{time_column_name} parameter.}
 
 \item{...}{Anonymous functions you would like to use on each row of the dataset.}
 
@@ -32,7 +32,8 @@ fetch(
 
 \item{cache_dir}{A directory to output cached progress. Is ignored if use_cache = FALSE.}
 
-\item{time_column_name}{Name of the time column in the dataset. Defaults to 'time_column'.}
+\item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
+is automatically selected.}
 
 \item{.time_rep}{A \code{time_rep} object. Used to repeat data extraction along repeating time intervals before and after the original datetime.
 This can be relative to the start or the end of the input time interval (specified by the \code{relative_to_start} argument of \code{time_rep}). Defaults to the start.}

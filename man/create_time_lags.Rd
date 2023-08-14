@@ -10,6 +10,7 @@ create_time_lags(
   time_lag = lubridate::days(14),
   lag_amount_units = lubridate::days(1),
   relative_to_start = TRUE,
+  time_column_name = "time_column",
   timezone = "Australia/Perth"
 )
 }

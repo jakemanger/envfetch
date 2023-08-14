@@ -11,7 +11,6 @@
 #' determines the unit for the 'lag_amount' column.
 #' @param relative_to_start A logical value indicating whether the lag should be
 #' relative to the start or the end of the input time interval.
-#' @param timezone A string specifying the timezone for the dates.
 #'
 #' @return A tibble with the original data and additional time-lagged rows.
 #'
@@ -22,8 +21,7 @@
 #'   n_lag_range = c(1, 14),
 #'   time_lag = lubridate::days(14),
 #'   lag_amount_units = lubridate::days(1),
-#'   relative_to_start = TRUE,
-#'   timezone = 'Australia/Perth'
+#'   relative_to_start = TRUE
 #' )
 #' }
 create_time_lags <- function(
@@ -32,19 +30,20 @@ create_time_lags <- function(
     time_lag=lubridate::days(14),
     lag_amount_units=lubridate::days(1),
     relative_to_start=TRUE,
-    time_column_name='time_column',
-    timezone='Australia/Perth'
+    time_column_name='time_column'
 ) {
-  geometries_to_lag <- x$geometry
+  geometries_to_lag <- sf::st_geometry(x)
   times_to_lag <- x %>% dplyr::pull(time_column_name)
 
   new_geometries_column <- sf::st_sfc(crs=sf::st_crs(sf::st_geometry(x)))
-  original_time_column <- lubridate::interval()
+  envfetch__original_time_column <- lubridate::interval()
   new_time_column <- lubridate::interval()
   lag_amount <- c()
 
   start_range <- seq(n_lag_range[1], n_lag_range[2], by = 1)
   start_range <- start_range[1:length(start_range)-1]
+
+  timezone <- lubridate::tz(x %>% dplyr::pull(time_column_name) %>% lubridate::int_start())
 
   for (start in start_range) {
     min <- start * time_lag
@@ -60,12 +59,12 @@ create_time_lags <- function(
       new_time_column,
       lubridate::interval(
         start=relative_time + min,
-        end=relative_time + max,
+        end=relative_time + max - lubridate::seconds(1),
         tz=timezone
       )
     )
     new_geometries_column <- c(new_geometries_column, geometries_to_lag)
-    original_time_column <- c(original_time_column, times_to_lag)
+    envfetch__original_time_column <- c(envfetch__original_time_column, times_to_lag)
     lag_amount <- c(
       lag_amount,
       rep(
@@ -79,13 +78,15 @@ create_time_lags <- function(
     )
   }
 
-  x$original_time_column <- x %>% dplyr::pull(time_column_name)
+  x$envfetch__original_time_column <- x %>% dplyr::pull(time_column_name)
   x$lag_amount <- ''
 
+  geometry_column_name = attr(d, "sf_column")
+
   d <- x %>% dplyr::add_row(
-    geometry = new_geometries_column,
+    !!geometry_column_name := new_geometries_column,
     !!time_column_name := new_time_column,
-    original_time_column = original_time_column,
+    envfetch__original_time_column = envfetch__original_time_column,
     lag_amount = lag_amount
   )
 

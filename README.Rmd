@@ -94,15 +94,16 @@ Each individual data point will use the `datetime` object to decide what time ra
 
 You can supply any data extraction function to `fetch`, but some useful built-in data extraction functions are provided:
 
-| Function name          | Description                                                                                                                        |
-|---------------|---------------------------------------------------------|
-| `extract_across_times` | Extract and summarise raster data across time periods for each row in your dataset.                                                |
-| `extract_gee`          | Use Google Earth Engine to extract your chosen image collection bands and summarise this information for each row in your dataset. |
-| `get_daynight_times`   | Calculates the time since sunrise, time since sunset and day and night hours for each row in your dataset.                         |
+| Function name        | Description                                                                                                                        |
+|----------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `extract_over_time`  | Extract and summarise raster data over multiple time periods for each row in your dataset.                                         |
+| `extract_over_space` | Extract and summarise raster data over space for each row in your dataset.                                                         |
+| `extract_gee`        | Use Google Earth Engine to extract your chosen image collection bands and summarise this information for each row in your dataset. |
+| `get_daynight_times` | Calculates the time since sunrise, time since sunset and day and night hours for each row in your dataset.                         |
 
 In this example, we will use:
 
--   `extract_across_times` to extract from a large pre-downloaded NetCDF file
+-   `extract_over_time` to extract from a large pre-downloaded NetCDF file
 
 -   `extract_gee` to extract NDVI data from the MODIS MOD13Q1 dataset on Google Earth Engine
 
@@ -111,7 +112,7 @@ To fetch the data, use the **`fetch`** function and supply it with the extractio
 ```{r, eval=FALSE}
 extracted <- d |>
   fetch(
-    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+    ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
     ~extract_gee(
        .x,
        collection_name='MODIS/061/MOD13Q1',
@@ -128,7 +129,7 @@ In certain applications, you may need to obtain environmental data from repeated
 ```{r, eval=FALSE}
 rep_extracted <- d |>
   fetch(
-    ~extract_across_times(.x, r = '/path/to/netcdf.nc'),
+    ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
     ~extract_gee(
        .x,
        collection_name='MODIS/061/MOD13Q1',

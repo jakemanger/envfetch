@@ -1,20 +1,24 @@
 #' Extract Values from a Raster Layer over a space
 #'
-#' This function extracts values from a raster layer (x) over a spatial object (y).
+#' This function extracts values from a raster layer (r) over a spatial object (x).
 #' If the spatial object contains multiple z indices (e.g. time), then spatial extractions
 #' for each time will be returned.
 #' It also ensures that the extraction does not exceed available RAM. If the raster is too large, the
 #' function can chunk the raster into smaller pieces and process each chunk sequentially to
 #' avoid memory overflow.
 #'
-#' @param x A `terra::SpatRaster` object, representing the raster layer from which values need to be extracted.
-#' @param y A spatial object, representing the locations over which raster values need to be extracted.
+#' @param x An sf spatial object, representing the locations over which raster values need to be extracted.
+#' @param r A `terra::SpatRaster` object, representing the raster layer from which values need to be extracted.
 #' @param chunk Logical. If `TRUE`, the raster will be split into chunks based on available RAM and processed
 #'              chunk by chunk. If `FALSE`, the raster will be processed as a whole. Default is `TRUE`.
+#' @param fun Function used to summarise multiple values within a polygon or line. Is passed to `extraction_fun`
+#' internally. Defaults to `mean`.
+#' @param na.rm Whether to remove NA values when summarising with the `fun` function.
+#' @param ... Additional arguments to pass to `terra::extract`.
+#' @param extraction_fun The extraction function to use. Default is `terra::extract`.
 #'
 #' @return A matrix or list where each column corresponds to a raster layer and each row corresponds to a
-#'         point in `y`. The values represent the raster values at each point's location.
-#'         If chunking was performed, the results from each chunk are combined column-wise.
+#'         geometry in `x`. The values represent the raster values at each point's location.
 #'
 #' @details
 #' This function uses the `terra::mem_info` function to assess the RAM requirements for the extraction.
@@ -26,11 +30,11 @@
 #'
 #' @examples
 #' # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a spatial object:
-#' # result <- extract_over_space(some_raster, some_sp)
+#' # result <- extract_over_space(x=some_sp, r=some_raster)
 #' @export
-extract_over_space <- function(x, y, chunk=TRUE) {
+extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, extraction_fun=terra::extract, ...) {
   mem_info_func <- purrr::quietly(terra::mem_info)
-  mem_info <- mem_info_func(x)$result
+  mem_info <- mem_info_func(r)$result
   ram_required <- mem_info['needed']
   ram_available <- mem_info['available']
 
@@ -45,7 +49,7 @@ extract_over_space <- function(x, y, chunk=TRUE) {
 
   if (chunk == TRUE && ram_required > ram_available) {
     # split raster into chunks based on available RAM
-    times <- terra::time(x)
+    times <- terra::time(r)
 
     num_chunks <- ceiling(ram_required / ram_available)
     chunk_size <- ceiling(length(times) / num_chunks)
@@ -61,12 +65,11 @@ extract_over_space <- function(x, y, chunk=TRUE) {
       for (i in seq_len(num_chunks)) {
         start_index <- ((i - 1) * chunk_size) + 1
         end_index <- min(i * chunk_size, length(times))
-        r_chunks[[i]] <- x[[start_index:end_index]]
+        r_chunks[[i]] <- r[[start_index:end_index]]
       }
 
-
       extractions <- lapply(r_chunks, function(chunk) {
-        ex <- terra::extract(x = chunk, y = y)
+        ex <- extraction_fun(x = chunk, y = x, fun=fun, na.rm=na.rm, ...)
         # update progress bar after each extraction
         p()
         return(ex)
@@ -76,7 +79,7 @@ extract_over_space <- function(x, y, chunk=TRUE) {
     })
   } else {
     # perform extraction normally if raster fits in RAM
-    extracted <- terra::extract(x = x, y = y)
+    extracted <- extraction_fun(x = r, y = x, fun=fun, na.rm=na.rm, ...)
   }
   message('Completed extraction')
 
