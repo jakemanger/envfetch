@@ -12,7 +12,8 @@
 #' @param n A numeric vector of length 1 or 2 indicating the number of cells in
 #' the grid in the x and y directions. Default is c(36, 18).
 #' @param time_interval An interval object from the lubridate package,
-#' indicating the time span for each point.
+#' indicating the time span for each point. Alternatively, a single date, which
+#' will be interpreted as an interval over that day by envfetch.
 #' @param crs A coordinate reference system object from the sf package.
 #' Default is sf::st_crs(4326), which is the WGS 84 geographic coordinate system.
 #' @param what A string indicating what kind of geometries to return: 'centers'
@@ -51,7 +52,7 @@ throw <- function(
   square=TRUE,
   flat_topped=FALSE
 ) {
-  stopifnot(lubridate::is.interval(time_interval))
+  stopifnot(lubridate::is.interval(time_interval) || lubridate::is.Date(time_interval))
 
   geometries <- sf::st_make_grid(
     offset=offset,

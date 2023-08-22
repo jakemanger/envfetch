@@ -1,16 +1,21 @@
-create_test_d <- function() {
+create_test_d <- function(polygons=FALSE) {
   d <- throw(
     offset=c(119.625, -30.775),
     cellsize=1,
     n=4,
-    time_interval=lubridate::interval(start='2018-01-01', end='2018-01-04'),
+    time_interval=lubridate::interval(start='2018-01-03', end='2018-01-03'),
   )
-  d$time_column[1:2] <- lubridate::interval(start='2018-01-02', end='2018-01-04')
+  d$time_column[1:2] <- lubridate::interval(start='2018-01-02', end='2018-01-03')
+
+  if (polygons) {
+    d <- d %>% sf::st_buffer(10)
+  }
+
   return(d)
 }
 
-envfetch_vs_terra <- function(temporal_fun) {
-  d <- create_test_d()
+envfetch_vs_terra <- function(temporal_fun, polygons=FALSE) {
+  d <- create_test_d(polygons=polygons)
   r <- terra::rast(system.file('testdata', 'test_tmin.nc', package='envfetch'))
 
   # extract with envfetch
@@ -19,7 +24,8 @@ envfetch_vs_terra <- function(temporal_fun) {
       ~extract_over_time(
         .x,
         r,
-        temporal_fun=temporal_fun
+        temporal_fun=temporal_fun,
+        fun=NULL
       ),
       .time_rep=time_rep(interval=lubridate::days(1), n_start=-2),
       use_cache=FALSE,
@@ -52,27 +58,46 @@ envfetch_vs_terra <- function(temporal_fun) {
 
   # compare results
   # within time period mean
+  browser()
   expect_equal(out$small, terra_result_matrix[,1])
   expect_equal(out$small_1_0, terra_result_matrix[,2])
   expect_equal(out$small_2_1, terra_result_matrix[,3])
 }
 
-test_that('correct_result_returned_mean', {
+test_that('correct_result_returned_points_mean', {
   envfetch_vs_terra(temporal_fun=mean)
 })
 
-test_that('correct_result_returned_mean_na_rm', {
+test_that('correct_result_returned_points_mean_na_rm', {
   fun <- function(x) {mean(x, na.rm=TRUE)}
   envfetch_vs_terra(temporal_fun=fun)
 })
 
-test_that('correct_result_returned_sum', {
+test_that('correct_result_returned_points_sum', {
   envfetch_vs_terra(temporal_fun=sum)
 })
 
-test_that('correct_result_returned_sum_na_rm', {
+test_that('correct_result_returned_points_sum_na_rm', {
   fun <- function(x) {sum(x, na.rm=TRUE)}
   envfetch_vs_terra(temporal_fun=fun)
+})
+
+test_that('correct_result_returned_polygons_mean', {
+  envfetch_vs_terra(temporal_fun=mean, polygons=TRUE)
+})
+
+test_that('correct_result_returned_polygons_mean_na_rm', {
+  fun <- function(x) {mean(x, na.rm=TRUE)}
+  envfetch_vs_terra(temporal_fun=fun, polygons=TRUE)
+})
+
+test_that('correct_result_returned_polygons_sum', {
+  envfetch_vs_terra(temporal_fun=sum, polygons=TRUE)
+})
+
+test_that('correct_result_returned_polygons_sum_na_rm', {
+  fun <- function(x) {sum(x, na.rm=TRUE)}
+  envfetch_vs_terra(temporal_fun=fun, polygons=TRUE)
 })
 
 test_that('chunking_doesnt_change_output', {

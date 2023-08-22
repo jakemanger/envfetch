@@ -39,6 +39,7 @@ create_time_lags <- function(
   envfetch__original_time_column <- lubridate::interval()
   new_time_column <- lubridate::interval()
   lag_amount <- c()
+  row_num <- c()
 
   start_range <- seq(n_lag_range[1], n_lag_range[2], by = 1)
   start_range <- start_range[1:length(start_range)-1]
@@ -76,19 +77,24 @@ create_time_lags <- function(
         length(times_to_lag)
       )
     )
+    row_num <- c(
+      row_num,
+      x$row_num
+    )
   }
 
   x$envfetch__original_time_column <- x %>% dplyr::pull(time_column_name)
   x$lag_amount <- ''
 
-  geometry_column_name = attr(d, "sf_column")
+  geometry_column_name = attr(x, "sf_column")
 
-  d <- x %>% dplyr::add_row(
+  x <- x %>% dplyr::add_row(
     !!geometry_column_name := new_geometries_column,
     !!time_column_name := new_time_column,
     envfetch__original_time_column = envfetch__original_time_column,
-    lag_amount = lag_amount
+    lag_amount = lag_amount,
+    row_num = row_num
   )
 
-  return(d)
+  return(x)
 }

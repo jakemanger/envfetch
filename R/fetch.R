@@ -64,15 +64,31 @@ fetch <- function(
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
 
+  simple_extraction <- FALSE
+
   if (is.null(time_column_name)) {
     time_column_name <- find_time_column_name(x)
+  } else if (time_column_name == 'env_extract__SKIP') {
+    message('Doing simple extraction over all time slices')
+    simple_extraction <- TRUE
+    stop('Simple extraction not yet implemented.')
   }
+
+  message('Parsing time column')
   x[,time_column_name] <- x %>% parse_time_column(time_column_name)
 
-  col_names_used_in_func <- c(time_column_name, 'geometry')
+  col_names_used_in_func <- c(time_column_name, 'geometry', 'row_num')
 
   original_x <- x
+
+  # add a row number column for unique pivoting later on in case of duplicates
+  # in input, `x`
+  x <- x %>% dplyr::mutate(
+    row_num = row_number()
+  )
+
   if (length(.time_rep) > 1) {
+    message('Creating time lagged points')
     # generate all time lag intervals we want to extract data for
     x <- x %>%
       create_time_lags(n_lag_range=c(.time_rep$n_start, .time_rep$n_end), time_lag=.time_rep$interval, relative_to_start=.time_rep$relative_to_start)
@@ -111,6 +127,7 @@ fetch <- function(
     # and either read cached output or run the function
     outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
     if (!use_cache || !file.exists(outpath)) {
+      message(paste('Running', fun_string))
       out <- fun(x)
       out <- out[,!(colnames(out) %in% colnames(x))]
       out <- sf::st_drop_geometry(out)
