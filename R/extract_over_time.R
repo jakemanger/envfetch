@@ -33,6 +33,9 @@
 #' (does not use rowSums or rowMeans).
 #' @param parallel Whether to use parallel processing when calculating summary information for each time range.
 #' @param workers The number of parallel processing workers to use for summarisation over each data point's time range.
+#' @param create_parallel_plan Whether to create the `future` parallel processing plan for you. If `TRUE` (the default),
+#' this will use `future::plan(future::multisession(workers = workers))` with the provided `workers` argument.
+#' See https://future.futureverse.org/reference/plan.html for more parallel processing options (e.g. clusters or linux forking)
 #' @return A modified version of the input 'x' with additional columns
 #' containing the extracted data.
 #'
@@ -72,6 +75,7 @@ extract_over_time <- function(
   is_vectorised_summarisation_function=FALSE,
   parallel=TRUE,
   workers=future::availableCores(),
+  create_parallel_plan=TRUE,
   ...
 ) {
   if (override_terraOptions) {
@@ -81,9 +85,8 @@ extract_over_time <- function(
     terra::gdalCache(30000)
     terra::terraOptions(memfrac=0.9, progress=1)
   }
-  if (parallel) {
+  if (parallel)
     future::plan(future::multisession(workers = workers))
-  }
 
   message('Loading raster file')
 
@@ -154,7 +157,7 @@ extract_over_time <- function(
 
   x[, new_col_names] <- NA
 
-  multi_values_in_extraction_per_row <- "ID" %in% colnames(extracted)
+  multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)
 
   progressr::with_progress({
     # remove the sf geometry before summarisation, as it is faster to work
@@ -169,18 +172,10 @@ extract_over_time <- function(
       if (multi_values_in_extraction_per_row)
         stop('You cannot use a vectorised row summarisation function with fun=NULL when extracting with polygons or lines. Use a non-vectorised alternative for the `temporal_fun` instead, e.g. `sum`, `mean` or `function(x) {mean(x, na.rm=TRUE)}')
 
-      if (parallel) {
-        x <- vectorised_summarisation_parallel(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names)
-      } else {
-        x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names)
-      }
+      x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
     } else {
       message('Detected a custom row summarisation function. Running on each row one by one.')
-      if (parallel) {
-        x <- non_vectorised_summarisation_parallel(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row)
-      } else {
-        x <- non_vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row)
-      }
+      x <- non_vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=parallel)
     }
 
     sf::st_geometry(x) <- geometry
@@ -189,98 +184,63 @@ extract_over_time <- function(
   return(x)
 }
 
-vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
+vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=TRUE) {
   p <- progressr::progressor(steps=nrow(x))
 
-  # Directly access time ranges without pipes
+  # directly access time ranges without pipes
   time_ranges <- x[[time_column_name]]
+  time_range_starts <- lubridate::int_start(time_ranges)
+  time_range_ends <- lubridate::int_end(time_ranges)
+  # convert to characters for lookup speed
+  time_ranges <- as.character(time_ranges)
   unique_time_ranges <- unique(time_ranges)
 
-  for (range in unique_time_ranges) {
+  summarise <- function(range) {
     i <- which(time_ranges == range)
 
-    mn = lubridate::int_start(range)
-    mx = lubridate::int_end(range)
-
-    for (col_name in new_col_names) {
-      col_names_to_summarise <- tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
-      cols_to_summarise <- colnames(extracted)[col_names_to_summarise]
-
-      # Since i contains indices, use direct indexing with it
-      x[i, col_name] <- temporal_fun(as.numeric(extracted[i, cols_to_summarise]))
-    }
-
-    p(length(i))
-  }
-
-  return(x)
-}
-
-non_vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row) {
-  p <- progressr::progressor(steps=nrow(x))
-
-  for (i in 1:nrow(x)) {
-    mn = lubridate::int_start(x[i, time_column_name])
-    mx = lubridate::int_end(x[i, time_column_name])
-
-    for (col_name in new_col_names) {
-      col_names_to_summarise <- tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
-      cols_to_summarise <- colnames(extracted)[col_names_to_summarise]
-
-      if (multi_values_in_extraction_per_row) {
-        data_to_summarise <- unlist(extracted[extracted$ID == i, cols_to_summarise])
-      } else {
-        data_to_summarise <- unlist(extracted[i, cols_to_summarise])
-      }
-
-      x[i, col_name] <- temporal_fun(data_to_summarise)
-    }
-    p()
-  }
-
-  return(x)
-}
-
-vectorised_summarisation_parallel <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
-  p <- progressr::progressor(steps=nrow(x))
-
-  # Directly access time ranges without pipes
-  time_ranges <- x[[time_column_name]]
-  unique_time_ranges <- unique(time_ranges)
-
-  browser()
-
-  results <- furrr::future_map(unique_time_ranges, function(range) {
-    i <- which(time_ranges == range)
-
-    mn = lubridate::int_start(range)
-    mx = lubridate::int_end(range)
+    mn = time_range_starts[i[1]]
+    mx = time_range_ends[i[1]]
     temp_df <- x[i, ]
 
     for (col_name in new_col_names) {
       col_names_to_summarise <- tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
       cols_to_summarise <- colnames(extracted)[col_names_to_summarise]
 
-      # Since i contains indices, use direct indexing with it
-      temp_df[col_name] <- temporal_fun(as.numeric(extracted[i, cols_to_summarise]))
+      to_summarise <- extracted[i, cols_to_summarise]
+      if (is.vector(to_summarise)) {
+        # if there is just one time slice, use that
+        temp_df[col_name] <- to_summarise
+      } else {
+        # if there is more than one, run the temporal fun on it
+        temp_df[col_name] <- temporal_fun(extracted[i, cols_to_summarise])
+      }
     }
 
     p(length(i))
     return(temp_df)
-  })
+  }
 
-  # Bind all the results
+  if (parallel) {
+    results <- furrr::future_map(unique_time_ranges, summarise)
+  } else {
+    results <- purrr::map(unique_time_ranges, summarise)
+  }
+
   x <- do.call(rbind, results)
 
   return(x)
 }
 
-non_vectorised_summarisation_parallel <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row) {
+non_vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=TRUE) {
   p <- progressr::progressor(steps=nrow(x))
 
-  results <- furrr::future_map(1:nrow(x), function(i) {
-    mn = lubridate::int_start(x[i, time_column_name])
-    mx = lubridate::int_end(x[i, time_column_name])
+  time_ranges <- x[[time_column_name]]
+  time_range_starts <- lubridate::int_start(time_ranges)
+  time_range_ends <- lubridate::int_end(time_ranges)
+
+  summarise <- function(i) {
+    mn = time_range_starts[i]
+    mx = time_range_ends[i]
     temp_df <- x[i, ]
 
     for (col_name in new_col_names) {
@@ -297,14 +257,18 @@ non_vectorised_summarisation_parallel <- function(x, extracted, temporal_fun, tm
     }
     p()
     return(temp_df)
-  })
+  }
 
-  # Bind all the results
+  if (parallel) {
+    results <- furrr::future_map(1:nrow(x), summarise)
+  } else {
+    results <- purrr::map(1:nrow(x), summarise)
+  }
+
   x <- do.call(rbind, results)
 
   return(x)
 }
-
 
 contains_rowSums_or_rowMeans <- function(func) {
   # convert the function to a string

@@ -131,98 +131,92 @@ for (i in 1:days) {
 }
 
 # get the centroids
-centroids <- st_centroid(d)
+centroids <- d
+st_geometry(centroids) <- st_centroid(st_geometry(d))
 
 extracted_dbee_1 <-
-  centroids[1:50,] |>
+  centroids |>
   fetch(
-    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum),
-    # ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds=c('tmin', 'tmax', 'vprp'))),
-    # ~extract_over_time(.x, r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc"),
-    # ~extract_over_time(
-    #   .x,
-    #   r = list.files(
-    #     "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
-    #     pattern = "\\.nc$",
-    #     full.names = TRUE
-    #   )
-    # )
-    # ~extract_gee(
-    #   .x,
-    #   collection_name='MODIS/061/MOD13Q1',
-    #   bands=c('NDVI', 'DetailedQA'),
-    #   time_buffer= lubridate::days(16)
-    # ),
-    .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0)
+    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=rowSums),
+    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds=c('tmin', 'tmax', 'vprp'))),
+    ~extract_over_time(.x, r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc"),
+    ~extract_over_time(
+      .x,
+      r = list.files(
+        "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
+        pattern = "\\.nc$",
+        full.names = TRUE
+      )
+    ),
+    ~extract_gee(
+      .x,
+      collection_name='MODIS/061/MOD13Q1',
+      bands=c('NDVI', 'DetailedQA'),
+      time_buffer= lubridate::days(30),
+    ),
+    .time_rep = time_rep(interval = lubridate::days(14), n_start = -24, n_end = 0)
   )
 
-result <- microbenchmark::microbenchmark(
-  parallel = {
-  extracted_dbee_1 <-
-    centroids[1:5000,] |>
-    fetch(
-      ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum),
-      .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
-      use_cache = FALSE
-    )
-  },
-  parallel_4_cores = {
-    extracted_dbee_1 <-
-      centroids[1:5000,] |>
-      fetch(
-        ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum, workers=4),
-        .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
-        use_cache = FALSE
-      )
-  },
-  non_parallel = {
-    extracted_dbee_1 <-
-      centroids[1:5000,] |>
-      fetch(
-        ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum, parallel=FALSE),
-        .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
-        use_cache = FALSE
-      )
-  },
-  times=2,
-  check='equal'
+# result <- microbenchmark::microbenchmark(
+#   parallel = {
+#   extracted_dbee_1 <-
+#     centroids[1:5000,] |>
+#     fetch(
+#       ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum),
+#       .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
+#       use_cache = FALSE
+#     )
+#   },
+#   parallel_4_cores = {
+#     extracted_dbee_1 <-
+#       centroids[1:5000,] |>
+#       fetch(
+#         ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum, workers=4),
+#         .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
+#         use_cache = FALSE
+#       )
+#   },
+#   non_parallel = {
+#     extracted_dbee_1 <-
+#       centroids[1:5000,] |>
+#       fetch(
+#         ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum, parallel=FALSE),
+#         .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
+#         use_cache = FALSE
+#       )
+#   },
+#   times=2,
+#   check='equal'
+# )
+
+extracted_dbee_1 <- envfetch(
+  centroids,
+  r = list(
+    "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
+    "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
+    "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc",
+    list.files(
+      "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
+      pattern = "\\.nc$",
+      full.names = TRUE
+    ),
+    'MODIS/061/MOD13Q1'
+  ),
+  bands = list(
+    'precip',
+    c('tmin', 'tmax', 'vprp'),
+    NULL,
+    NULL,
+    c('NDVI', 'DetailedQA')
+  ),
+  temporal_fun = list(
+    sum,
+    mean,
+    mean,
+    mean,
+    mean
+  ),
+  .time_rep = time_rep(interval = lubridate::days(1), n_start = -365, n_end = 0)
 )
-
-# time_reps <- time_rep(interval = lubridate::days(1), n_start = -365, n_end = 0)
-#
-# extracted_dbee_1 <- centroids %>%
-#   envfetch(
-#     r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
-#     bands = 'precip',
-#     temporal_fun = sum,
-#     .time_rep = time_reps
-#   ) %>%
-#   envfetch(
-#     r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
-#     bands = c('tmin', 'tmax', 'vprp'),
-#     temporal_fun = mean,
-#     .time_rep = time_reps
-#   ) %>%
-#   envfetch(
-#     r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc",
-#     temporal_fun = sum,
-#     .time_rep = time_reps
-#   ) %>%
-#   envfetch(
-#     r = list.files(
-#       "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
-#       pattern = "\\.nc$",
-#       full.names = TRUE
-#     ),
-#     temporal_fun = mean,
-#     .time_rep = time_reps
-#   ) %>%
-#   envfetch(
-#     r = 'MODIS/061/MOD13Q1',
-#     bands = c('NDVI', 'DetailedQA'),
-#     temporal_fun = mean,
-#     .time_rep = time_reps
-#   )
-
 
 write.csv(extracted_dbee_1, "data/extracted_dbee.csv", row.names = FALSE)

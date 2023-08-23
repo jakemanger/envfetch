@@ -2,12 +2,12 @@
 #'
 #' This function uses Google Earth Engine to extract specified bands from an
 #' image collection. The function summarises this information for each row in
-#' your dataset (`points`). The function handles memory constraints on Google
+#' your dataset (`x`). The function handles memory constraints on Google
 #' Earth Engine's end by extracting data in time chunks based on the start date
 #' of each interval in the dataset. This function is best used within the
 #' `fetch` function.
 #'
-#' @param points An sf object containing the locations to be sampled.
+#' @param x An sf object containing the locations to be sampled.
 #'               This should contain a time column of type lubridate::interval.
 #' @param collection_name A character string representing the Google Earth Engine
 #'                        image collection from which to extract data.
@@ -18,7 +18,7 @@
 #' @param time_buffer A lubridate duration representing the amount of time to add
 #'                    before and after each time interval when filtering the image
 #'                    collection. Default is lubridate::days(20).
-#' @param summarise_fun A function or string representing the function used to summarise
+#' @param temporal_fun A function or string representing the function used to summarise
 #'                      the data extracted for each interval. Default is 'last', which returns
 #'                      the value closest to the start of the interval.
 #' @param debug A logical indicating whether to produce debugging plots. Default is FALSE.
@@ -44,7 +44,7 @@
 #'                  Default is './'.
 #' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
 #'                         is automatically selected.
-#' @return A dataframe or sf object with the same rows as the input `points`, and new columns
+#' @return A dataframe or sf object with the same rows as the input `x`, and new columns
 #'         representing the extracted data. The new column names correspond to the `bands` parameter.
 #' @export
 #'
@@ -74,12 +74,12 @@
 #'   )
 #'}
 extract_gee <- function(
-  points,
+  x,
   collection_name,
   bands,
   scale=250,
   time_buffer=lubridate::days(20),
-  summarise_fun='last',
+  temporal_fun='last',
   debug=FALSE,
   initialise_gee=TRUE,
   use_gcs=FALSE,
@@ -89,23 +89,30 @@ extract_gee <- function(
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   cache_progress=TRUE,
   cache_dir='./',
-  time_column_name=NULL
+  time_column_name=NULL,
+  parallel=TRUE,
+  workers=future::availableCores(),
+  create_parallel_plan=TRUE
 ) {
   if (initialise_gee)
     rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
-  points$original_order <- 1:nrow(points)  # use a id column to return array back to original order
+  if (parallel)
+    future::plan(future::multisession(workers = workers))
+
+
+  x$original_order <- 1:nrow(x)  # use a id column to return array back to original order
 
   if (is.null(time_column_name)) {
-    time_column_name <- find_time_column_name(points)
+    time_column_name <- find_time_column_name(x)
   }
 
   # sort the data by time for efficient processing
-  points <- points[order(as.Date(lubridate::int_start(points %>% dplyr::pull(time_column_name)))),]
+  x <- x[order(as.Date(lubridate::int_start(x %>% dplyr::pull(time_column_name)))),]
 
-  # convert points time column to UTC, as it is used by gee
-  time_column_after_sort <- points %>% dplyr::pull(time_column_name)
-  points[,time_column_name] <- lubridate::interval(
+  # convert x time column to UTC, as it is used by gee
+  time_column_after_sort <- x %>% dplyr::pull(time_column_name)
+  x[,time_column_name] <- lubridate::interval(
     lubridate::with_tz(lubridate::int_start(time_column_after_sort), 'UTC'),
     lubridate::with_tz(lubridate::int_end(time_column_after_sort), 'UTC'),
   )
@@ -113,17 +120,17 @@ extract_gee <- function(
   # chunk incorporating the start date of intervals to ensure efficient memory usage on gee's end
   # otherwise, gee will need to extract raster data from the full time range of
   # the dataset
-  points$start_time <- as.Date(points %>% dplyr::pull(time_column_name))
-  pts_chunks <- split_time_chunks(points, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
+  x$start_time <- x %>% dplyr::pull(time_column_name) %>% lubridate::int_start() %>% as.Date()
+  pts_chunks <- split_time_chunks(x, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
 
   progressr::with_progress({
     p <- progressr::progressor(steps = length(pts_chunks)*3)
 
-    temps <- lapply(pts_chunks, function(chunk) {
+    extracteds <- lapply(pts_chunks, function(chunk) {
       p('Loading sf object on gee...')
       p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
 
-      # get min and max dates from the points tibble
+      # get min and max dates from the x tibble
       chunk_time_column <- chunk %>% dplyr::pull(time_column_name)
       min_datetime <- min(lubridate::int_start(chunk_time_column)) - time_buffer
       max_datetime <- max(lubridate::int_end(chunk_time_column)) + time_buffer
@@ -140,7 +147,7 @@ extract_gee <- function(
         select(bands)
 
       p('extracting...')
-      temp <- rgee::ee_extract(
+      extracted <- rgee::ee_extract(
         x = ic,
         y = p_feature,
         scale = scale,
@@ -151,94 +158,120 @@ extract_gee <- function(
 
       # use this to make sure the correct columns
       # are sampled below
-      temp[is.na(temp)] <- 'No data'
-      return(temp)
+      extracted[is.na(extracted)] <- 'No data'
+      return(extracted)
     })
 
-    temp <- dplyr::bind_rows(temps)
+    extracted <- dplyr::bind_rows(extracteds)
     # nas are created by bind rows without the same number of columns,
     # so we use this string trick to make sure we don't mix up no data with
     # NAs introduced by bind_rows
-    temp[is.na(temp)] <- 'No sample'
-    temp_no_geom <- temp %>% sf::st_drop_geometry()
-    temp_no_geom[temp_no_geom=='No data'] <- NA
-    sf::st_geometry(temp_no_geom) <- sf::st_geometry(temp)
-    temp <- temp_no_geom
-    temp_no_geom <- NULL
+    extracted[is.na(extracted)] <- 'No sample'
+    extracted_no_geom <- extracted %>% sf::st_drop_geometry()
+    extracted_no_geom[extracted_no_geom=='No data'] <- NA
+    sf::st_geometry(extracted_no_geom) <- sf::st_geometry(extracted)
+    extracted <- extracted_no_geom
+    extracted_no_geom <- NULL
   })
 
-  if (ncol(temp) == 2) {
+  if (ncol(extracted) == 2) {
     warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
   }
 
   if (debug) {
-    missing_some_data <- apply(is.na(sf::st_drop_geometry(temp)), 1, any)
-    missing_all_data <- apply(is.na(sf::st_drop_geometry(temp)), 1, all)
-    temp$missing_status <- dplyr::if_else(
+    missing_some_data <- apply(is.na(sf::st_drop_geometry(extracted)), 1, any)
+    missing_all_data <- apply(is.na(sf::st_drop_geometry(extracted)), 1, all)
+    extracted$missing_status <- dplyr::if_else(
       missing_all_data,
       'All missing',
       dplyr::if_else(missing_some_data, 'Some missing', 'None missing')
     )
     world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
-    ggplot2::ggplot(data = world) +
-      ggplot2::geom_sf() +
-      ggplot2::geom_sf(data = temp, ggplot2::aes(color = missing_status), size = 2) +
-      ggplot2::scale_color_manual(values = c("blue", "orange", "red")) +
-      ggplot2::labs(color = "Missing Data") +
-      ggplot2::theme_minimal()
+    print(
+      ggplot2::ggplot(data = world) +
+        ggplot2::geom_sf() +
+        ggplot2::geom_sf(data = extracted, ggplot2::aes(color = missing_status), size = 2) +
+        ggplot2::scale_color_manual(values = c("blue", "orange", "red")) +
+        ggplot2::labs(color = "Missing Data") +
+        ggplot2::theme_minimal()
+    )
   }
 
   message('Summarising extracted data over specified times')
 
-  temp_for_indxing <- temp[,stringr::str_starts(colnames(temp), 'X')] %>% sf::st_drop_geometry()
-  clnames <- colnames(temp_for_indxing)
+  extracted <- extracted[,stringr::str_starts(colnames(extracted), 'X')] %>% sf::st_drop_geometry()
+  clnames <- colnames(extracted)
   tms <- as.Date(unlist(lapply(clnames, get_date_from_gee_colname)))
   nms <- stringr::str_split_i(clnames, '_', 4)
 
   new_col_names <- unique(nms)
 
-  points[, new_col_names] <- NA
+  x[, new_col_names] <- NA
 
   progressr::with_progress({
-    p <- progressr::progressor(steps = nrow(points))
+    geometry <- sf::st_geometry(x)
+    x <- sf::st_drop_geometry(x)
 
-    points_time_column <- points %>% dplyr::pull(time_column_name)
-    for (i in 1:nrow(points)) {
-      mn = lubridate::int_start(points_time_column[i])
-      mx = lubridate::int_end(points_time_column[i])
+    x <- non_vectorised_summarisation_gee(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
 
-      for (col_name in new_col_names) {
-        row_times <- tms[nms == col_name]
-        row_values <- temp_for_indxing[i, nms == col_name]
-        row_times <- row_times[row_values != 'No sample']
-        row_values <- row_values[row_values != 'No sample']
-        row_values <- as.numeric(row_values)
-
-        if (is.character(summarise_fun) && summarise_fun == 'last') {
-          last_index <- find_closest_datetime(row_times, mn, find_closest_previous=TRUE)
-          value <- row_values[last_index]
-          if (length(value) == 0) {
-            stop('last value not found in extracted data. Increase your time_buffer to get a correct result')
-          }
-          points[i, col_name] <- value
-        } else {
-          index <- lubridate::`%within%`(row_times, points_time_column[i])
-          points[i, col_name] <- summarise_fun(row_values[index])
-        }
-      }
-      p()
-    }
+    sf::st_geometry(x) <- geometry
   })
 
-  # return points to its original order and assign back the time column
-  points[,time_column_name] <- time_column_after_sort
-  points <- points %>% dplyr::arrange(original_order)
+  # return x to its original order and assign back the time column
+  x[,time_column_name] <- time_column_after_sort
+  x <- x %>% dplyr::arrange(original_order)
 
   # remove unnecessary columns
-  points <- points %>% dplyr::select(-c('original_order', 'start_time'))
+  x <- x %>% dplyr::select(-c('original_order', 'start_time'))
 
-  return(points)
+  return(x)
 }
+
+non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=TRUE) {
+  p <- progressr::progressor(steps = nrow(x))
+
+  x_time_column <- x[[time_column_name]]
+  time_range_starts <- lubridate::int_start(x_time_column)
+
+  summarise <- function(i) {
+    mn = time_range_starts[i]
+    temp_df <- x[i, ]
+
+    for (col_name in new_col_names) {
+      row_times <- tms[nms == col_name]
+      row_values <- extracted[i, nms == col_name]
+      indx <- is.na(row_values) | row_values != 'No sample'
+      row_times <- row_times[indx]
+      row_values <- row_values[indx]
+      row_values <- as.numeric(row_values)
+
+      if (is.character(temporal_fun) && temporal_fun == 'last') {
+        last_index <- find_closest_datetime(row_times, mn, find_closest_previous=TRUE)
+        value <- row_values[last_index]
+        if (length(value) == 0) {
+          stop('last value not found in extracted data. Increase your time_buffer to get a correct result')
+        }
+        temp_df[col_name] <- value
+      } else {
+        index <- lubridate::`%within%`(row_times, x_time_column[i])
+        temp_df[col_name] <- temporal_fun(row_values[index])
+      }
+    }
+    p()
+    return(temp_df)
+  }
+
+  if (parallel) {
+    results <- furrr::future_map(1:nrow(x), summarise)
+  } else {
+    results <- purrr::map(1:nrow(x), summarise)
+  }
+
+  x <- do.call(rbind, results)
+
+  return(x)
+}
+
 
 find_closest_datetime <- function(dates, x, find_closest_previous=TRUE) {
   dates <- lubridate::as_datetime(dates)

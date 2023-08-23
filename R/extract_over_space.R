@@ -47,7 +47,7 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, extractio
     )
   )
 
-  if (identical(exactextractr::exact_extract, exactextractr::exact_extract)) {
+  if (identical(extraction_fun, exactextractr::exact_extract)) {
     if (any(sf::st_geometry_type(x) == "POINT")) {
       stop("POINT detectd in input geometry. exactextractr::exact_extract only works with polygons. Use terra::extract instead.")
     }
