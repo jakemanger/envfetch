@@ -46,7 +46,7 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_f
       ram_available,
       'Kbs of RAM is available and ',
       ram_available_per_chunk,
-      'Kbs of RAM is available per chunk',
+      'Kbs of RAM is available per chunk'
     )
   )
 
