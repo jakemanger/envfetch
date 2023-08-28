@@ -137,22 +137,24 @@ st_geometry(centroids) <- st_centroid(st_geometry(d))
 extracted_dbee_1 <-
   centroids |>
   fetch(
-    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=rowSums),
-    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds=c('tmin', 'tmax', 'vprp'))),
-    ~extract_over_time(.x, r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc"),
+    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=rowSums, parallel=FALSE),
+    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds=c('tmin', 'tmax', 'vprp')), parallel=FALSE),
+    ~extract_over_time(.x, r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc", parallel=FALSE),
     ~extract_over_time(
       .x,
       r = list.files(
         "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
         pattern = "\\.nc$",
         full.names = TRUE
-      )
+      ),
+      parallel=FALSE
     ),
     ~extract_gee(
       .x,
       collection_name='MODIS/061/MOD13Q1',
       bands=c('NDVI', 'DetailedQA'),
       time_buffer= lubridate::days(30),
+      parallel=FALSE
     ),
     .time_rep = time_rep(interval = lubridate::days(14), n_start = -24, n_end = 0)
   )
@@ -190,7 +192,7 @@ extracted_dbee_1 <-
 # )
 
 extracted_dbee_1 <- envfetch(
-  centroids,
+  x = centroids,
   r = list(
     "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
     "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",

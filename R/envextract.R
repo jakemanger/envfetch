@@ -73,7 +73,6 @@ envfetch <- function(
   ...
 ) {
 
-  # process rasters
   if (inherits(r, 'list')) {
     message('Detected list of rasters in `r`. Fetching data from multiple sources')
     num_rasters <- length(r)
@@ -91,10 +90,12 @@ envfetch <- function(
       } else if (!inherits(bands, 'list') && length_bands == 1) {
         bands_i <- bands
       } else {
-        stop("Invalid 'bands' argument: \n",
-             "- If 'bands' is a list, its length must equal the number of rasters in 'r'.\n",
-             "- If 'bands' is not a list, it must contain only one element.\n",
-             "- If you don't specify 'bands', or set it to NULL, all bands will be used for each raster in 'r'.")
+        stop(
+          "Invalid 'bands' argument: \n",
+          "- If 'bands' is a list, its length must equal the number of rasters in 'r'.\n",
+          "- If 'bands' is not a list, it must contain only one element.\n",
+          "- If you don't specify 'bands', or set it to NULL, all bands will be used for each raster in 'r'."
+        )
       }
 
       if (inherits(temporal_fun, 'list') && length(temporal_fun) == num_rasters) {
@@ -102,10 +103,12 @@ envfetch <- function(
       } else if (!inherits(temporal_fun, 'list') && length(temporal_fun) == 1) {
         temporal_fun_i <- temporal_fun
       } else {
-        stop("Invalid 'temporal_fun' argument: \n",
-             "- If 'temporal_fun' is a list, its length must equal the number of rasters in 'r'.\n",
-             "- If 'temporal_fun' is not a list, it must contain only one element (function or string).\n",
-             "- If you don't specify 'temporal_fun', or set it to NULL, default functions will be applied to each raster in 'r'.")
+        stop(
+          "Invalid 'temporal_fun' argument: \n",
+          "- If 'temporal_fun' is a list, its length must equal the number of rasters in 'r'.\n",
+          "- If 'temporal_fun' is not a list, it must contain only one element (function or string).\n",
+          "- If you don't specify 'temporal_fun', or set it to NULL, default functions will be applied to each raster in 'r'."
+        )
       }
 
       if (inherits(time_column_name, 'list') && length(time_column_name) == num_rasters) {
@@ -113,10 +116,12 @@ envfetch <- function(
       } else if (!inherits(time_column_name, 'list') && length(time_column_name) == 1) {
         time_column_name_i <- time_column_name
       } else {
-        stop("Invalid 'time_column_name' argument: \n",
-             "- If 'time_column_name' is a list, its length must equal the number of rasters in 'r'.\n",
-             "- If 'time_column_name' is not a list, it must contain only one element (string or NULL).\n",
-             "- If you don't specify 'time_column_name', or set it to 'auto', a time column will be automatically detected and used to summarise extracts over time for each raster in 'r'.")
+        stop(
+          "Invalid 'time_column_name' argument: \n",
+          "- If 'time_column_name' is a list, its length must equal the number of rasters in 'r'.\n",
+          "- If 'time_column_name' is not a list, it must contain only one element (string or NULL).\n",
+          "- If you don't specify 'time_column_name', or set it to 'auto', a time column will be automatically detected and used to summarise extracts over time for each raster in 'r'."
+        )
       }
     } else {
       r_i <- r
@@ -139,40 +144,38 @@ envfetch <- function(
       functions <- c(
         functions,
         ~extract_over_time(
-          .x,
+          x = .x,
           r = r_i,
           bands = bands_i,
-          time_column_name=time_column_name,
+          time_column_name = time_column_name_i,
           temporal_fun = temporal_fun_i,
           ...
-        ),
-        time_column_name = time_column_name_i
+        )
       )
     } else {
       functions <- c(
         functions,
         ~extract_gee(
-          .x,
-          collection_name=r_i,
-          bands=bands_i,
-          time_column_name=time_column_name,
+          x = .x,
+          collection_name = r_i,
+          bands = bands_i,
+          time_column_name = time_column_name,
           temporal_fun = temporal_fun_i,
           ...
-        ),
-        time_column_name = time_column_name_i
+        )
       )
     }
   }
 
   params <- c(
     functions,
-    use_cache=use_cache,
-    out_dir=out_dir,
-    out_filename=out_filename,
-    overwrite=overwrite,
-    cache_dir=cache_dir,
-    time_column_name=time_column_name,
-    .time_rep=.time_rep
+    use_cache = use_cache,
+    out_dir = out_dir,
+    out_filename = out_filename,
+    overwrite = overwrite,
+    cache_dir = cache_dir,
+    time_column_name = time_column_name,
+    .time_rep = .time_rep
   )
 
   x <- do.call(fetch, params)

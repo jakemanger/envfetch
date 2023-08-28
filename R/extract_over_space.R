@@ -32,18 +32,21 @@
 #' # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a spatial object:
 #' # result <- extract_over_space(x=some_sp, r=some_raster)
 #' @export
-extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, extraction_fun=terra::extract, ...) {
+extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=0.3, extraction_fun=terra::extract, ...) {
   mem_info_func <- purrr::quietly(terra::mem_info)
   mem_info <- mem_info_func(r)$result
   ram_required <- mem_info['needed']
-  ram_available <- mem_info['available']
+  ram_available <- mem_info['available'] * 0.9
+  ram_available_per_chunk <- ram_available * max_ram_frac_per_chunk
 
   message(
     paste(
       ram_required,
       'Kbs of RAM is required for extraction and',
       ram_available,
-      'Kbs of RAM is available'
+      'Kbs of RAM is available and ',
+      ram_available_per_chunk,
+      'Kbs of RAM is available per chunk',
     )
   )
 
@@ -53,11 +56,11 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, extractio
     }
   }
 
-  if (chunk == TRUE && ram_required > ram_available) {
+  if (chunk == TRUE && ram_required > ram_available_per_chunk) {
     # split raster into chunks based on available RAM
     times <- terra::time(r)
 
-    num_chunks <- ceiling(ram_required / ram_available)
+    num_chunks <- ceiling(ram_required / ram_available_per_chunk)
     chunk_size <- ceiling(length(times) / num_chunks)
     message(paste('Splitting job into', num_chunks, 'chunks'))
 
