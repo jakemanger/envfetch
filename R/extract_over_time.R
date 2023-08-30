@@ -130,10 +130,6 @@ extract_over_time <- function(
   nms <- names(r_within_time)
   tms <- terra::time(r_within_time)
 
-  # get unique x so we don't re-extract the same space and time combinations
-  # multiple times (doesn't include the )
-
-
   extracted <- spatial_extraction_fun(
     x = x,
     r = r_within_time,

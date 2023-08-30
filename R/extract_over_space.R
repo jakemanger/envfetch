@@ -123,6 +123,9 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_f
   # used in the extraction
   extracted$envfetch__duplicate_spatial_ID <- unique_x$envfetch__duplicate_spatial_ID
 
+  # remove any duplicate ID columns
+  extracted <- extracted[,!duplicated(colnames(extracted))]
+
   x <- x %>% sf::st_drop_geometry() %>% dplyr::left_join(
     tibble::as_tibble(extracted),
     by = "envfetch__duplicate_spatial_ID"
