@@ -73,7 +73,7 @@ extract_over_time <- function(
   override_terraOptions=TRUE,
   time_column_name=NULL,
   is_vectorised_summarisation_function=FALSE,
-  parallel=TRUE,
+  parallel=FALSE,
   workers=future::availableCores(),
   create_parallel_plan=TRUE,
   ...
@@ -85,7 +85,7 @@ extract_over_time <- function(
     terra::gdalCache(30000)
     terra::terraOptions(memfrac=0.9, progress=1)
   }
-  if (parallel)
+  if (parallel && create_parallel_plan)
     future::plan(future::multisession(workers = workers))
 
   message('Loading raster file')
@@ -121,12 +121,18 @@ extract_over_time <- function(
   dates <- terra::time(r)
   relevant_indices <- find_relevant_time_slices(dates, time_intervals)
 
+  gc() # added here as a lot of ram gets used with a large number of x (e.g. 10000+)
+
   message('Extracting data...')
 
   r_within_time <- r[[relevant_indices]]
 
   nms <- names(r_within_time)
   tms <- terra::time(r_within_time)
+
+  # get unique x so we don't re-extract the same space and time combinations
+  # multiple times (doesn't include the )
+
 
   extracted <- spatial_extraction_fun(
     x = x,

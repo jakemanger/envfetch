@@ -58,7 +58,7 @@ fetch <- function(
     time_column_name=NULL,
     .time_rep=NA
 ) {
-  message('Fetching your data... 🥏 🐕')
+  message('🥏 🐕 Fetching your data')
   progressr::handlers('progress')
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
@@ -84,7 +84,7 @@ fetch <- function(
   # add a row number column for unique pivoting later on in case of duplicates
   # in input, `x`
   x <- x %>% dplyr::mutate(
-    row_num = row_number()
+    row_num = dplyr::row_number()
   )
 
   if (length(.time_rep) > 1) {
@@ -116,6 +116,12 @@ fetch <- function(
   }
   funcs <- args[is_function]
 
+  x <- x %>% dplyr::group_by(across(c(time_column_name, 'geometry'))) %>%
+    dplyr::mutate(envfetch__duplicate_ID = dplyr::cur_group_id()) %>%
+    dplyr::ungroup()
+
+  unique_x <- x[!duplicated(x$envfetch__duplicate_ID),]
+
   # loop through the supplied functions
   outs <- lapply(funcs, function(fun) {
     fun_string <- paste(as.character(fun), collapse='')
@@ -128,8 +134,8 @@ fetch <- function(
     outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
     if (!use_cache || !file.exists(outpath)) {
       message(paste('Running', fun_string))
-      out <- fun(x)
-      out <- out[,!(colnames(out) %in% colnames(x))]
+      out <- fun(unique_x)
+      out <- out[,!(colnames(out) %in% colnames(unique_x))]
       out <- sf::st_drop_geometry(out)
       message(paste('🐶 Completed', fun_string))
 
@@ -142,7 +148,16 @@ fetch <- function(
     return(out)
   })
 
-  x <- dplyr::bind_cols(c(x, outs))
+  unique_x <- dplyr::bind_cols(c(unique_x, outs))
+
+  # add back duplicate rows using the data from the duplicate that was
+  # used in the extraction
+  cols_to_remove <- colnames(x)[!(colnames(x) %in% c('envfetch__duplicate_ID'))]
+  x <- dplyr::left_join(
+    x,
+    unique_x %>% dplyr::select(-cols_to_remove),
+    by = "envfetch__duplicate_ID"
+  ) %>% dplyr::select(-c('envfetch__duplicate_ID'))
 
   if (length(.time_rep) > 1) {
     # now take those time lagged x and set them as columns for their
@@ -194,7 +209,7 @@ fetch <- function(
     )
   }
 
-  message('Fetched!')
+  message('🐩 Fetched!')
 
   return(x)
 }
