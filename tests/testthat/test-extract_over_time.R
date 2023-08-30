@@ -1,22 +1,6 @@
-create_test_d <- function(polygons=FALSE) {
-  d <- throw(
-    offset=c(119.625, -30.775),
-    cellsize=1,
-    n=4,
-    time_interval=lubridate::interval(start='2018-01-03', end='2018-01-03'),
-  )
-  d$time_column[1:2] <- lubridate::interval(start='2018-01-02', end='2018-01-03')
-
-  if (polygons) {
-    d <- d %>% sf::st_buffer(10)
-  }
-
-  return(d)
-}
-
 envfetch_vs_terra <- function(temporal_fun, polygons=FALSE) {
   d <- create_test_d(polygons=polygons)
-  r <- terra::rast(system.file('testdata', 'test_tmin.nc', package='envfetch'))
+  r <- load_test_raster()
 
   # extract with envfetch
   out <- d %>%
@@ -58,7 +42,6 @@ envfetch_vs_terra <- function(temporal_fun, polygons=FALSE) {
 
   # compare results
   # within time period mean
-  browser()
   expect_equal(out$small, terra_result_matrix[,1])
   expect_equal(out$small_1_0, terra_result_matrix[,2])
   expect_equal(out$small_2_1, terra_result_matrix[,3])

@@ -27,6 +27,7 @@ test_that("time lags correct minimum", {
 
 test_that("time lags correct maximum", {
   x <- create_test_d(polygons=FALSE)
+  x$row_num <- 1:nrow(x)
 
   times_from_start <- 26
   interval <- lubridate::days(14)
@@ -52,6 +53,7 @@ test_that("time lags correct maximum", {
 
 test_that("time lags correct number of repeats", {
   x <- create_test_d(polygons=FALSE)
+  x$row_num <- 1:nrow(x)
 
   times_from_start <- 26
   interval <- lubridate::days(14)
