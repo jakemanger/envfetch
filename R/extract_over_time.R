@@ -198,7 +198,7 @@ extract_over_time <- function(
 }
 
 vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=TRUE) {
-  p <- progressr::progressor(steps=nrow(x))
+  p <- progressr::progressor(steps=length(unique_time_ranges))
 
   # directly access time ranges without pipes
   time_ranges <- x[[time_column_name]]
@@ -229,7 +229,7 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
       }
     }
 
-    p(length(i))
+    p(amount=length(i))
     return(temp_df)
   }
 
