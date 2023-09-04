@@ -2,10 +2,19 @@ Package: envfetch
 Title: Fetch environmental data with canine-like efficiency
 Version: 0.0.0.9000
 Authors@R: 
-    person("Jake", "Manger", , "jakesmanger@gmail.com", role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0002-0686-4788"))
+    c(person(given="Jake",
+             family="Manger",
+             role = c("aut", "cre"),
+             email="jakesmanger@gmail.com",
+             comment = c(ORCID = "0000-0002-0686-4788")),
+      person(given = "Jacob", 
+             family =  "Berson",
+             role = c("aut"),
+             email = "jacob.berson@uwa.edu.au",
+             comment = c(ORCID = "0000-0002-7059-2131"))
+    )
 Description: Your trusty companion to fetch, extract and summarise environmental
-  data across time and space using gps coordinates or `sf` polygons.
+  data across time and space using `sf` points or polygons.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

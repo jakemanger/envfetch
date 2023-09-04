@@ -35,7 +35,7 @@
 #' # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a spatial object:
 #' # result <- extract_over_space(x=some_sp, r=some_raster)
 #' @export
-extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=0.1, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, ...) {
+extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=0.3, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, ...) {
   # drop duplicate rows that don't need to be extracted multiple times
   x <- x %>% dplyr::group_by(across(c('geometry'))) %>%
     dplyr::mutate(envfetch__duplicate_spatial_ID = dplyr::cur_group_id()) %>%
@@ -119,21 +119,24 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_f
   # beforehand
   gc()
 
-  # add back duplicate rows using the data from the duplicates that were
-  # used in the extraction
-  extracted$envfetch__duplicate_spatial_ID <- unique_x$envfetch__duplicate_spatial_ID
+  # rename ID
+  colnames(extracted)[colnames(extracted) == 'ID'] <- 'envfetch__duplicate_spatial_ID'
 
-  # remove any duplicate ID columns
-  extracted <- extracted[,!duplicated(colnames(extracted))]
+  # make an id column for x. this will function as the ID column that terra normally provides
+  # to match multiple extracted values for polygons and lines
+  x$ID <- 1:nrow(x)
 
+  # left join the extracted data to the input
   x <- x %>% sf::st_drop_geometry() %>% dplyr::left_join(
     tibble::as_tibble(extracted),
     by = "envfetch__duplicate_spatial_ID"
   )
 
-  cols_to_return <- colnames(extracted)[!(colnames(extracted) %in% 'envfetch__duplicate_spatial_ID')]
+  cols_to_return <- colnames(extracted)[!(colnames(extracted) %in% c('envfetch__duplicate_spatial_ID', 'ID'))]
 
-  return(x %>% dplyr::select(cols_to_return))
+  # make sure ID is at the end of the output
+  # to make indexing simpler in the fetch function
+  return(x[,c(cols_to_return, 'ID')])
 }
 
 resample_raster <- function(r, res, resample_fun=NULL) {

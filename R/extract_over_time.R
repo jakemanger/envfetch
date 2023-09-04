@@ -1,7 +1,7 @@
 #' Extract values from a raster over time
 #'
 #' This function extracts raster data over time ranges of each row and
-#' summarise the extracted data using a custom function.
+#' summarises the extracted data using a custom function.
 #'
 #' @param x An sf object containing the locations to be sampled.
 #' This should contain a column of type lubridate::interval to represent the time.
@@ -127,6 +127,11 @@ extract_over_time <- function(
 
   r_within_time <- r[[relevant_indices]]
 
+  # fix layer names to make sure there are no duplicates
+  # so we can easily do spatial joins later
+  fixed_layer_names <- make_unique_names(names(r_within_time))
+  names(r_within_time) <- fixed_layer_names
+
   nms <- names(r_within_time)
   tms <- terra::time(r_within_time)
 
@@ -157,9 +162,15 @@ extract_over_time <- function(
 
   new_col_names <- unique(stringr::str_split_i(nms, '_', 1))
 
+  # initialise variables with NA
   x[, new_col_names] <- NA
 
   multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)
+
+  # make sure the ID column is last
+  stopifnot(colnames(extracted)[length(colnames(extracted))] == 'ID')
+  # make sure that the order of the columns in extracted have not changed
+  stopifnot(all(colnames(extracted)[1:(length(colnames(extracted))-1)] == nms))
 
   progressr::with_progress({
     # remove the sf geometry before summarisation, as it is faster to work
@@ -297,4 +308,25 @@ find_relevant_time_slices <- function(dates, time_intervals) {
   # summarisation function
   relevant_indices <- pad_true(relevant_indices)
   return(relevant_indices)
+}
+
+# function to make names unique, as terra will produce duplicate
+# time slice names if there are multiple years
+make_unique_names <- function(names) {
+  unique_names <- character(length(names))
+  name_count <- list()
+
+  for (i in seq_along(names)) {
+    name <- names[i]
+
+    if (is.null(name_count[[name]])) {
+      name_count[[name]] <- 1
+      unique_names[i] <- name
+    } else {
+      name_count[[name]] <- name_count[[name]] + 1
+      unique_names[i] <- paste(name, name_count[[name]], sep = "_")
+    }
+  }
+
+  return(unique_names)
 }
