@@ -167,10 +167,11 @@ extract_over_time <- function(
 
   multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)
 
-  # make sure the ID column is last
-  stopifnot(colnames(extracted)[length(colnames(extracted))] == 'ID')
+  # remove ID column from extracted values
+  IDs <- extracted %>% select(ID)
+  extracted <- extracted %>% select(-c('ID'))
   # make sure that the order of the columns in extracted have not changed
-  stopifnot(all(colnames(extracted)[1:(length(colnames(extracted))-1)] == nms))
+  stopifnot(all(colnames(extracted) == nms))
 
   progressr::with_progress({
     # remove the sf geometry before summarisation, as it is faster to work
@@ -188,7 +189,7 @@ extract_over_time <- function(
       x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
     } else {
       message('Detected a custom row summarisation function. Running on each row one by one.')
-      x <- non_vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=parallel)
+      x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=parallel)
     }
 
     sf::st_geometry(x) <- geometry
@@ -198,8 +199,6 @@ extract_over_time <- function(
 }
 
 vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=TRUE) {
-  p <- progressr::progressor(steps=length(unique_time_ranges))
-
   # directly access time ranges without pipes
   time_ranges <- x[[time_column_name]]
   time_range_starts <- lubridate::int_start(time_ranges)
@@ -207,6 +206,9 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
   # convert to characters for lookup speed
   time_ranges <- as.character(time_ranges)
   unique_time_ranges <- unique(time_ranges)
+
+  p <- progressr::progressor(steps=length(unique_time_ranges))
+
 
   summarise <- function(range) {
     i <- which(time_ranges == range)
@@ -244,7 +246,7 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
   return(x)
 }
 
-non_vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=TRUE) {
+non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=TRUE) {
   p <- progressr::progressor(steps=nrow(x))
 
   time_ranges <- x[[time_column_name]]
@@ -261,7 +263,7 @@ non_vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, t
       cols_to_summarise <- colnames(extracted)[col_names_to_summarise]
 
       if (multi_values_in_extraction_per_row) {
-        data_to_summarise <- unlist(extracted[extracted$ID == i, cols_to_summarise])
+        data_to_summarise <- unlist(extracted[IDs == i, cols_to_summarise])
       } else {
         data_to_summarise <- unlist(extracted[i, cols_to_summarise])
       }

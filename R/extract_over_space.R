@@ -35,7 +35,7 @@
 #' # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a spatial object:
 #' # result <- extract_over_space(x=some_sp, r=some_raster)
 #' @export
-extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=0.3, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, ...) {
+extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=1.0, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, ...) {
   # drop duplicate rows that don't need to be extracted multiple times
   x <- x %>% dplyr::group_by(across(c('geometry'))) %>%
     dplyr::mutate(envfetch__duplicate_spatial_ID = dplyr::cur_group_id()) %>%
@@ -102,6 +102,11 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_f
       })
       # perform extraction on each chunk and combine results
       extracted <- do.call(cbind, extractions)
+      # remove duplicate envfetch__duplicate_spatial_IDs
+      extracted <- extracted[, !(duplicated(colnames(extracted)) & colnames(extracted)=='envfetch__duplicate_spatial_ID')]
+      # remove duplicate IDs
+      id_cols <- grep("^ID(\\.\\d+)?$", colnames(extracted))
+      extracted <- extracted[, -id_cols[-1]]
     })
   } else {
     if (!is.null(resample_scale)) {
