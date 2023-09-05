@@ -8,8 +8,9 @@
 #' @param x A tibble with a `sf` "geometry" and a column with time (a `lubridate` interval or date), specified by the `time_column_name` parameter.
 #' @param ... Anonymous functions you would like to use on each row of the dataset.
 #' @param use_cache Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.
+#' Also avoids recomputing extractions between R sessions.
 #' @param out_dir A directory to output your result. Is ignored if out_filename = NA.
-#' @param out_filename The path to output the result. Set to NA to not save the result and only return the result.
+#' @param out_filename The path to output the result. Set to NA (the default) to not save the result and only return the result.
 #' @param overwrite Overwrite output file if exists.
 #' @param cache_dir A directory to output cached progress. Is ignored if use_cache = FALSE.
 #' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
@@ -52,14 +53,13 @@ fetch <- function(
     ...,
     use_cache=TRUE,
     out_dir=file.path('./output/'),
-    out_filename=paste0('output_', format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), '.gpkg'),
+    out_filename=NA,
     overwrite=TRUE,
     cache_dir=file.path(out_dir, 'cache/'),
     time_column_name=NULL,
     .time_rep=NA
 ) {
   message('🥏 🐕 Fetching your data')
-  progressr::handlers('progress')
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
@@ -182,6 +182,9 @@ fetch <- function(
         extra_col_vals
       )
     }
+
+    x_colnames <- colnames(x)
+    colnames(x)[x_colnames == 'envfetch__original_time_column'] <- time_column_name
   }
   # remove columns with all NA values
   x <- x %>%
@@ -194,8 +197,8 @@ fetch <- function(
       file.remove(out_path)
     }
     if (getFileExtension(out_path) == 'csv') {
-      # user probably wants x and y coordinates and this stuffs up with csv as
-      # commas are used in the default output geometry column
+      # user probably wants x and y coordinates and this normally stuffs up with
+      # csv as commas are used in the default output geometry column
       sf::st_write(x, out_path, append=ifelse(overwrite, FALSE, NA), layer_options = "GEOMETRY=AS_XY")
     } else {
       sf::st_write(x, out_path, append=ifelse(overwrite, FALSE, NA))
