@@ -5,46 +5,6 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 library(sf)
 
-get_prediction_surface <- function(
-  prediction_surface_path='prediction_surface.tif'
-) {
-
-  if (file.exists(prediction_surface_path)) {
-    r <- rast(prediction_surface_path)
-    return(r)
-  }
-
-  print(
-    'Creating prediction surface from clum data. This may take a while the
-    first time it is run'
-  )
-
-  clum <- rast('//drive.irds.uwa.edu.au/SBS-DBPSD-001/data/geotiff_clum_50m1220m/geotiff_clum_50m1220m/clum_50m1220m.tif')
-  info <- st_read("//drive.irds.uwa.edu.au/SBS-DBPSD-001/data/geotiff_clum_50m1220m/geotiff_clum_50m1220m/clum_50m1220m.tif.vat.dbf")
-
-  agricultural_land_codes <- info |>
-    filter(!AGRI_INDUS %in% c("Not agricultural industry",
-                              "Horticulture",
-                              "Intensive plant and animal industries")) |>
-    pull(VALUE)
-
-  att_table <- levels(clum)[[1]]
-  att_table$NEW_CLASS <- 0
-
-  att_table$NEW_CLASS[att_table$VALUE %in% agricultural_land_codes] <- 1
-
-  # lets reclassify the ID of the raster to the NEW_CLASS variable
-  reclassify.matrix <- cbind(att_table$VALUE, att_table$NEW_CLASS)
-  # add in to convert ocean to uninhabitable (0)
-  reclassify.matrix <- rbind(
-    reclassify.matrix,
-    matrix(c(NA, 0), nrow=1, ncol=2)
-  )
-
-  r <- classify(clum, reclassify.matrix, others=0)
-  writeRaster(r, prediction_surface_path, overwrite=TRUE)
-}
-
 in_agricultural_land <- function(d) {
   clum <- rast('//drive.irds.uwa.edu.au/SBS-DBPSD-001/data/geotiff_clum_50m1220m/geotiff_clum_50m1220m/clum_50m1220m.tif')
 
@@ -79,15 +39,6 @@ prediction_surface_locations_path <- 'prediction_surface_locations_1_deg.rds'
 if (file.exists(prediction_surface_locations_path)) {
   d <- readRDS(prediction_surface_locations_path)
 } else {
-  d <- sf::read_sf(
-      "//drive.irds.uwa.edu.au/SBS-DBPSD-001/db_data_with_duplicates.csv",
-      options=c('X_POSSIBLE_NAMES=X', 'Y_POSSIBLE_NAMES=Y'),
-      crs=sf::st_crs(4326)
-    )
-
-  # raster_approach <- get_prediction_surface()
-
-  # VECTOR approach
   d <- throw(
     offset=c(110, -45),
     cellsize=1,
@@ -134,44 +85,43 @@ for (i in 1:days) {
 centroids <- d
 st_geometry(centroids) <- st_centroid(st_geometry(d))
 
-# extracted_dbee_1 <-
-#   centroids |>
-#   fetch(
-#     ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=rowSums, parallel=FALSE),
-#     .time_rep = time_rep(interval = lubridate::days(14), n_start = -24, n_end = 0)
-#   )
-
-
-extracted_dbee_1 <-
-  centroids |>
-  fetch(
-    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=rowSums, parallel=FALSE),
-    ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds=c('tmin', 'tmax', 'vprp')), parallel=FALSE),
-    ~extract_over_time(.x, r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc", parallel=FALSE),
-    ~extract_over_time(
-      .x,
-      r = list.files(
-        "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
-        pattern = "\\.nc$",
-        full.names = TRUE
-      ),
-      parallel=FALSE
-    ),
-    # ~extract_gee(
-    #   .x,
-    #   collection_name='MODIS/061/MOD13Q1',
-    #   bands=c('NDVI', 'DetailedQA'),
-    #   time_buffer= lubridate::days(30),
-    #   parallel=FALSE
+# do the extraction
+extracted <- envfetch(
+  x = centroids,
+  r = list(
+    # "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
+    # "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
+    # "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc",
+    # list.files(
+    #   "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
+    #   pattern = "\\.nc$",
+    #   full.names = TRUE
     # ),
-    .time_rep = time_rep(interval = lubridate::days(14), n_start = -26, n_end = 0)
-  )
+    'MODIS/061/MOD13Q1'
+  ),
+  bands = list(
+    # 'precip',
+    # c('tmin', 'tmax', 'vprp'),
+    # NULL,
+    # NULL,
+    c('NDVI', 'DetailedQA')
+  ),
+  temporal_fun = list(
+    # 'sum',
+    # 'mean',
+    # 'mean',
+    # 'mean',
+    'last'
+  ),
+  .time_rep = time_rep(interval = lubridate::days(14), n_start = -26, n_end = 0),
+  use_drive=TRUE
+)
 
-saveRDS(extracted_dbee_1, 'extracted_dbee_1.rds')
+saveRDS(extracted, 'prediction_surface.RDS')
 
 # plot to look at result
-filtered_data <- extracted_dbee_1 %>%
-  filter(envfetch__original_time_column == extracted_dbee_1$envfetch__original_time_column[1])
+filtered_data <- extracted %>%
+  filter(envfetch__original_time_column == extracted$envfetch__original_time_column[1])
 
 ggplot(filtered_data) +
   geom_sf(aes(color = precip)) +  # Color by 'precip' variable
@@ -179,95 +129,3 @@ ggplot(filtered_data) +
   theme_minimal() +
   ggtitle("Plot of Selected Time Slice with Colors for 'precip'")
 
-
-# extracted_dbee_e_resampling <-
-#   centroids |>
-#   fetch(
-#     ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=rowSums, parallel=FALSE, resample_scale=111139, resample_fun='sum'),
-#     ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds=c('tmin', 'tmax', 'vprp')), parallel=FALSE, resample_scale=111139),
-#     ~extract_over_time(.x, r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc", parallel=FALSE, resample_scale=111139),
-#     ~extract_over_time(
-#       .x,
-#       r = list.files(
-#         "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
-#         pattern = "\\.nc$",
-#         full.names = TRUE
-#       ),
-#       parallel=FALSE,
-#       resample_scale=111139
-#     ),
-#     ~extract_gee(
-#       .x,
-#       collection_name='MODIS/061/MOD13Q1',
-#       bands=c('NDVI', 'DetailedQA'),
-#       time_buffer= lubridate::days(30),
-#       parallel=FALSE,
-#       scale=111139
-#     ),
-#     .time_rep = time_rep(interval = lubridate::days(14), n_start = -26, n_end = 0)
-#   )
-
-
-# result <- microbenchmark::microbenchmark(
-#   parallel = {
-#   extracted_dbee_1 <-
-#     centroids[1:5000,] |>
-#     fetch(
-#       ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum),
-#       .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
-#       use_cache = FALSE
-#     )
-#   },
-#   parallel_4_cores = {
-#     extracted_dbee_1 <-
-#       centroids[1:5000,] |>
-#       fetch(
-#         ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum, workers=4),
-#         .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
-#         use_cache = FALSE
-#       )
-#   },
-#   non_parallel = {
-#     extracted_dbee_1 <-
-#       centroids[1:5000,] |>
-#       fetch(
-#         ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=sum, parallel=FALSE),
-#         .time_rep = time_rep(interval = lubridate::days(14), n_start = -1, n_end = 0),
-#         use_cache = FALSE
-#       )
-#   },
-#   times=2,
-#   check='equal'
-# )
-
-extracted_dbee_1 <- envfetch(
-  x = centroids,
-  r = list(
-    "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
-    "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc",
-    "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc",
-    list.files(
-      "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
-      pattern = "\\.nc$",
-      full.names = TRUE
-    )
-    # 'MODIS/061/MOD13Q1'
-  ),
-  bands = list(
-    'precip',
-    c('tmin', 'tmax', 'vprp'),
-    NULL,
-    NULL
-    # c('NDVI', 'DetailedQA')
-  ),
-  temporal_fun = list(
-    sum,
-    mean,
-    mean,
-    mean
-    # mean
-  ),
-  .time_rep = time_rep(interval = lubridate::days(1), n_start = -365, n_end = 0)
-)
-#
-# write.csv(extracted_dbee_1, "data/extracted_dbee.csv", row.names = FALSE)

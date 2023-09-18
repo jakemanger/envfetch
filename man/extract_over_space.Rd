@@ -58,7 +58,7 @@ If chunking is required (i.e., the raster data does not fit in available RAM), t
 into a number of chunks such that each chunk's RAM requirement does not exceed the available RAM.
 The function then processes each chunk sequentially, extracting the raster values over the spatial
 object, and combines the results at the end.
-Progress of the extraction is displayed using the \code{progressr} package.
+Progress of the extraction is displayed.
 }
 \examples{
 # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a spatial object:

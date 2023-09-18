@@ -172,27 +172,25 @@ extract_over_time <- function(
   # make sure that the order of the columns in extracted have not changed
   stopifnot(all(colnames(extracted) == nms))
 
-  progressr::with_progress({
-    # remove the sf geometry before summarisation, as it is faster to work
-    # with a dataframe
-    geometry <- sf::st_geometry(x)
-    x <- sf::st_drop_geometry(x)
+  # remove the sf geometry before summarisation, as it is faster to work
+  # with a dataframe
+  geometry <- sf::st_geometry(x)
+  x <- sf::st_drop_geometry(x)
 
-    if (contains_rowSums_or_rowMeans(temporal_fun))
-      cli::cli_alert(cli::col_black('Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.'))
+  if (contains_rowSums_or_rowMeans(temporal_fun))
+    cli::cli_alert(cli::col_black('Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.'))
 
-    if (contains_rowSums_or_rowMeans(temporal_fun) || is_vectorised_summarisation_function) {
-      if (multi_values_in_extraction_per_row)
-        stop('You cannot use a vectorised row summarisation function with fun=NULL when extracting with polygons or lines. Use a non-vectorised alternative for the `temporal_fun` instead, e.g. `sum`, `mean` or `function(x) {mean(x, na.rm=TRUE)}')
+  if (contains_rowSums_or_rowMeans(temporal_fun) || is_vectorised_summarisation_function) {
+    if (multi_values_in_extraction_per_row)
+      stop('You cannot use a vectorised row summarisation function with fun=NULL when extracting with polygons or lines. Use a non-vectorised alternative for the `temporal_fun` instead, e.g. `sum`, `mean` or `function(x) {mean(x, na.rm=TRUE)}')
 
-      x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
-    } else {
-      cli::cli_alert(cli::col_black('Detected a custom row summarisation function. Running on each row one by one.'))
-      x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=parallel)
-    }
+    x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
+  } else {
+    cli::cli_alert(cli::col_black('Detected a custom row summarisation function. Running on each row one by one.'))
+    x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=parallel)
+  }
 
-    sf::st_geometry(x) <- geometry
-  })
+  sf::st_geometry(x) <- geometry
 
   return(x)
 }
@@ -206,8 +204,7 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
   time_ranges <- as.character(time_ranges)
   unique_time_ranges <- unique(time_ranges)
 
-  p <- progressr::progressor(steps=length(unique_time_ranges))
-
+  pb <- cli::cli_progress_bar("Summarising extracted data", total = length(unique_time_ranges))
 
   summarise <- function(range) {
     i <- which(time_ranges == range)
@@ -230,7 +227,7 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
       }
     }
 
-    p()
+    cli::cli_progress_update(id=pb)
     return(temp_df)
   }
 
@@ -246,7 +243,7 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
 }
 
 non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=TRUE) {
-  p <- progressr::progressor(steps=nrow(x))
+  pb <- cli::cli_progress_bar("Summarising extracted data", total = nrow(x))
 
   time_ranges <- x[[time_column_name]]
   time_range_starts <- lubridate::int_start(time_ranges)
@@ -269,7 +266,7 @@ non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, n
 
       temp_df[col_name] <- temporal_fun(data_to_summarise)
     }
-    p()
+    cli::cli_progress_update(id=pb)
     return(temp_df)
   }
 

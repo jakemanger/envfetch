@@ -29,7 +29,7 @@
 #' into a number of chunks such that each chunk's RAM requirement does not exceed the available RAM.
 #' The function then processes each chunk sequentially, extracting the raster values over the spatial
 #' object, and combines the results at the end.
-#' Progress of the extraction is displayed using the `progressr` package.
+#' Progress of the extraction is displayed.
 #'
 #' @examples
 #' # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a spatial object:
@@ -37,7 +37,7 @@
 #' @export
 extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=1.0, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, ...) {
   # drop duplicate rows that don't need to be extracted multiple times
-  geometry_column_name = attr(x, "sf_column")
+  geometry_column_name <- attr(x, "sf_column")
   x <- x %>% dplyr::group_by(across(c(!!geometry_column_name))) %>%
     dplyr::mutate(envfetch__duplicate_spatial_ID = dplyr::cur_group_id()) %>%
     dplyr::ungroup()
@@ -76,40 +76,38 @@ extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, m
     chunk_size <- ceiling(length(times) / num_chunks)
     cli::cli_alert(cli::col_black(paste('Splitting job into', num_chunks, 'chunks')))
 
-    progressr::with_progress({
-      p <- progressr::progressor(steps = num_chunks)
+    pb <- cli::cli_progress_bar("Extracting data in chunks", total = num_chunks)
 
-      # initialize list to hold chunks
-      r_chunks <- vector("list", num_chunks)
+    # initialize list to hold chunks
+    r_chunks <- vector("list", num_chunks)
 
-      # divide raster into chunks
-      for (i in seq_len(num_chunks)) {
-        start_index <- ((i - 1) * chunk_size) + 1
-        end_index <- min(i * chunk_size, length(times))
-        r_chunks[[i]] <- r[[start_index:end_index]]
+    # divide raster into chunks
+    for (i in seq_len(num_chunks)) {
+      start_index <- ((i - 1) * chunk_size) + 1
+      end_index <- min(i * chunk_size, length(times))
+      r_chunks[[i]] <- r[[start_index:end_index]]
+    }
+
+    extractions <- lapply(r_chunks, function(chunk) {
+      # run garbage collector to free up memory between extractions
+      gc()
+
+      if (!is.null(resample_scale)) {
+        chunk <- resample_raster(chunk, resample_scale, resample_fun)
       }
 
-      extractions <- lapply(r_chunks, function(chunk) {
-        # run garbage collector to free up memory between extractions
-        gc()
-
-        if (!is.null(resample_scale)) {
-          chunk <- resample_raster(chunk, resample_scale, resample_fun)
-        }
-
-        ex <- extraction_fun(x = chunk, y = unique_x, spatial_fun=spatial_fun, na.rm=na.rm, ...)
-        # update progress bar after each extraction
-        p()
-        return(ex)
-      })
-      # perform extraction on each chunk and combine results
-      extracted <- do.call(cbind, extractions)
-      # remove duplicate envfetch__duplicate_spatial_IDs
-      extracted <- extracted[, !(duplicated(colnames(extracted)) & colnames(extracted)=='envfetch__duplicate_spatial_ID')]
-      # remove duplicate IDs
-      id_cols <- grep("^ID(\\.\\d+)?$", colnames(extracted))
-      extracted <- extracted[, -id_cols[-1]]
+      ex <- extraction_fun(x = chunk, y = unique_x, spatial_fun=spatial_fun, na.rm=na.rm, ...)
+      # update progress bar after each extraction
+      cli::cli_progress_update(id=pb)
+      return(ex)
     })
+    # perform extraction on each chunk and combine results
+    extracted <- do.call(cbind, extractions)
+    # remove duplicate envfetch__duplicate_spatial_IDs
+    extracted <- extracted[, !(duplicated(colnames(extracted)) & colnames(extracted)=='envfetch__duplicate_spatial_ID')]
+    # remove duplicate IDs
+    id_cols <- grep("^ID(\\.\\d+)?$", colnames(extracted))
+    extracted <- extracted[, -id_cols[-1]]
   } else {
     if (!is.null(resample_scale)) {
       chunk <- resample_raster(chunk, resample_scale, resample_fun)

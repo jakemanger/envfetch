@@ -31,7 +31,6 @@ Imports:
     googleCloudStorageR,
     lubridate,
     magrittr,
-    progressr,
     purrr,
     rgee,
     rnaturalearth,

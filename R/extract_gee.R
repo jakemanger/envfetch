@@ -84,8 +84,8 @@ extract_gee <- function(
   initialise_gee=TRUE,
   use_gcs=FALSE,
   use_drive=FALSE,
-  max_chunk_time_day_range=64,
-  max_feature_collection_size=10000,
+  max_chunk_time_day_range=365,
+  max_feature_collection_size=9000,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   cache_progress=TRUE,
   cache_dir='./',
@@ -124,60 +124,59 @@ extract_gee <- function(
   x$start_time <- x %>% dplyr::pull(time_column_name) %>% lubridate::int_start() %>% as.Date()
   pts_chunks <- split_time_chunks(x, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
 
-  progressr::with_progress({
-    p <- progressr::progressor(steps = length(pts_chunks)*3)
+  pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks)*3)
 
-    extracteds <- lapply(pts_chunks, function(chunk) {
-      p('Loading sf object on gee...')
-      p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
+  extracteds <- lapply(pts_chunks, function(chunk) {
+    p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
+    cli::cli_progress_update(id=pb)
 
-      # get min and max dates from the x tibble
-      chunk_time_column <- chunk %>% dplyr::pull(time_column_name)
-      min_datetime <- min(lubridate::int_start(chunk_time_column)) - time_buffer
-      max_datetime <- max(lubridate::int_end(chunk_time_column)) + time_buffer
-      min_datetime <- format(min_datetime, "%Y-%m-%dT%H:%M:%S")
-      max_datetime <- format(max_datetime, "%Y-%m-%dT%H:%M:%S")
+    # get min and max dates from the x tibble
+    chunk_time_column <- chunk %>% dplyr::pull(time_column_name)
+    min_datetime <- min(lubridate::int_start(chunk_time_column)) - time_buffer
+    max_datetime <- max(lubridate::int_end(chunk_time_column)) + time_buffer
+    min_datetime <- format(min_datetime, "%Y-%m-%dT%H:%M:%S")
+    max_datetime <- format(max_datetime, "%Y-%m-%dT%H:%M:%S")
 
-      p(paste('Loading image collection object:', collection_name, 'with bands', paste(bands, collapse = ', ')))
+    cli::cli_progress_update(id=pb)
 
-      check_dataset(min_datetime, max_datetime, collection_name)
+    check_dataset(min_datetime, max_datetime, collection_name)
 
-      ic <- rgee::ee$ImageCollection(collection_name)$
-        filterBounds(p_feature)$
-        filterDate(min_datetime, max_datetime)
+    ic <- rgee::ee$ImageCollection(collection_name)$
+      filterBounds(p_feature)$
+      filterDate(min_datetime, max_datetime)
 
-      if (!is.null(bands)) {
-        ic <- ic$select(bands)
-      }
+    if (!is.null(bands)) {
+      ic <- ic$select(bands)
+    }
 
-      p('extracting...')
-      extracted <- rgee::ee_extract(
-        x = ic,
-        y = p_feature,
-        scale = scale,
-        fun = ee_reducer_fun,
-        lazy = FALSE,
-        sf = TRUE,
-        ...
-      )
+    cli::cli_progress_update(id=pb)
 
-      # use this to make sure the correct columns
-      # are sampled below
-      extracted[is.na(extracted)] <- 'No data'
-      return(extracted)
-    })
+    extracted <- rgee::ee_extract(
+      x = ic,
+      y = p_feature,
+      scale = scale,
+      fun = ee_reducer_fun,
+      lazy = FALSE,
+      sf = TRUE,
+      ...
+    )
 
-    extracted <- dplyr::bind_rows(extracteds)
-    # nas are created by bind rows without the same number of columns,
-    # so we use this string trick to make sure we don't mix up no data with
-    # NAs introduced by bind_rows
-    extracted[is.na(extracted)] <- 'No sample'
-    extracted_no_geom <- extracted %>% sf::st_drop_geometry()
-    extracted_no_geom[extracted_no_geom=='No data'] <- NA
-    sf::st_geometry(extracted_no_geom) <- sf::st_geometry(extracted)
-    extracted <- extracted_no_geom
-    extracted_no_geom <- NULL
+    # use this to make sure the correct columns
+    # are sampled below
+    extracted[is.na(extracted)] <- 'No data'
+    return(extracted)
   })
+
+  extracted <- dplyr::bind_rows(extracteds)
+  # nas are created by bind rows without the same number of columns,
+  # so we use this string trick to make sure we don't mix up no data with
+  # NAs introduced by bind_rows
+  extracted[is.na(extracted)] <- 'No sample'
+  extracted_no_geom <- extracted %>% sf::st_drop_geometry()
+  extracted_no_geom[extracted_no_geom=='No data'] <- NA
+  sf::st_geometry(extracted_no_geom) <- sf::st_geometry(extracted)
+  extracted <- extracted_no_geom
+  extracted_no_geom <- NULL
 
 
   if (ncol(extracted) == 2) {
@@ -214,14 +213,12 @@ extract_gee <- function(
 
   x[, new_col_names] <- NA
 
-  progressr::with_progress({
-    geometry <- sf::st_geometry(x)
-    x <- sf::st_drop_geometry(x)
+  geometry <- sf::st_geometry(x)
+  x <- sf::st_drop_geometry(x)
 
-    x <- non_vectorised_summarisation_gee(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
+  x <- non_vectorised_summarisation_gee(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
 
-    sf::st_geometry(x) <- geometry
-  })
+  sf::st_geometry(x) <- geometry
 
   # return x to its original order and assign back the time column
   x[,time_column_name] <- time_column_after_sort
@@ -234,7 +231,7 @@ extract_gee <- function(
 }
 
 non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=TRUE) {
-  p <- progressr::progressor(steps = nrow(x))
+  pb <- cli::cli_progress_bar('Summarising extracted data with temporal_fun', total=nrow(x))
 
   x_time_column <- x[[time_column_name]]
   time_range_starts <- lubridate::int_start(x_time_column)
@@ -263,7 +260,7 @@ non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nm
         temp_df[col_name] <- temporal_fun(row_values[index])
       }
     }
-    p()
+    cli::cli_progress_update(id=pb)
     return(temp_df)
   }
 
