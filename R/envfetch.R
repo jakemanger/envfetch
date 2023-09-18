@@ -150,7 +150,7 @@ envfetch <- function(
 
       functions <- c(
         functions,
-        create_extract_gee_function(i, r, bands, temporal_fun, spatial_fun, initialise_gee=FALSE, ...)
+        create_extract_gee_function(i, r, bands, temporal_fun, spatial_fun, ...)
       )
     }
   }
@@ -223,6 +223,7 @@ create_extract_gee_function <- function(i, r, bands, temporal_fun, spatial_fun, 
     bands = bands[[i]],
     temporal_fun = temporal_fun[[i]],
     ee_reducer_fun = spatial_fun[[i]],
+    initialise_gee=FALSE,
     ...
   )
 }
