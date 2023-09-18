@@ -123,7 +123,7 @@ envfetch <- function(
 
       functions <- c(
         functions,
-        create_extract_over_time_function(i, r, temporal_fun, spatial_fun)
+        create_extract_over_time_function(i, r, temporal_fun, spatial_fun, ...)
       )
     } else {
 
@@ -150,7 +150,7 @@ envfetch <- function(
 
       functions <- c(
         functions,
-        create_extract_gee_function(i, r, bands, temporal_fun, spatial_fun)
+        create_extract_gee_function(i, r, bands, temporal_fun, spatial_fun, initialise_gee=FALSE, ...)
       )
     }
   }
@@ -195,7 +195,7 @@ parse_input <- function(input, num_rasters) {
   return(input)
 }
 
-create_extract_over_time_function <- function(i, r, temporal_fun, spatial_fun) {
+create_extract_over_time_function <- function(i, r, temporal_fun, spatial_fun, ...) {
   force(i)
   force(r)
   force(temporal_fun)
@@ -210,7 +210,7 @@ create_extract_over_time_function <- function(i, r, temporal_fun, spatial_fun) {
   )
 }
 
-create_extract_gee_function <- function(i, r, bands, temporal_fun, spatial_fun) {
+create_extract_gee_function <- function(i, r, bands, temporal_fun, spatial_fun, ...) {
   force(i)
   force(r)
   force(bands)
@@ -223,7 +223,6 @@ create_extract_gee_function <- function(i, r, bands, temporal_fun, spatial_fun) 
     bands = bands[[i]],
     temporal_fun = temporal_fun[[i]],
     ee_reducer_fun = spatial_fun[[i]],
-    initialise_gee = FALSE,
     ...
   )
 }
