@@ -26,7 +26,8 @@ cells in the grid. Default is c(10, 10).}
 the grid in the x and y directions. Default is c(36, 18).}
 
 \item{time_interval}{An interval object from the lubridate package,
-indicating the time span for each point.}
+indicating the time span for each point. Alternatively, a single date, which
+will be interpreted as an interval over that day by envfetch.}
 
 \item{crs}{A coordinate reference system object from the sf package.
 Default is sf::st_crs(4326), which is the WGS 84 geographic coordinate system.}

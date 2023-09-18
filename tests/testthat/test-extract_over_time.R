@@ -9,15 +9,18 @@ envfetch_vs_terra <- function(temporal_fun, polygons=FALSE) {
         .x,
         r,
         temporal_fun=temporal_fun,
-        fun=NULL
+        spatial_fun=NULL
       ),
       .time_rep=time_rep(interval=lubridate::days(1), n_start=-2),
       use_cache=FALSE,
       out_filename=NA
     )
 
+
   # extract with terra and some mean math
-  terra_out <- terra::extract(r, d, ID=FALSE)
+  terra_out <- terra::extract(r, d, ID=TRUE)
+  ID_column <- terra_out$ID
+  terra_out <- terra_out[,!(colnames(terra_out) %in% 'ID')]
   times <- terra::time(r)
   time_offsets <- c(0, 1, 2)
   terra_result_matrix <- matrix(NA, nrow=nrow(d), ncol=length(time_offsets))
@@ -29,13 +32,13 @@ envfetch_vs_terra <- function(temporal_fun, polygons=FALSE) {
         start <- lubridate::int_start(time)
         time <- lubridate::interval(
           start=start-lubridate::days(t),
-          end=start-lubridate::days(t-1)
+          end=start-lubridate::days(t-1) - lubridate::minutes(1)
         )
       }
 
       cols_to_average <- lubridate::`%within%`(times, time)
 
-      result <- temporal_fun(as.numeric(terra_out[i, cols_to_average]))
+      result <- temporal_fun(as.numeric(unlist(terra_out[ID_column == i, cols_to_average])))
       terra_result_matrix[i, t+1] <- result
     }
   }
@@ -85,21 +88,16 @@ test_that('correct_result_returned_polygons_sum_na_rm', {
 
 test_that('chunking_doesnt_change_output', {
   d <- create_test_d()
+  r <- load_test_raster()
 
   chunked_out <- d %>%
     fetch(
       ~extract_over_time(
         .x,
-        system.file('testdata', 'test_tmin.nc', package='envfetch'),
-        spatial_extraction_fun=function(x, r) {
-          extract_over_space(
-            x = x,
-            r = r,
-            fun = mean,
-            na.rm = TRUE,
-            chunk = TRUE
-          )
-        }
+        r,
+        spatial_fun = mean,
+        na.rm = TRUE,
+        chunk = TRUE
       ),
       .time_rep=time_rep(interval=lubridate::days(14), n_start=-1),
       use_cache=FALSE,
@@ -110,16 +108,10 @@ test_that('chunking_doesnt_change_output', {
     fetch(
       ~extract_over_time(
         .x,
-        system.file('testdata', 'test_tmin.nc', package='envfetch'),
-        spatial_extraction_fun=function(x, r) {
-          extract_over_space(
-            x = x,
-            r = r,
-            fun = mean,
-            na.rm = TRUE,
-            chunk = FALSE
-          )
-        }
+        r,
+        fun = mean,
+        na.rm = TRUE,
+        chunk = FALSE
       ),
       .time_rep=time_rep(interval=lubridate::days(14), n_start=-1),
       use_cache=FALSE,

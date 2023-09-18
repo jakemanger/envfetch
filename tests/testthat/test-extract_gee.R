@@ -59,7 +59,7 @@ test_that("correct_results_returned_mean", {
       collection_name='MODIS/061/MOD13Q1',
       bands=c('NDVI', 'DetailedQA'),
       initialise_gee=FALSE,
-      summarise_fun=mean
+      temporal_fun=mean
     ),
     time_column_name='time',
     out_filename=NA,

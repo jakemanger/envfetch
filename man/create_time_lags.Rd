@@ -10,8 +10,7 @@ create_time_lags(
   time_lag = lubridate::days(14),
   lag_amount_units = lubridate::days(1),
   relative_to_start = TRUE,
-  time_column_name = "time_column",
-  timezone = "Australia/Perth"
+  time_column_name = "time_column"
 )
 }
 \arguments{
@@ -26,8 +25,6 @@ determines the unit for the 'lag_amount' column.}
 
 \item{relative_to_start}{A logical value indicating whether the lag should be
 relative to the start or the end of the input time interval.}
-
-\item{timezone}{A string specifying the timezone for the dates.}
 }
 \value{
 A tibble with the original data and additional time-lagged rows.
@@ -44,8 +41,7 @@ lagged_tibble <- create_time_lags(
   n_lag_range = c(1, 14),
   time_lag = lubridate::days(14),
   lag_amount_units = lubridate::days(1),
-  relative_to_start = TRUE,
-  timezone = 'Australia/Perth'
+  relative_to_start = TRUE
 )
 }
 }

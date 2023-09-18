@@ -26,6 +26,7 @@ Suggests:
     rmarkdown
 Config/testthat/edition: 3
 Imports: 
+    cli,
     dplyr,
     googleCloudStorageR,
     lubridate,

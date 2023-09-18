@@ -9,9 +9,9 @@ time_rep(interval, n_start = -1, n_end = 0, relative_to_start = TRUE)
 \arguments{
 \item{interval}{A lubridate period indicating the time interval to repeat. It should be positive, e.g. \code{lubridate::days(14)}.}
 
-\item{n_start}{An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is -1.}
+\item{n_start}{An integer indicating the number of steps before the original datetime from which the interval should start repeating. Default is -1. Note this is inclusive.}
 
-\item{n_end}{An integer indicating the number of steps after the original datetime to which the interval should continue repeating. Default is 0.}
+\item{n_end}{An integer indicating the number of steps after the original datetime to which the interval should continue repeating. Default is 0. Note, this is exclusive.}
 
 \item{relative_to_start}{Whether to create repeating time intervals relative to the start of the input time interval or end.}
 }

@@ -6,6 +6,8 @@
 #'
 #' @param points An `sf` object containing geometry and a time_column with datetime
 #' as a `lubridate::interval`.
+#' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
+#' is automatically selected.
 #' @param save A logical value indicating whether to save the extracted day and night
 #' time information as an RDS file. Default is `FALSE`.
 #' @param savepath The path to save the RDS file, defaults to './output/extracted_day_night_stats.rds'.
@@ -18,14 +20,17 @@
 #' sf_with_times <- get_daynight_times(points_sf, save=TRUE, savepath='./daynight.rds', units='minutes')
 #' }
 #' @export
-get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_day_night_stats.rds', units='hours') {
+get_daynight_times <- function(points, time_column_name=NULL, save=FALSE, savepath='./output/extracted_day_night_stats.rds', units='hours') {
+  if (is.null(time_column_name)) {
+    time_column_name <- find_time_column_name(points)
+  }
   message('Calculating time since sunrise')
   pb <- dplyr::progress_estimated(nrow(points))
   time_since_sunrises <- 1:nrow(points) %>%
     purrr::map(
       function(x) {
         pb$tick()$print()
-        start_time <- lubridate::int_start(points$time_column[x])
+        start_time <- sf::st_drop_geometry(points)[x,] %>% dplyr::pull(time_column_name) %>% lubridate::int_start()
         coords <- sf::st_coordinates(sf::st_geometry(points))
         get_time_since_sunrise(
           start_time,
@@ -45,7 +50,7 @@ get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_
     purrr::map(
       function(x) {
         pb$tick()$print()
-        start_time <- lubridate::int_start((points$time_column[x]))
+        start_time <- sf::st_drop_geometry(points)[x,] %>% dplyr::pull(time_column_name) %>% lubridate::int_start()
         coords <- sf::st_coordinates(sf::st_geometry(points)[x])
         get_time_since_sunset(
           start_time,
@@ -64,8 +69,8 @@ get_daynight_times <- function(points, save=FALSE, savepath='./output/extracted_
     purrr::map(
       function(x) {
         pb$tick()$print()
-        start_time <- lubridate::int_start((points$time_column[x]))
-        end_time <- lubridate::int_end((points$time_column[x]))
+        start_time <- sf::st_drop_geometry(points)[x,] %>% dplyr::pull(time_column_name) %>% lubridate::int_start()
+        end_time <- sf::st_drop_geometry(points)[x,] %>% dplyr::pull(time_column_name) %>% lubridate::int_end()
         coords <- sf::st_coordinates(sf::st_geometry(points)[x])
         get_day_night_hours(
           start_time,

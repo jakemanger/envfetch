@@ -11,9 +11,9 @@
 #' @param r A `terra::SpatRaster` object, representing the raster layer from which values need to be extracted.
 #' @param chunk Logical. If `TRUE`, the raster will be split into chunks based on available RAM and processed
 #'              chunk by chunk. If `FALSE`, the raster will be processed as a whole. Default is `TRUE`.
-#' @param fun Function used to summarise multiple values within a polygon or line. Is passed to `extraction_fun`
+#' @param spatial_fun Function used to summarise multiple values within a polygon or line. Is passed to `extraction_fun`
 #' internally. Defaults to `mean`.
-#' @param na.rm Whether to remove NA values when summarising with the `fun` function.
+#' @param na.rm Whether to remove NA values when summarising with the `spatial_fun` function.
 #' @param ... Additional arguments to pass to `terra::extract`.
 #' @param extraction_fun The extraction function to use. Default is `terra::extract`.
 #' @param max_ram_frac_per_chunk The maximum fraction of available memory to use for each extraction chunk.
@@ -35,9 +35,10 @@
 #' # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a spatial object:
 #' # result <- extract_over_space(x=some_sp, r=some_raster)
 #' @export
-extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=1.0, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, ...) {
+extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=1.0, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, ...) {
   # drop duplicate rows that don't need to be extracted multiple times
-  x <- x %>% dplyr::group_by(across(c('geometry'))) %>%
+  geometry_column_name = attr(x, "sf_column")
+  x <- x %>% dplyr::group_by(across(c(!!geometry_column_name))) %>%
     dplyr::mutate(envfetch__duplicate_spatial_ID = dplyr::cur_group_id()) %>%
     dplyr::ungroup()
 
@@ -49,14 +50,15 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_f
   ram_available <- mem_info['available'] * 0.9
   ram_available_per_chunk <- ram_available * max_ram_frac_per_chunk
 
-  message(
-    paste(
-      ram_required,
-      'Kbs of RAM is required for extraction and',
-      ram_available,
-      'Kbs of RAM is available and ',
-      ram_available_per_chunk,
-      'Kbs of RAM is available per chunk'
+  messg <-
+  cli::cli_alert(
+    cli::col_black(
+      paste(
+        ram_required,
+        'Kbs of RAM is required for extraction and',
+        ram_available_per_chunk,
+        'Kbs of RAM is available'
+      )
     )
   )
 
@@ -72,7 +74,7 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_f
 
     num_chunks <- ceiling(ram_required / ram_available_per_chunk)
     chunk_size <- ceiling(length(times) / num_chunks)
-    message(paste('Splitting job into', num_chunks, 'chunks'))
+    cli::cli_alert(cli::col_black(paste('Splitting job into', num_chunks, 'chunks')))
 
     progressr::with_progress({
       p <- progressr::progressor(steps = num_chunks)
@@ -95,7 +97,7 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_f
           chunk <- resample_raster(chunk, resample_scale, resample_fun)
         }
 
-        ex <- extraction_fun(x = chunk, y = unique_x, fun=fun, na.rm=na.rm, ...)
+        ex <- extraction_fun(x = chunk, y = unique_x, spatial_fun=spatial_fun, na.rm=na.rm, ...)
         # update progress bar after each extraction
         p()
         return(ex)
@@ -116,9 +118,9 @@ extract_over_space <- function(x, r, fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_f
     gc()
 
     # perform extraction normally if raster fits in RAM
-    extracted <- extraction_fun(x = r, y = unique_x, fun=fun, na.rm=na.rm, ...)
+    extracted <- extraction_fun(x = r, y = unique_x, spatial_fun=spatial_fun, na.rm=na.rm, ...)
   }
-  message('Completed extraction')
+  cli::cli_alert(cli::col_black('Completed extraction'))
 
   # a final garbage collection so later extractions have cleared up memory
   # beforehand
@@ -148,7 +150,7 @@ resample_raster <- function(r, res, resample_fun=NULL) {
   # Get the current resolution of the raster r
   current_res <- terra::res(r)
 
-  message(paste('resampling raster from res of', current_res, 'to', res))
+  cli::cli_alert(cli::col_black(paste('resampling raster from res of', current_res, 'to', res)))
 
   # if the current resolution is different from the desired one
   if (current_res[1] != resample_scale || current_res[2] != resample_scale) {
@@ -162,10 +164,10 @@ resample_raster <- function(r, res, resample_fun=NULL) {
 
     # perform the resampling
     if (is.null(resample_fun)) {
-      message('using default resampling function')
+      cli::cli_alert(cli::col_black('using default resampling function'))
       r <- terra::resample(r, template_raster)
     } else {
-      message(paste('using a', resample_fun, 'resampling function'))
+      cli::cli_alert(cli::col_black(paste('using a', resample_fun, 'resampling function')))
       r <- terra::resample(r, template_raster, method=resample_fun)
     }
   }

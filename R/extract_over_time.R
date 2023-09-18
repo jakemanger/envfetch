@@ -88,7 +88,7 @@ extract_over_time <- function(
   if (parallel && create_parallel_plan)
     future::plan(future::multisession(workers = workers))
 
-  message('Loading raster file')
+  cli::cli_alert(cli::col_black('Loading raster file'))
 
   if (is.character(r)) {
     r <- terra::rast(r)
@@ -116,14 +116,14 @@ extract_over_time <- function(
   }
 
   # trim r and dates exteriors before finding time slices for speed
-  message('Finding relevant time slices')
+  cli::cli_alert(cli::col_black('Finding relevant time slices'))
   r <- r[[dates <= max_time & dates >= min_time]]
   dates <- terra::time(r)
   relevant_indices <- find_relevant_time_slices(dates, time_intervals)
 
   gc() # added here as a lot of ram gets used with a large number of x (e.g. 10000+)
 
-  message('Extracting data...')
+  cli::cli_alert(cli::col_black('Extracting data...'))
 
   r_within_time <- r[[relevant_indices]]
 
@@ -142,7 +142,7 @@ extract_over_time <- function(
   )
 
   if (debug) {
-    message('Creating debug plot')
+    cli::cli_alert(cli::col_black('Creating debug plot'))
     r_to_plot <- r_within_time[[1]]
 
     lims <- sf::st_bbox(x)
@@ -158,7 +158,7 @@ extract_over_time <- function(
     readline(prompt = "Paused as debug=TRUE, press enter to continue.")
   }
 
-  message('Summarising extracted data over specified times')
+  cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
 
   new_col_names <- unique(stringr::str_split_i(nms, '_', 1))
 
@@ -168,8 +168,8 @@ extract_over_time <- function(
   multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)
 
   # remove ID column from extracted values
-  IDs <- extracted %>% select(ID)
-  extracted <- extracted %>% select(-c('ID'))
+  IDs <- extracted %>% dplyr::select(ID)
+  extracted <- extracted %>% dplyr::select(-c('ID'))
   # make sure that the order of the columns in extracted have not changed
   stopifnot(all(colnames(extracted) == nms))
 
@@ -180,7 +180,7 @@ extract_over_time <- function(
     x <- sf::st_drop_geometry(x)
 
     if (contains_rowSums_or_rowMeans(temporal_fun))
-      message('Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.')
+      cli::cli_alert(cli::col_black('Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.'))
 
     if (contains_rowSums_or_rowMeans(temporal_fun) || is_vectorised_summarisation_function) {
       if (multi_values_in_extraction_per_row)
@@ -188,7 +188,7 @@ extract_over_time <- function(
 
       x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
     } else {
-      message('Detected a custom row summarisation function. Running on each row one by one.')
+      cli::cli_alert(cli::col_black('Detected a custom row summarisation function. Running on each row one by one.'))
       x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=parallel)
     }
 
@@ -231,7 +231,7 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
       }
     }
 
-    p(amount=length(i))
+    p()
     return(temp_df)
   }
 

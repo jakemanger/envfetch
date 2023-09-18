@@ -2,7 +2,7 @@
 title: "Benchmark against existing tools for local files"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{benchmark-against-existing-tools}
+  %\VignetteIndexEntry{Benchmark against existing tools for local files}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -39,7 +39,7 @@ The raster data used in this benchmark contains Root Zone Soil Moisture predicti
 of the Australian Bureau of Meteorology. The data is freely downloadable in yearly netcdf format via: https://awo.bom.gov.au/products/historical/soilMoisture-rootZone/4.5,-27.509,134.221/nat,-25.609,134.362/r/d/2023-07-16
 
 ## Setup
-```{r}
+```{r, eval=FALSE}
 library(envfetch)
 library(terra)
 library(sf)
@@ -96,7 +96,7 @@ points(coords[,1], coords[,2])
 Because `raster`, `terra` and `exactextractr` solutions do not provide a method to calculate
 summary statistics for each individual time range in the data set, these will
 be calculated post-extraction using the following standard approach:
-```{r}
+```{r, eval=FALSE}
 calculate_summary_stat <- function(d, extracted, times) {
   for (i in seq_len(nrow(d))) {
       time <- d$time_column[i]
@@ -110,7 +110,7 @@ calculate_summary_stat <- function(d, extracted, times) {
 ```
 
 A standard implementation using the `raster` package.
-```{r}
+```{r, eval=FALSE}
 library(raster)
 
 extract_with_raster <- function(p, calculate_summary=TRUE) {
@@ -134,7 +134,7 @@ extract_with_raster <- function(p, calculate_summary=TRUE) {
 ```
 
 A standard implementation using the `terra` package.
-```{r}
+```{r, eval=FALSE}
 library(terra)
 
 extract_with_terra <- function(p, calculate_summary=TRUE) {
@@ -158,7 +158,7 @@ extract_with_terra <- function(p, calculate_summary=TRUE) {
 ```
 
 A standard implementation using the `exactextractr` package.
-```{r}
+```{r, eval=FALSE}
 library(exactextractr)
 
 extract_with_exactextractr <- function(p, calculate_summary=TRUE) {
@@ -183,7 +183,7 @@ extract_with_exactextractr <- function(p, calculate_summary=TRUE) {
 ```
 
 A standard implementation using the `stars` package.
-```{r}
+```{r, eval=FALSE}
 library(stars)
 
 extract_with_stars <- function(p) {
@@ -203,7 +203,7 @@ extract_with_stars <- function(p) {
 ```
 
 A RAM- and time-efficient implementation using the `envfetch` package.
-```{r}
+```{r, eval=FALSE}
 library(envfetch)
 
 extract_with_envfetch <- function(p) {
@@ -236,7 +236,7 @@ extract_with_envfetch_with_cache <- function(p) {
 
 Check returned values from each function
 
-```{r}
+```{r, eval=FALSE}
 p1 <- create_p(n_decades = 1)
 p2 <- create_p(n_decades = 2)
 p4 <- create_p(n_decades = 4)
@@ -267,7 +267,7 @@ wrap these implementations with a try catch block.
 Note, exactextractr only extracts with polygon objects, so that is not included
 in the following benchmark.
 
-```{r}
+```{r, eval=FALSE}
 library(microbenchmark)
 
 result_without_raster <- microbenchmark(
@@ -292,7 +292,7 @@ saveRDS(result_without_raster, 'result_without_raster.RDS')
 
 
 
-```{r}
+```{r, eval=FALSE}
 
 result <- microbenchmark(
   raster_1_decade=catch_errors(extract_with_raster, 1),
@@ -323,7 +323,7 @@ saveRDS(result, 'result')
 
 
 ### Faster processing of data
-```{r}
+```{r, eval=FALSE}
 library(ggplot2)
 autoplot(result)
 ```

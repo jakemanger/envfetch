@@ -4,20 +4,45 @@
 \alias{extract_over_space}
 \title{Extract Values from a Raster Layer over a space}
 \usage{
-extract_over_space(x, r, chunk = TRUE)
+extract_over_space(
+  x,
+  r,
+  spatial_fun = mean,
+  na.rm = TRUE,
+  chunk = TRUE,
+  max_ram_frac_per_chunk = 1,
+  extraction_fun = terra::extract,
+  resample_scale = NULL,
+  resample_fun = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{An sf spatial object, representing the locations over which raster values need to be extracted.}
 
 \item{r}{A \code{terra::SpatRaster} object, representing the raster layer from which values need to be extracted.}
 
+\item{spatial_fun}{Function used to summarise multiple values within a polygon or line. Is passed to \code{extraction_fun}
+internally. Defaults to \code{mean}.}
+
+\item{na.rm}{Whether to remove NA values when summarising with the \code{spatial_fun} function.}
+
 \item{chunk}{Logical. If \code{TRUE}, the raster will be split into chunks based on available RAM and processed
 chunk by chunk. If \code{FALSE}, the raster will be processed as a whole. Default is \code{TRUE}.}
+
+\item{max_ram_frac_per_chunk}{The maximum fraction of available memory to use for each extraction chunk.}
+
+\item{extraction_fun}{The extraction function to use. Default is \code{terra::extract}.}
+
+\item{resample_scale}{The scale to resample your raster to (in units of the original raster). Leave as NULL (the default) if you do not want any resampling.}
+
+\item{resample_fun}{The function to use for resampling. See \code{method} in \link[terra]{resample}.}
+
+\item{...}{Additional arguments to pass to \code{terra::extract}.}
 }
 \value{
 A matrix or list where each column corresponds to a raster layer and each row corresponds to a
 geometry in \code{x}. The values represent the raster values at each point's location.
-If chunking was performed, the results from each chunk are combined column-wise.
 }
 \description{
 This function extracts values from a raster layer (r) over a spatial object (x).

@@ -1,19 +1,20 @@
 #' envfetch: Extract Environmental Data for Spatial-Temporal Objects
 #'
 #' `envfetch` extracts environmental data based on spatial-temporal inputs from local raster datasets or Google Earth Engine.
-#' The function includes features for caching, memory management, and data summarization. For extracting from multiple data
+#' The function includes features for caching, memory management, and data summarisation. For extracting from multiple data
 #' sources, specify the `r`, `bands` and `temporal_fun` parameters accordingly.
 #'
 #' @param x A tibble containing an `sf` "geometry" column, and optionally, a time column.
 #' @param r Specifies the data source: either a local raster file path (which can include subdatasets) or a Google Earth Engine collection name. For multiple sources, provide a list and also specify the `bands` and `temporal_fun`, and optionally `time_column_name`, parameters accordingly.
 #' @param bands Numeric or character vector specifying band numbers or names to extract. Use `NULL` to extract all bands. For multiple sources, provide a list of vectors.
 #' @param temporal_fun Function or string used to summarize data for each time interval. Default is `mean(x, na.rm=TRUE)`. For Google Earth Engine, the string `'last'` returns the value closest to the start of the time interval. For multiple sources, provide a list of functions or strings.
+#' @param spatial_fun Function or string used to summarize data spatially (if `x` is a polygon). Default (`'mean'`) for local files is `mean(x, na.rm=TRUE)` and for google earth engine is `rgee::ee$Reducer$mean()`. For local files, use `NULL` to not summarise spatially before summarising temporally.  If you are extracting from google earth engine, you must specify a google earth engine reducer `rgee::ee$Reducer` function (e.g. `rgee::ee$Reducer$sum()`). See https://r-spatial.github.io/rgee/reference/ee_extract.html". For different behaviour with multiple sources, provide a list of functions or strings.
 #' @param use_cache Logical flag indicating whether to use caching. Default is `TRUE`.
 #' @param out_dir Output directory for files. Default is `./output/`.
 #' @param out_filename Name for the output file, defaulting to a timestamped `.gpkg` file.
 #' @param overwrite Logical flag to overwrite existing output files. Default is `TRUE`.
 #' @param cache_dir Directory for caching files. Default is `./output/cache/`.
-#' @param time_column_name Name of the time column in `x`. Use `NULL` for spatial-only extraction. Use `'auto'` to auto-select a time column of type `lubridate::interval`. Default is `'auto'`. For multiple sources where you want spatial-only extractions, provide a list and set the value/s you want spatial-only to `NULL`.
+#' @param time_column_name Name of the time column in `x`. Use `NULL` to auto-select a time column of type `lubridate::interval`. Default is NULL.
 #' @param .time_rep Specifies repeating time intervals for extraction. Default is `NA`.
 #' @param ... Additional arguments for underlying extraction functions.
 #'
@@ -21,10 +22,11 @@
 #' `envfetch` serves as a high-level wrapper for specific data extraction methods:
 #' - For local raster files, it employs either `extract_over_space` or `extract_over_time`.
 #' - For Google Earth Engine collections, it uses `extract_gee`.
-#' It also supports caching, allowing you to resume work after interruptions.
+#' It also supports caching, allowing you to avoid repeated calculations and
+#' resume work after interruptions.
 #'
 #' @return
-#' An enhanced version of the input tibble `x`, augmented with the extracted environmental data.
+#' An enhanced version of the input `sf` collection, `x`, augmented with the extracted environmental data.
 #'
 #' @examples
 #' \dontrun{
@@ -55,120 +57,107 @@
 #' }
 #'
 #' @seealso
-#' Other relevant functions: \code{\link{fetch}}, \code{\link{extract_gee}}, \code{\link{extract_over_time}}
+#' Other relevant functions, used internally by `envfetch`: \code{\link{fetch}}, \code{\link{extract_gee}}, \code{\link{extract_over_time}}
 #'
 #' @export
 envfetch <- function(
   x,
   r=NULL,
   bands=NULL,
-  temporal_fun=function(x) { mean(x, na.rm=TRUE) },
+  temporal_fun='mean',
+  spatial_fun='mean',
   use_cache=TRUE,
   out_dir=file.path('./output/'),
-  out_filename=paste0('output_', format(Sys.time(), "%Y_%m_%d_%H_%M_%S"), '.gpkg'),
+  out_filename=NA,
   overwrite=TRUE,
   cache_dir=file.path(out_dir, 'cache/'),
-  time_column_name='auto',
+  time_column_name=NULL,
   .time_rep=NA,
+  initialise_gee=TRUE,
+  use_gcs=FALSE,
+  use_drive=FALSE,
   ...
 ) {
 
   if (inherits(r, 'list')) {
-    message('Detected list of rasters in `r`. Fetching data from multiple sources')
     num_rasters <- length(r)
   } else {
     num_rasters <- 1
+    r <- list(r)
   }
+
+  bands <- parse_input(bands, num_rasters)
+  temporal_fun <- parse_input(temporal_fun, num_rasters)
+  spatial_fun <- parse_input(spatial_fun, num_rasters)
 
   functions <- c()
 
   for (i in 1:num_rasters) {
-    if (inherits(r, 'list')) {
-      r_i <- r[[i]]
-      if (inherits(bands, 'list') && length(bands) == num_rasters) {
-        bands_i <- bands[[i]]
-      } else if (!inherits(bands, 'list') && length_bands == 1) {
-        bands_i <- bands
-      } else {
-        stop(
-          "Invalid 'bands' argument: \n",
-          "- If 'bands' is a list, its length must equal the number of rasters in 'r'.\n",
-          "- If 'bands' is not a list, it must contain only one element.\n",
-          "- If you don't specify 'bands', or set it to NULL, all bands will be used for each raster in 'r'."
-        )
-      }
 
-      if (inherits(temporal_fun, 'list') && length(temporal_fun) == num_rasters) {
-        temporal_fun_i <- temporal_fun[[i]]
-      } else if (!inherits(temporal_fun, 'list') && length(temporal_fun) == 1) {
-        temporal_fun_i <- temporal_fun
-      } else {
-        stop(
-          "Invalid 'temporal_fun' argument: \n",
-          "- If 'temporal_fun' is a list, its length must equal the number of rasters in 'r'.\n",
-          "- If 'temporal_fun' is not a list, it must contain only one element (function or string).\n",
-          "- If you don't specify 'temporal_fun', or set it to NULL, default functions will be applied to each raster in 'r'."
-        )
-      }
-
-      if (inherits(time_column_name, 'list') && length(time_column_name) == num_rasters) {
-        time_column_name_i <- time_column_name[[i]]
-      } else if (!inherits(time_column_name, 'list') && length(time_column_name) == 1) {
-        time_column_name_i <- time_column_name
-      } else {
-        stop(
-          "Invalid 'time_column_name' argument: \n",
-          "- If 'time_column_name' is a list, its length must equal the number of rasters in 'r'.\n",
-          "- If 'time_column_name' is not a list, it must contain only one element (string or NULL).\n",
-          "- If you don't specify 'time_column_name', or set it to 'auto', a time column will be automatically detected and used to summarise extracts over time for each raster in 'r'."
-        )
-      }
-    } else {
-      r_i <- r
-      bands_i <- bands
-      temporal_fun_i <- temporal_fun
-      time_column_name_i <- temporal_fun
-    }
-
-    if (file.exists(r_i)) {
-      if (is.null(bands)) {
+    if (file.exists(r[[i]])) {
+      # if the user provides a file path, load the raster
+      if (is.null(bands[[i]])) {
         subds=0
       } else {
-        subds=bands_i
+        subds=bands[[i]]
+      }
+      r[[i]] <- terra::rast(r[[i]], subds)
+    }
+    if (inherits(r[[i]], "SpatRaster")) {
+
+      if (!is.null(attr(spatial_fun[[i]], "class")) && attr(spatial_fun[[i]], "class") == "ee.Reducer") {
+        stop("The provided spatial_fun for local file extraction is a rgee::ee$Reducer object. Use a function like mean instead.")
       }
 
-      r_i <- terra::rast(r_i, subds)
-    }
+      if (spatial_fun[[i]] == "mean") {
+        spatial_fun[[i]] <- function(x) { mean(x, na.rm=TRUE) }
+      } else if (spatial_fun[[i]]== "sum") {
+        spatial_fun[[i]] <- function(x) { sum(x, na.rm=TRUE) }
+      }
 
-    if (inherits(r, "SpatRaster")) {
+      if (temporal_fun[[i]] == 'mean') {
+        temporal_fun[[i]] <- function(x) { rowMeans(x, na.rm=TRUE) }
+      } else if (temporal_fun[[i]] == 'sum') {
+        temporal_fun[[i]] <- function(x) { rowSums(x, na.rm=TRUE) }
+      }
+
       functions <- c(
         functions,
-        ~extract_over_time(
-          x = .x,
-          r = r_i,
-          bands = bands_i,
-          time_column_name = time_column_name_i,
-          temporal_fun = temporal_fun_i,
-          ...
-        )
+        create_extract_over_time_function(i, r, temporal_fun, spatial_fun)
       )
     } else {
+
+      if (initialise_gee) {
+        rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
+        initialise_gee = FALSE
+      }
+
+      if (!is.null(attr(spatial_fun[[i]], "class")) && !any(attr(spatial_fun[[i]], "class") == "ee.Reducer")) {
+        stop("The provided spatial_fun for google earth engine is not an rgee::ee$Reducer object. Use a reducer function like rgee::ee$Reducer$mean() instead.")
+      }
+
+      if (spatial_fun[[i]] == "mean") {
+        spatial_fun[[i]] <- rgee::ee$Reducer$mean()
+      } else if (spatial_fun[[i]] == "sum") {
+        spatial_fun[[i]] <- rgee::ee$Reducer$sum()
+      }
+
+      if (temporal_fun[[i]] == 'mean') {
+        temporal_fun[[i]] <- function(x) { mean(x, na.rm=TRUE) }
+      } else if (temporal_fun[[i]] == 'sum') {
+        temporal_fun[[i]] <- function(x) { sum(x, na.rm=TRUE) }
+      }
+
       functions <- c(
         functions,
-        ~extract_gee(
-          x = .x,
-          collection_name = r_i,
-          bands = bands_i,
-          time_column_name = time_column_name,
-          temporal_fun = temporal_fun_i,
-          ...
-        )
+        create_extract_gee_function(i, r, bands, temporal_fun, spatial_fun)
       )
     }
   }
 
-  params <- c(
-    functions,
+  x <- fetch(
+    x = x,
+    ... = functions,
     use_cache = use_cache,
     out_dir = out_dir,
     out_filename = out_filename,
@@ -178,8 +167,63 @@ envfetch <- function(
     .time_rep = .time_rep
   )
 
-  x <- do.call(fetch, params)
-
   return(x)
 }
 
+parse_input <- function(input, num_rasters) {
+  input_name <- deparse(substitute(input))
+  input_length <- length(input)
+  input_is_list <- inherits(input, 'list')
+
+  if (input_is_list && input_length == num_rasters) {
+    # the user provided the required list
+    input <- input
+  } else if (is.null(input) || (!input_is_list && input_length == 1)) {
+    # the user provided a single item which needs to be repeated
+    # in a list
+    input <- lapply(1:num_rasters, function(x) input)
+  } else {
+    # there is a mistake in the input
+    stop(
+      paste("Invalid '", input_name ,"' argument: \n"),
+      paste("- If '", input_name, "' is a list, its length must equal the number of rasters in 'r'.\n"),
+      paste("- If '", input_name, "' is not a list, it must contain only one element (function or string).\n"),
+      paste("- If you don't specify '", input_name, "', or set it to NULL, default functions will be applied to each raster in 'r'.\n"),
+      ifelse(input_name=='bands', "- If you are extracting from google earth engine, you must specify a google earth engine reducer `rgee::ee$reducer` function (e.g. `rgee::ee$reducer$mean()`). See https://r-spatial.github.io/rgee/reference/ee_extract.html\n", "")
+    )
+  }
+  return(input)
+}
+
+create_extract_over_time_function <- function(i, r, temporal_fun, spatial_fun) {
+  force(i)
+  force(r)
+  force(temporal_fun)
+  force(spatial_fun)
+
+  ~extract_over_time(
+    x = .x,
+    r = r[[i]],
+    temporal_fun = temporal_fun[[i]],
+    spatial_fun = spatial_fun[[i]],
+    ...
+  )
+}
+
+create_extract_gee_function <- function(i, r, bands, temporal_fun, spatial_fun) {
+  force(i)
+  force(r)
+  force(bands)
+  force(temporal_fun)
+  force(spatial_fun)
+
+  ~extract_gee(
+    x = .x,
+    collection_name = r[[i]],
+    bands = bands[[i]],
+    temporal_fun = temporal_fun[[i]],
+    ee_reducer_fun = spatial_fun[[i]],
+    initialise_gee = FALSE,
+    ...
+  )
+}

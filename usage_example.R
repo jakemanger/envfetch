@@ -123,7 +123,7 @@ orig_d <- d
 
 for (i in 1:days) {
   new_d_rows <- orig_d
-  new_d_rows$time_column <- lubridate::as_date(new_d_rows$time_column) + days(1)
+  new_d_rows$time_column <- lubridate::as_date(new_d_rows$time_column) + days(i)
   d <- bind_rows(
     d,
     new_d_rows
@@ -133,6 +133,14 @@ for (i in 1:days) {
 # get the centroids
 centroids <- d
 st_geometry(centroids) <- st_centroid(st_geometry(d))
+
+# extracted_dbee_1 <-
+#   centroids |>
+#   fetch(
+#     ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=rowSums, parallel=FALSE),
+#     .time_rep = time_rep(interval = lubridate::days(14), n_start = -24, n_end = 0)
+#   )
+
 
 extracted_dbee_1 <-
   centroids |>
@@ -149,15 +157,56 @@ extracted_dbee_1 <-
       ),
       parallel=FALSE
     ),
-    ~extract_gee(
-      .x,
-      collection_name='MODIS/061/MOD13Q1',
-      bands=c('NDVI', 'DetailedQA'),
-      time_buffer= lubridate::days(30),
-      parallel=FALSE
-    ),
-    .time_rep = time_rep(interval = lubridate::days(14), n_start = -24, n_end = 0)
+    # ~extract_gee(
+    #   .x,
+    #   collection_name='MODIS/061/MOD13Q1',
+    #   bands=c('NDVI', 'DetailedQA'),
+    #   time_buffer= lubridate::days(30),
+    #   parallel=FALSE
+    # ),
+    .time_rep = time_rep(interval = lubridate::days(14), n_start = -26, n_end = 0)
   )
+
+saveRDS(extracted_dbee_1, 'extracted_dbee_1.rds')
+
+# plot to look at result
+filtered_data <- extracted_dbee_1 %>%
+  filter(envfetch__original_time_column == extracted_dbee_1$envfetch__original_time_column[1])
+
+ggplot(filtered_data) +
+  geom_sf(aes(color = precip)) +  # Color by 'precip' variable
+  scale_color_viridis_c() +  # Choose a color scale
+  theme_minimal() +
+  ggtitle("Plot of Selected Time Slice with Colors for 'precip'")
+
+
+# extracted_dbee_e_resampling <-
+#   centroids |>
+#   fetch(
+#     ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds='precip'), temporal_fun=rowSums, parallel=FALSE, resample_scale=111139, resample_fun='sum'),
+#     ~extract_over_time(.x, r = rast("//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP from 1950.nc", subds=c('tmin', 'tmax', 'vprp')), parallel=FALSE, resample_scale=111139),
+#     ~extract_over_time(.x, r = "//drive.irds.uwa.edu.au/SBS-DBPSD-001/AWAP-Climate-Data/data/AWAP solar from 1990.nc", parallel=FALSE, resample_scale=111139),
+#     ~extract_over_time(
+#       .x,
+#       r = list.files(
+#         "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
+#         pattern = "\\.nc$",
+#         full.names = TRUE
+#       ),
+#       parallel=FALSE,
+#       resample_scale=111139
+#     ),
+#     ~extract_gee(
+#       .x,
+#       collection_name='MODIS/061/MOD13Q1',
+#       bands=c('NDVI', 'DetailedQA'),
+#       time_buffer= lubridate::days(30),
+#       parallel=FALSE,
+#       scale=111139
+#     ),
+#     .time_rep = time_rep(interval = lubridate::days(14), n_start = -26, n_end = 0)
+#   )
+
 
 # result <- microbenchmark::microbenchmark(
 #   parallel = {
@@ -201,24 +250,24 @@ extracted_dbee_1 <- envfetch(
       "//drive.irds.uwa.edu.au/SBS-DBPSD-001/Manually_downloaded_data/Australian_water_outlook/Root_zone_soil_moisture",
       pattern = "\\.nc$",
       full.names = TRUE
-    ),
-    'MODIS/061/MOD13Q1'
+    )
+    # 'MODIS/061/MOD13Q1'
   ),
   bands = list(
     'precip',
     c('tmin', 'tmax', 'vprp'),
     NULL,
-    NULL,
-    c('NDVI', 'DetailedQA')
+    NULL
+    # c('NDVI', 'DetailedQA')
   ),
   temporal_fun = list(
     sum,
     mean,
     mean,
-    mean,
     mean
+    # mean
   ),
   .time_rep = time_rep(interval = lubridate::days(1), n_start = -365, n_end = 0)
 )
-
-write.csv(extracted_dbee_1, "data/extracted_dbee.csv", row.names = FALSE)
+#
+# write.csv(extracted_dbee_1, "data/extracted_dbee.csv", row.names = FALSE)

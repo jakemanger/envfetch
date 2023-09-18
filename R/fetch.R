@@ -59,7 +59,7 @@ fetch <- function(
     time_column_name=NULL,
     .time_rep=NA
 ) {
-  message('🥏 🐕 Fetching your data')
+  cli::cli_h1(cli::col_black('🥏 🐕 Fetching your data'))
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
@@ -69,15 +69,16 @@ fetch <- function(
   if (is.null(time_column_name)) {
     time_column_name <- find_time_column_name(x)
   } else if (time_column_name == 'env_extract__SKIP') {
-    message('Doing simple extraction over all time slices')
+    cli::cli_alert_info(cli::col_black('Doing simple extraction over all time slices'))
     simple_extraction <- TRUE
     stop('Simple extraction not yet implemented.')
   }
 
-  message('Parsing time column')
+  cli::cli_alert(cli::col_black('Parsing time column'))
   x[,time_column_name] <- x %>% parse_time_column(time_column_name)
 
-  col_names_used_in_func <- c(time_column_name, 'geometry', 'row_num')
+  geometry_column_name = attr(x, "sf_column")
+  col_names_used_in_func <- c(time_column_name, geometry_column_name, 'row_num')
 
   original_x <- x
 
@@ -88,7 +89,7 @@ fetch <- function(
   )
 
   if (length(.time_rep) > 1) {
-    message('Creating time lagged points')
+    cli::cli_alert_info(cli::col_black('Creating time lagged points'))
     # generate all time lag intervals we want to extract data for
     x <- x %>%
       create_time_lags(n_lag_range=c(.time_rep$n_start, .time_rep$n_end), time_lag=.time_rep$interval, relative_to_start=.time_rep$relative_to_start)
@@ -116,7 +117,7 @@ fetch <- function(
   }
   funcs <- args[is_function]
 
-  x <- x %>% dplyr::group_by(across(c(time_column_name, 'geometry'))) %>%
+  x <- x %>% dplyr::group_by(across(c(time_column_name, geometry_column_name))) %>%
     dplyr::mutate(envfetch__duplicate_ID = dplyr::cur_group_id()) %>%
     dplyr::ungroup()
 
@@ -124,25 +125,30 @@ fetch <- function(
 
   # loop through the supplied functions
   outs <- lapply(funcs, function(fun) {
-    fun_string <- paste(as.character(fun), collapse='')
-    # convert the formula to a function if it is a formula
-    fun <- purrr::as_mapper(fun)
+    if (purrr::is_formula(fun)) {
+      fun_string <- paste(as.character(fun), collapse='')
+      # convert the formula to a function
+      fun <- purrr::as_mapper(fun)
+    } else {
+      fun_string <- paste(deparse(fun), collapse='')
+      fun_string <- gsub("\\s+", " ", fun_string)
+    }
 
     # generate unique hash with dataset and function
     # to save progress
     # and either read cached output or run the function
     outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
     if (!use_cache || !file.exists(outpath)) {
-      message(paste('Running', fun_string))
-      out <- fun(unique_x)
+      cli::cli_alert_info(cli::col_blue(paste('Running', fun_string)))
+      out <- fun(.x = unique_x)
       out <- out[,!(colnames(out) %in% colnames(unique_x))]
       out <- sf::st_drop_geometry(out)
-      message(paste('🐶 Completed', fun_string))
+      cli::cli_alert_success(cli::col_green(paste('🐶 Completed', fun_string)))
 
       if (use_cache)
         saveRDS(out, outpath)
     } else {
-      message(paste('🕳️🦴 Dug up cached result of', fun_string))
+      cli::cli_alert_success(cli::col_green(paste('🕳️🦴 Dug up cached result of', fun_string)))
       out <- readRDS(outpath)
     }
     return(out)
@@ -192,7 +198,7 @@ fetch <- function(
 
   if (!is.na(out_filename)) {
     out_path <- file.path(out_dir, out_filename)
-    message(paste('Saving to shapefile at', out_path))
+    cli::cli_alert_info(cli::col_black(paste('Saving to shapefile at', out_path)))
     if (overwrite && file.exists(out_path)) {
       file.remove(out_path)
     }
@@ -203,16 +209,18 @@ fetch <- function(
     } else {
       sf::st_write(x, out_path, append=ifelse(overwrite, FALSE, NA))
     }
-    message(
-      paste0(
-        'Check the output directory (',
-        out_dir,
-        ') for your saved shapefile with your extracted x.'
+    cli::cli_alert_info(
+      cli::col_black(
+        paste0(
+          'Check the output directory (',
+          out_dir,
+          ') for your saved shapefile with your extracted x.'
+        )
       )
     )
   }
 
-  message('🐩 Fetched!')
+  cli::cli_h1(cli::col_black('🐩 Fetched'))
 
   return(x)
 }

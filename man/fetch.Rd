@@ -9,8 +9,7 @@ fetch(
   ...,
   use_cache = TRUE,
   out_dir = file.path("./output/"),
-  out_filename = paste0("output_", format(Sys.time(), "\%Y_\%m_\%d_\%H_\%M_\%S"),
-    ".gpkg"),
+  out_filename = NA,
   overwrite = TRUE,
   cache_dir = file.path(out_dir, "cache/"),
   time_column_name = NULL,
@@ -22,11 +21,12 @@ fetch(
 
 \item{...}{Anonymous functions you would like to use on each row of the dataset.}
 
-\item{use_cache}{Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.}
+\item{use_cache}{Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.
+Also avoids recomputing extractions between R sessions.}
 
 \item{out_dir}{A directory to output your result. Is ignored if out_filename = NA.}
 
-\item{out_filename}{The path to output the result. Set to NA to not save the result and only return the result.}
+\item{out_filename}{The path to output the result. Set to NA (the default) to not save the result and only return the result.}
 
 \item{overwrite}{Overwrite output file if exists.}
 

@@ -5,12 +5,12 @@
 \title{Extracts specified bands from an image collection using Google Earth Engine}
 \usage{
 extract_gee(
-  points,
+  x,
   collection_name,
   bands,
   scale = 250,
   time_buffer = lubridate::days(20),
-  summarise_fun = "last",
+  temporal_fun = "last",
   debug = FALSE,
   initialise_gee = TRUE,
   use_gcs = FALSE,
@@ -20,11 +20,15 @@ extract_gee(
   ee_reducer_fun = rgee::ee$Reducer$mean(),
   cache_progress = TRUE,
   cache_dir = "./",
-  time_column_name = NULL
+  time_column_name = NULL,
+  parallel = FALSE,
+  workers = future::availableCores(),
+  create_parallel_plan = TRUE,
+  ...
 )
 }
 \arguments{
-\item{points}{An sf object containing the locations to be sampled.
+\item{x}{An sf object containing the locations to be sampled.
 This should contain a time column of type lubridate::interval.}
 
 \item{collection_name}{A character string representing the Google Earth Engine
@@ -40,7 +44,7 @@ extraction in meters. Default is 250.}
 before and after each time interval when filtering the image
 collection. Default is lubridate::days(20).}
 
-\item{summarise_fun}{A function or string representing the function used to summarise
+\item{temporal_fun}{A function or string representing the function used to summarise
 the data extracted for each interval. Default is 'last', which returns
 the value closest to the start of the interval.}
 
@@ -78,13 +82,13 @@ Default is './'.}
 is automatically selected.}
 }
 \value{
-A dataframe or sf object with the same rows as the input \code{points}, and new columns
+A dataframe or sf object with the same rows as the input \code{x}, and new columns
 representing the extracted data. The new column names correspond to the \code{bands} parameter.
 }
 \description{
 This function uses Google Earth Engine to extract specified bands from an
 image collection. The function summarises this information for each row in
-your dataset (\code{points}). The function handles memory constraints on Google
+your dataset (\code{x}). The function handles memory constraints on Google
 Earth Engine's end by extracting data in time chunks based on the start date
 of each interval in the dataset. This function is best used within the
 \code{fetch} function.

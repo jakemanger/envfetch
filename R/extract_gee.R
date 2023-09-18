@@ -90,15 +90,16 @@ extract_gee <- function(
   cache_progress=TRUE,
   cache_dir='./',
   time_column_name=NULL,
-  parallel=TRUE,
+  parallel=FALSE,
   workers=future::availableCores(),
-  create_parallel_plan=TRUE
+  create_parallel_plan=TRUE,
+  ...
 ) {
   if (initialise_gee)
     rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
   if (parallel)
-    future::plan(future::multisession(workers = workers))
+    future::plan(future::multisession, workers = workers)
 
 
   x$original_order <- 1:nrow(x)  # use a id column to return array back to original order
@@ -143,8 +144,11 @@ extract_gee <- function(
 
       ic <- rgee::ee$ImageCollection(collection_name)$
         filterBounds(p_feature)$
-        filterDate(min_datetime, max_datetime)$
-        select(bands)
+        filterDate(min_datetime, max_datetime)
+
+      if (!is.null(bands)) {
+        ic <- ic$select(bands)
+      }
 
       p('extracting...')
       extracted <- rgee::ee_extract(
@@ -153,7 +157,8 @@ extract_gee <- function(
         scale = scale,
         fun = ee_reducer_fun,
         lazy = FALSE,
-        sf = TRUE
+        sf = TRUE,
+        ...
       )
 
       # use this to make sure the correct columns
@@ -173,6 +178,7 @@ extract_gee <- function(
     extracted <- extracted_no_geom
     extracted_no_geom <- NULL
   })
+
 
   if (ncol(extracted) == 2) {
     warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
@@ -197,7 +203,7 @@ extract_gee <- function(
     )
   }
 
-  message('Summarising extracted data over specified times')
+  cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
 
   extracted <- extracted[,stringr::str_starts(colnames(extracted), 'X')] %>% sf::st_drop_geometry()
   clnames <- colnames(extracted)

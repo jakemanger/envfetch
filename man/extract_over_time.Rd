@@ -7,14 +7,22 @@
 extract_over_time(
   x,
   r,
-  summarise_fun = function(x) {
-     mean(x, na.rm = TRUE)
+  temporal_fun = function(x) {
+     rowMeans(x, na.rm = TRUE)
+ },
+  spatial_extraction_fun = function(x, r, ...) {
+     extract_over_space(x = x, r = r,
+    ...)
  },
   time_buffer = lubridate::days(0),
   debug = FALSE,
   override_terraOptions = TRUE,
-  chunk = TRUE,
-  time_column_name = NULL
+  time_column_name = NULL,
+  is_vectorised_summarisation_function = FALSE,
+  parallel = FALSE,
+  workers = future::availableCores(),
+  create_parallel_plan = TRUE,
+  ...
 )
 }
 \arguments{
@@ -24,8 +32,19 @@ This should contain a column of type lubridate::interval to represent the time.}
 \item{r}{A SpatRaster object from the terra package. This is the raster data
 source from which the data will be extracted.}
 
-\item{summarise_fun}{A function used to summarise multiple data points
-found within a time interval. Default is \code{mean(x, na.rm=TRUE)}.}
+\item{temporal_fun}{A function used to summarise multiple data points
+found within a time interval. Default is \code{rowMeans(x, na.rm=TRUE)}. The user
+can supply vectorised summarisation functions (using rowMeans or rowSums) or
+non-vectorised summarisation functions (e.g., \code{sum}, \code{mean}, \code{min}, \code{max}).
+If supplying a custom vectorised \code{temporal_fun}, set \code{is_vectorised_temporal_fun}
+to \code{TRUE} to ensure the vectorised approach is used for performance. Note,
+vectorised summarisation functions are not possible when \code{fun=NULL} and you
+are extracting with polygon or line geometries (i.e. \code{temporal_fun} is used
+to summarise, treating each time and space value independently).}
+
+\item{spatial_extraction_fun}{A function used to extract points spatially for
+each time slice of the raster. Default is the default implementation of \code{extract_over_space}
+(extracts the \code{mean} of points within polygons or lines, removing NAs).}
 
 \item{time_buffer}{Time buffer used to adjust the time interval for data extraction.
 The function always uses the time before and after the interval to prevent errors
@@ -37,19 +56,28 @@ point. This is useful for debugging unexpected extracted values. Default is FALS
 \item{override_terraOptions}{If TRUE, overrides terra's default terraOptions
 with those specified in the envfetch's package. Default is TRUE.}
 
-\item{chunk}{If TRUE, performs extraction in chunks to handle large files and
-manage memory usage efficiently. Default is TRUE.}
-
 \item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
 is automatically selected.}
+
+\item{is_vectorised_summarisation_function}{Whether the summarisation is vectorised (like rowSums or rowMeans). Is only
+necessary to be TRUE if the row-wise vectorised summarisation function has not been automatically detected
+(does not use rowSums or rowMeans).}
+
+\item{parallel}{Whether to use parallel processing when calculating summary information for each time range.}
+
+\item{workers}{The number of parallel processing workers to use for summarisation over each data point's time range.}
+
+\item{create_parallel_plan}{Whether to create the \code{future} parallel processing plan for you. If \code{TRUE} (the default),
+this will use \code{future::plan(future::multisession(workers = workers))} with the provided \code{workers} argument.
+See https://future.futureverse.org/reference/plan.html for more parallel processing options (e.g. clusters or linux forking)}
 }
 \value{
-A modified version of the input 'x' with an additional column
+A modified version of the input 'x' with additional columns
 containing the extracted data.
 }
 \description{
 This function extracts raster data over time ranges of each row and
-summarise the extracted data using a custom function.
+summarises the extracted data using a custom function.
 }
 \examples{
 \dontrun{
