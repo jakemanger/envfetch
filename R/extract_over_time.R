@@ -41,7 +41,6 @@
 #'
 #' @examples
 #' \dontrun{
-#' \dontrun{
 #' extracted <- d %>%
 #'   fetch(
 #'     ~extract_over_time(.x, r = '/path/to/netcdf.nc'),

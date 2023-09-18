@@ -9,14 +9,63 @@ vignette: >
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+  echo = TRUE,
+  out.width = "100%"
 )
+
+strip_ansi <- function(input_string) {
+  cleaned_string <- gsub("\\s*\\[[0-9]+m\\s*", "", input_string)
+  return(cleaned_string)
+}
+
+# Combine output and messages for accurate readme preview
+asconsole_output <- NULL
+knitr::knit_hooks$set(message = function(x, options) {
+  # Strip ANSI codes
+  x <- strip_ansi(x)
+  
+  if(!is.null(options$output)) {
+    if(options$output == 'asconsole') {
+      asconsole_output <<- c(asconsole_output, x)
+      return(NULL)
+    }
+  }
+  
+  knitr::hooks_html()$message(x, options)
+})
+
+knitr::knit_hooks$set(output = function(x, options) {
+  # Strip ANSI codes
+  x <- strip_ansi(x)
+  
+  if(!is.null(options$output)) {
+    if(options$output == 'asconsole') {
+      asconsole_output <<- c(asconsole_output, x)
+      return(NULL)
+    }
+  }
+  
+  knitr::hooks_html()$output(x, options)
+})
+
+knitr::knit_hooks$set(chunk = function(x, options) {
+  if(!is.null(options$output)) {
+    if(options$output == 'asconsole') {
+      y <- paste(asconsole_output, collapse = "")
+      # Strip ANSI codes
+      y <- strip_ansi(y)
+      
+      y <- knitr::hooks_html()$output(y, options)
+      asconsole_output <<- NULL
+      y <- paste(x, y, collapse = "")
+      return(y)
+    }
+  }
+  
+  knitr::hooks_html()$chunk(x, options)
+})
 ```
 
-```{r setup}
-library(envfetch)
-```
 
 ## Need
 
@@ -32,5 +81,7 @@ Engine's memory limits, failing the extraction task. The `envfetch` package
 implements the `extract_gee` function to address this problem.
 
 ## Overuse of GEE memory limits with `rgee`
+TODO
 
-## Completion of task by respecting GEE memory limits with the `extract_gee` package
+## Completion of task by respecting GEE memory limits with `envfetch`
+TODO

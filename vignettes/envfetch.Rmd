@@ -8,11 +8,62 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
-options(width = 60)
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+  echo = TRUE,
+  out.width = "100%"
 )
+
+strip_ansi <- function(input_string) {
+  cleaned_string <- gsub("[ ]*\\[[0-9]+m", "", input_string)
+  return(cleaned_string)
+}
+
+# Combine output and messages for accurate readme preview
+asconsole_output <- NULL
+knitr::knit_hooks$set(message = function(x, options) {
+  # Strip ANSI codes
+  x <- strip_ansi(x)
+  
+  if(!is.null(options$output)) {
+    if(options$output == 'asconsole') {
+      asconsole_output <<- c(asconsole_output, x)
+      return(NULL)
+    }
+  }
+  
+  knitr::hooks_html()$message(x, options)
+})
+
+knitr::knit_hooks$set(output = function(x, options) {
+  # Strip ANSI codes
+  x <- strip_ansi(x)
+  
+  if(!is.null(options$output)) {
+    if(options$output == 'asconsole') {
+      asconsole_output <<- c(asconsole_output, x)
+      return(NULL)
+    }
+  }
+  
+  knitr::hooks_html()$output(x, options)
+})
+
+knitr::knit_hooks$set(chunk = function(x, options) {
+  if(!is.null(options$output)) {
+    if(options$output == 'asconsole') {
+      y <- paste(asconsole_output, collapse = "")
+      # Strip ANSI codes
+      y <- strip_ansi(y)
+      
+      y <- knitr::hooks_html()$output(y, options)
+      asconsole_output <<- NULL
+      y <- paste(x, y, collapse = "")
+      return(y)
+    }
+  }
+  
+  knitr::hooks_html()$chunk(x, options)
+})
 ```
 
 ## Introduction
@@ -45,7 +96,7 @@ Each row of the `sf` collection should have an `sf::geometry` along with a `date
 
 We can visualise our input data with a plot:
 
-```{r}
+```{r, warning = FALSE}
 library(ggplot2)
 library(rnaturalearth)
 library(rnaturalearthdata)
@@ -66,8 +117,8 @@ ggplot(data = australia) +
 
 **`envfetch`**:
 
--   extracts and summarises data over space (within each `sf` object) and time 
-    (at the time or within the time range) of your input,
+-   extracts and summarises data over space (within each `sf` geometry) and time 
+    (at each time or within each time range) of your input,
 -   provides a simple function to extract from local files or google earth engine (at the fastest possible speeds, see our [benchmark]()),
 -   ensures you don't overuse memory on your machine or google earth engine,
 -   caches progress, so you don't have to re-extract the same thing twice and
@@ -78,14 +129,14 @@ To fetch the data, supply `envfetch` with your data source. Here, you can extrac
 from a local netcdf data set. To extract your own raster file, replace
 `example_nc_path` with the path of your local raster file, such as `'/path/to/netcdf.nc'`.
 
-```{r}
+```{r, output='asconsole'}
 example_nc_path <- system.file("extdata", "example.nc", package = "envfetch")
 extracted <- envfetch(x = d, r = example_nc_path)
 ```
 
 or from a data set hosted on google earth engine.
 
-```{r}
+```{r, output='asconsole'}
 extracted <- envfetch(x = d, r = 'MODIS/061/MOD13Q1')
 ```
 
@@ -93,7 +144,7 @@ If you want to extract from multiple data sets at once, specify multiple items
 with a list. As we've already calculated these, they are loaded from the cache
 instantly:
 
-```{r}
+```{r, output='asconsole'}
 extracted <- envfetch(
   x = d, 
   r = list(
@@ -107,7 +158,7 @@ If you want to change the default `mean` summarisation behaviour (e.g., calculat
 `mean` for one raster and the `sum` for the other) or extract from specific bands
 of your data, specify some custom parameters:
 
-```{r}
+```{r, output='asconsole'}
 extracted <- envfetch(
   x = d, 
   r = list(

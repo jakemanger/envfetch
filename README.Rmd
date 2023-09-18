@@ -6,10 +6,10 @@ output: github_document
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
   fig.path = "man/figures/README-",
-  out.width = "100%"
+  out.width = "100%",
+  collapse = TRUE,
+  comment = "#>"
 )
 ```
 
@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 
 <!-- badges: end -->
 
-Your trusty companion to fetch, extract and summarise environmental data across time and space using gps coordinates or `sf` polygons.
+Your trusty companion to fetch, extract and summarise environmental data over space (with `sf` points or polygons) and time (with a `lubridate` time `interval`, a single date or datetime).
 
 ## Installation
 
@@ -29,7 +29,7 @@ You can install the development version of envfetch like so:
 remotes::install_github('jakemanger/envfetch')
 ```
 
-To enable Google Earth Engine support using the `extract_gee` function, follow the below instructions:
+To enable Google Earth Engine support, follow the below instructions:
 
 ``` r
 library(rgee)
@@ -45,97 +45,213 @@ Note, these instructions are from the `rgee` page [here](https://cran.r-project.
 
 ## Example
 
-### 1. Setup table of data with `throw`
+### 1. Setup `sf` collection
 
-Use of envfetch starts with a table: a `dataframe`, `tibble` or `sf` object.
-
-To begin, we need to create a data table containing a grid of points over Australia for a range of times.
-
-For most applications, you will have your own dataset. If you have your own data, load that in as a variable called `d`.
-
-However, for this example, we can generate this using the `throw` function.
+Use of envfetch starts with an `sf` collection with a time column. For this example, we will use the `throw` function to create an `sf` collection containing a grid of points over Australia for a range of times. If you have your own data, load that in as a variable called `d` to continue with the example.
 
 ```{r example}
 library(envfetch)
 
 d <- throw(
-  offset=c(115, -40),
-  cellsize=3,
+  offset=c(128, -30),
+  cellsize=1,
   n=10,
   time_interval=lubridate::interval(start='2017-01-01', end='2017-01-02'),
 )
 ```
 
-The data set should look like this:
+The data set should look like the following:
 
 ```{r}
 summary(d)
 ```
 
-And can be visualized using the plot function:
+Each row of the `sf` collection should have an `sf::geometry` along with a `datetime`. The `geometry` may be a point or a polygon. The `datetime` may be a time interval (`lubridate::interval`), a date (e.g. `"20220101"`) or a datetime `"2010-08-03 00:50:50"`. Ensure data used with the envfetch package matches this format.
 
-```{r}
-plot(d, axes=TRUE)
+We can visualise our input data with a plot:
+
+```{r, warning = FALSE}
+library(ggplot2)
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+# load map of australia for reference
+world <- ne_countries(scale = "medium", returnclass = "sf")
+australia <- subset(world, admin == "Australia")
+
+ggplot(data = australia) +
+  geom_sf() +
+  geom_sf(data = d, size = 1, show.legend = "point") +
+  ggtitle("Australia with sample points") +
+  theme_minimal()
 ```
 
-Each data point in the table has a `sf::geometry` object along with a `datetime` (a `lubridate::interval` or a date string). Ensure data used with the envfetch package matches this format.
 
-This `geometry` may be a point or a polygon. You may also just use plain old `x` and `y` coordinates as separate columns.
+### 2. Extract from local rasters or google earth engine with `envfetch`
 
-Each individual data point will use the `datetime` object to decide what time range to extract and summarise data in. `datetime` can be a time range (`lubridate::interval`), a single date (e.g. `"20220101"`) or datetime `"2010-08-03 00:50:50"`.
+**`envfetch`**:
 
-### 2. Extract from your data sources with `fetch`
+-   extracts and summarises data over space (within each `sf` geometry) and time 
+    (at each time or within each time range) of your input,
+-   provides a simple function to extract from local files or google earth engine (at the fastest possible speeds, see our [benchmark]()),
+-   ensures you don't overuse memory on your machine or google earth engine,
+-   caches progress, so you don't have to re-extract the same thing twice and
+-   allows you to repeat sampling over different times (see section 3, below).
 
-**`fetch`**:
 
--   passes your data through your supplied extraction functions,
--   caches progress, so that if your function crashes somewhere, you can continue where you left off and
--   allows you to repeat sampling across different times (see section 3, below).
-
-You can supply any data extraction function to `fetch`, but some useful built-in data extraction functions are provided:
-
-| Function name        | Description                                                                                                                        |
-|----------------------|------------------------------------------------------------------------------------------------------------------------------------|
-| `extract_over_time`  | Extract and summarise raster data over multiple time periods for each row in your dataset.                                         |
-| `extract_over_space` | Extract and summarise raster data over space for each row in your dataset.                                                         |
-| `extract_gee`        | Use Google Earth Engine to extract your chosen image collection bands and summarise this information for each row in your dataset. |
-| `get_daynight_times` | Calculates the time since sunrise, time since sunset and day and night hours for each row in your dataset.                         |
-
-In this example, we will use:
-
--   `extract_over_time` to extract from a large pre-downloaded NetCDF file
-
--   `extract_gee` to extract NDVI data from the MODIS MOD13Q1 dataset on Google Earth Engine
-
-To fetch the data, use the **`fetch`** function and supply it with the extraction functions you would like to use. You can supply your own custom function here, but ensure you use the anonymous function syntax so you can specify custom arguments. That is, if following `purrr` formula syntax: `~your_function(.x, custom_arg='arg_value')` or if following base R, `function(x) your_function(x, custom_arg='arg_value')`). Note, `.x` in the below example is your data set, `d`.
+To fetch the data, supply `envfetch` with your data source. Here, you can extract
+from a local netcdf data set. To extract your own raster file, replace
+`example_nc_path` with the path of your local raster file, such as `'/path/to/netcdf.nc'`.
 
 ```{r, eval=FALSE}
-extracted <- d |>
-  fetch(
-    ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
-    ~extract_gee(
-       .x,
-       collection_name='MODIS/061/MOD13Q1',
-       bands=c('NDVI', 'DetailedQA'),
-       time_buffer=16,
-     )
-  )
+example_nc_path <- system.file("extdata", "example.nc", package = "envfetch")
+extracted <- envfetch(x = d, r = example_nc_path)
+
+
+#> ── 🥏 🐕 Fetching your data ────────────────────────────────────────────────────────────────────────────────
+#> → Parsing time column
+#> ℹ Running ~extract_over_time(x = .x, r = r[[i]], temporal_fun = temporal_fun[[i]], spatial_fun = spatial_fun[[i]], ...)
+#> → Loading raster file
+#> → Finding relevant time slices
+#> → Extracting data...
+#> → 626080 Kbs of RAM is required for extraction and 2114265600 Kbs of RAM is available
+#> → Completed extraction
+#> → Summarising extracted data over specified times
+#> → Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.
+#> ✔ 🐶 Completed ~extract_over_time(x = .x, r = r[[i]], temporal_fun = temporal_fun[[i]], spatial_fun = spatial_fun[[i]], ...)
+#> 
+#> ── 🐩 Fetched ──────────────────────────────────────────────────────────────────────────────────────────────
 ```
+
+or from a data set hosted on google earth engine.
+
+```{r, eval=FALSE}
+extracted <- envfetch(x = d, r = 'MODIS/061/MOD13Q1')
+
+
+#> ── rgee 1.1.5 ─────────────────────────────────────────────────────────────────── earthengine-api 0.1.323 ── 
+#>  ✔ user: not_defined
+#>  ✔ Initializing Google Earth Engine:  DONE!
+#>  ✔ Earth Engine account: users/dungbeetlelab 
+#> ──────────────────────────────────────────────────────────────────────────────────────────────────────────── 
+#> 
+#> ── 🥏 🐕 Fetching your data ────────────────────────────────────────────────────────────────────────────────
+#> → Parsing time column
+#> ℹ Running ~extract_gee(x = .x, collection_name = r[[i]], bands = bands[[i]], temporal_fun = temporal_fun[[i]], ee_reducer_fun = spatial_fun[[i]], initialise_gee = FALSE, ...)
+#> Number of features: 100                                                                                   
+#> → Summarising extracted data over specified times
+#> ✔ 🐶 Completed ~extract_gee(x = .x, collection_name = r[[i]], bands = bands[[i]], temporal_fun = temporal_fun[[i]], ee_reducer_fun = spatial_fun[[i]], initialise_gee = FALSE, ...)
+#> 
+#> ── 🐩 Fetched ──────────────────────────────────────────────────────────────────────────────────────────────
+```
+
+If you want to extract from multiple data sets at once, specify multiple items
+with a list. As we've already calculated these, they are loaded from the cache
+instantly:
+
+```{r, eval=FALSE}
+extracted <- envfetch(
+  x = d, 
+  r = list(
+    example_nc_path,
+    'MODIS/061/MOD13Q1'
+  )
+)
+
+
+#> ── rgee 1.1.5 ─────────────────────────────────────────────────────────────────── earthengine-api 0.1.323 ── 
+#>  ✔ user: not_defined
+#>  ✔ Initializing Google Earth Engine:  DONE!
+#>  ✔ Earth Engine account: users/dungbeetlelab 
+#> ──────────────────────────────────────────────────────────────────────────────────────────────────────────── 
+#> 
+#> ── 🥏 🐕 Fetching your data ────────────────────────────────────────────────────────────────────────────────
+#> → Parsing time column
+#> ✔ 🕳️🦴 Dug up cached result of ~extract_over_time(x = .x, r = r[[i]], temporal_fun = temporal_fun[[i]], spatial_fun = spatial_fun[[i]], ...)
+#> ✔ 🕳️🦴 Dug up cached result of ~extract_gee(x = .x, collection_name = r[[i]], bands = bands[[i]], temporal_fun = temporal_fun[[i]], ee_reducer_fun = spatial_fun[[i]], initialise_gee = FALSE, ...)
+#>
+#> ── 🐩 Fetched ──────────────────────────────────────────────────────────────────────────────────────────────
+```
+
+If you want to change the default `mean` summarisation behaviour (e.g., calculate the
+`mean` for one raster and the `sum` for the other) or extract from specific bands
+of your data, specify some custom parameters:
+
+```{r, eval=FALSE}
+extracted <- envfetch(
+  x = d, 
+  r = list(
+    example_nc_path,
+    'MODIS/061/MOD13Q1'
+  ),
+  bands = list(
+    'precip',
+    c('NDVI', 'DetailedQA')
+  ),
+  temporal_fun = list(
+    'sum',
+    'mean'
+  )
+)
+
+
+#> ── rgee 1.1.5 ─────────────────────────────────────────────────────────────────── earthengine-api 0.1.323 ── 
+#>  ✔ user: not_defined
+#>  ✔ Initializing Google Earth Engine:  DONE!
+#>  ✔ Earth Engine account: users/dungbeetlelab 
+#> ──────────────────────────────────────────────────────────────────────────────────────────────────────────── 
+#> 
+#> ── 🥏 🐕 Fetching your data ────────────────────────────────────────────────────────────────────────────────
+#> → Parsing time column
+#> ℹ Running ~extract_over_time(x = .x, r = r[[i]], temporal_fun = temporal_fun[[i]], spatial_fun = spatial_fun[[i]], ...)
+#> → Loading raster file
+#> → Finding relevant time slices
+#> → Extracting data...
+#> → 626080 Kbs of RAM is required for extraction and 2163716352 Kbs of RAM is available
+#> → Completed extraction
+#> → Summarising extracted data over specified times
+#> → Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.
+#> ✔ 🐶 Completed ~extract_over_time(x = .x, r = r[[i]], temporal_fun = temporal_fun[[i]], spatial_fun = spatial_fun[[i]], ...)
+#> ℹ Running ~extract_gee(x = .x, collection_name = r[[i]], bands = bands[[i]], temporal_fun = temporal_fun[[i]], ee_reducer_fun = spatial_fun[[i]], initialise_gee = FALSE, ...)
+#> Number of features: 100                                                                                   
+#> → Summarising extracted data over specified times
+#> ✔ 🐶 Completed ~extract_gee(x = .x, collection_name = r[[i]], bands = bands[[i]], temporal_fun = temporal_fun[[i]], ee_reducer_fun = spatial_fun[[i]], initialise_gee = FALSE, ...)
+#> 
+#> ── 🐩 Fetched ──────────────────────────────────────────────────────────────────────────────────────────────
+```
+
 
 ### 3. Obtain data for repeated time intervals
 
-In certain applications, you may need to obtain environmental data from repeated previous time periods. For example, we can extract data from the past six months relative to the time (start time if an interval is provided) of each data point, with an average calculated for each two-week block, using the **`.time_rep`** variable.
+In certain applications, you may need to obtain environmental data from repeated previous time intervals. For example, we can extract data from the past six months relative to the time (start time if an interval is provided) of each data point, with a summary calculated for each two-week block, using the **`.time_rep`** variable.
 
 ```{r, eval=FALSE}
-rep_extracted <- d |>
-  fetch(
-    ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
-    ~extract_gee(
-       .x,
-       collection_name='MODIS/061/MOD13Q1',
-       bands=c('NDVI', 'DetailedQA'),
-       time_buffer=16,
-     ),
-    .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
-  )
+rep_extracted <- envfetch(
+  x = d, 
+  r = list(
+    '/path/to/netcdf.nc',
+    'MODIS/061/MOD13Q1'
+  ),
+  bands = list(
+    'precip',
+    c('NDVI', 'DetailedQA')
+  ),
+  temporal_fun = list(
+    'sum',
+    'mean'
+  ),
+  .time_rep=time_rep(interval=lubridate::days(14), n_start=-12)
+)
 ```
+
+
+### Extending or improving `envfetch`
+
+If you would like to extend the functionality of `envfetch`, you can access and
+use the underlying functions that do caching, time repeating and extracting.
+A guide to use these functions can be found [here](./docs/articles/using-internal-functions-of-envfetch.html).
+
+If you have a feature to contribute, please review our [Contributing Guide]().
+
+If you find an error or a bug we would love to hear from you! Please let us know
+what you have found by creating an issue at https://github.com/jakemanger/envfetch/issues.
