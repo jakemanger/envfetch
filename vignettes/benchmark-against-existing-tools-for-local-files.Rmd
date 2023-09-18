@@ -36,7 +36,7 @@ extractions against popular R extraction packages, `raster`, `terra`, `exactextr
 and `stars` using synthetic `sf` data points and a large public raster data set over a 20 and 40 year period is provided below.
 
 The raster data used in this benchmark contains Root Zone Soil Moisture predictions from the Australian Water Outlook project
-of the Australian Bureau of Meteorology. The data is freely downloadable in yearly netcdf format via: https://awo.bom.gov.au/products/historical/soilMoisture-rootZone/4.5,-27.509,134.221/nat,-25.609,134.362/r/d/2023-07-16
+of the Australian Bureau of Meteorology. The data is freely downloadable in yearly netcdf format via: https://awo.bom.gov.au/products/historical/soilMoisture-rootZone/4.5,-27.509,134.221/nat,-25.609,134.362/r/d/2023-07-16 and is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## Setup
 ```{r, eval=FALSE}
