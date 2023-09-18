@@ -15,7 +15,7 @@ extract_gee(
   initialise_gee = TRUE,
   use_gcs = FALSE,
   use_drive = FALSE,
-  max_chunk_time_day_range = 128,
+  max_chunk_time_day_range = 64,
   max_feature_collection_size = 10000,
   ee_reducer_fun = rgee::ee$Reducer$mean(),
   cache_progress = TRUE,
@@ -61,7 +61,7 @@ requests. Default is FALSE.}
 
 \item{max_chunk_time_day_range}{An integer representing the maximum number of days to include
 in each time chunk when splitting the dataset for efficient
-memory use on Google Earth Engine's end. Default is 128.}
+memory use on Google Earth Engine's end. Default is 64.}
 
 \item{max_feature_collection_size}{An integer representing the maximum number of features
 (rows) to include in each chunk when splitting the

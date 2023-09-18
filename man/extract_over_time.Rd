@@ -79,21 +79,3 @@ containing the extracted data.
 This function extracts raster data over time ranges of each row and
 summarises the extracted data using a custom function.
 }
-\examples{
-\dontrun{
-\dontrun{
-extracted <- d \%>\%
-  fetch(
-    ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
-  )
-
-# repeatedly extract and summarise data every fortnight for the last six months
-# relative to the start of the time column in `d`
-rep_extracted <- d \%>\%
-  fetch(
-      ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
-      .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
-    )
-  }
-}
-}

@@ -73,7 +73,7 @@ envfetch <- function(
   cache_dir=file.path(out_dir, 'cache/'),
   time_column_name=NULL,
   .time_rep=NA,
-  initialise_gee=TRUE,
+  init_gee=TRUE,
   use_gcs=FALSE,
   use_drive=FALSE,
   ...
@@ -127,9 +127,9 @@ envfetch <- function(
       )
     } else {
 
-      if (initialise_gee) {
+      if (init_gee) {
         rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
-        initialise_gee = FALSE
+        init_gee = FALSE
       }
 
       if (!is.null(attr(spatial_fun[[i]], "class")) && !any(attr(spatial_fun[[i]], "class") == "ee.Reducer")) {
