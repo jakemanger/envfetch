@@ -30,11 +30,11 @@
 #'                  requests. Default is FALSE.
 #' @param max_chunk_time_day_range An integer representing the maximum number of days to include
 #'                                 in each time chunk when splitting the dataset for efficient
-#'                                 memory use on Google Earth Engine's end. Default is 64.
+#'                                 memory use on Google Earth Engine's end. Default is 365.
 #' @param max_feature_collection_size An integer representing the maximum number of features
 #'                                    (rows) to include in each chunk when splitting the
 #'                                    dataset for efficient memory use on Google Earth Engine's end.
-#'                                    Default is 10000.
+#'                                    Default is 5000.
 #' @param ee_reducer_fun A Google Earth Engine reducer function representing the function
 #'                       used to aggregate the data extracted from each image. Default is
 #'                       rgee::ee$Reducer$mean().
