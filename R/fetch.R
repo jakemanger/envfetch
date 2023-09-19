@@ -105,16 +105,16 @@ fetch <- function(
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
   hash <- rlang::hash(x)
 
-  # capture the supplied ... arguments
+
+  # capture the supplied ... arguments as a list to preserve names
   args <- c(...)
 
   # remove elements that aren't functions and raise a warning if any are
-  # detected
   is_function <- sapply(args, function(x) {is.function(x) || purrr::is_formula(x)})
+  unnamed <- startsWith(names(c(...)), '...') # in case an argument is a function
+  is_function <- is_function & unnamed
+
   not_funcs <- args[!is_function]
-  if (length(not_funcs) > 0) {
-    warning(paste(not_funcs, 'ignored as it is not a function.\n'))
-  }
   funcs <- args[is_function]
 
   x <- x %>% dplyr::group_by(across(c(time_column_name, geometry_column_name))) %>%
@@ -140,7 +140,10 @@ fetch <- function(
     outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
     if (!use_cache || !file.exists(outpath)) {
       cli::cli_alert_info(cli::col_blue(paste('Running', fun_string)))
-      out <- fun(.x = unique_x)
+
+      # Use do.call to pass not_funcs as additional arguments to fun
+      out <- do.call(fun, c(list(.x = unique_x), not_funcs))
+
       out <- out[,!(colnames(out) %in% colnames(unique_x))]
       out <- sf::st_drop_geometry(out)
       cli::cli_alert_success(cli::col_green(paste('🐶 Completed', fun_string)))

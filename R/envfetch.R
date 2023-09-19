@@ -74,8 +74,6 @@ envfetch <- function(
   time_column_name=NULL,
   .time_rep=NA,
   init_gee=TRUE,
-  use_gcs=FALSE,
-  use_drive=FALSE,
   ...
 ) {
 
@@ -93,14 +91,14 @@ envfetch <- function(
   functions <- c()
 
   for (i in 1:num_rasters) {
-
-    if (file.exists(r[[i]])) {
+    if (all(file.exists(r[[i]]))) {
       # if the user provides a file path, load the raster
       if (is.null(bands[[i]])) {
         subds=0
       } else {
         subds=bands[[i]]
       }
+      cli::cli_alert(cli::col_black(paste('Loading raster proxy at', r[[i]])))
       r[[i]] <- terra::rast(r[[i]], subds)
     }
     if (inherits(r[[i]], "SpatRaster")) {
@@ -123,11 +121,18 @@ envfetch <- function(
 
       functions <- c(
         functions,
-        create_extract_over_time_function(i, r, temporal_fun, spatial_fun, ...)
+        create_extract_over_time_function(i, r, temporal_fun, spatial_fun)
       )
     } else {
 
       if (init_gee) {
+        use_gcs = FALSE
+        use_drive = FALSE
+        if (!is.null(list(...)$use_gcs) && list(...)$use_gcs)
+          use_gcs = TRUE
+        if (!is.null(list(...)$use_drive) && list(...)$use_drive)
+          use_drive = TRUE
+
         rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
         init_gee = FALSE
       }
@@ -150,7 +155,7 @@ envfetch <- function(
 
       functions <- c(
         functions,
-        create_extract_gee_function(i, r, bands, temporal_fun, spatial_fun, ...)
+        create_extract_gee_function(i, r, bands, temporal_fun, spatial_fun)
       )
     }
   }
@@ -164,7 +169,8 @@ envfetch <- function(
     overwrite = overwrite,
     cache_dir = cache_dir,
     time_column_name = time_column_name,
-    .time_rep = .time_rep
+    .time_rep = .time_rep,
+    ...
   )
 
   return(x)
@@ -195,7 +201,7 @@ parse_input <- function(input, num_rasters) {
   return(input)
 }
 
-create_extract_over_time_function <- function(i, r, temporal_fun, spatial_fun, ...) {
+create_extract_over_time_function <- function(i, r, temporal_fun, spatial_fun) {
   force(i)
   force(r)
   force(temporal_fun)
@@ -210,7 +216,7 @@ create_extract_over_time_function <- function(i, r, temporal_fun, spatial_fun, .
   )
 }
 
-create_extract_gee_function <- function(i, r, bands, temporal_fun, spatial_fun, ...) {
+create_extract_gee_function <- function(i, r, bands, temporal_fun, spatial_fun) {
   force(i)
   force(r)
   force(bands)

@@ -85,7 +85,7 @@ extract_gee <- function(
   use_gcs=FALSE,
   use_drive=FALSE,
   max_chunk_time_day_range=365,
-  max_feature_collection_size=9000,
+  max_feature_collection_size=5000,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   cache_progress=TRUE,
   cache_dir='./',
@@ -95,12 +95,12 @@ extract_gee <- function(
   create_parallel_plan=TRUE,
   ...
 ) {
+
   if (initialise_gee)
     rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
   if (parallel)
     future::plan(future::multisession, workers = workers)
-
 
   x$original_order <- 1:nrow(x)  # use a id column to return array back to original order
 
@@ -151,6 +151,14 @@ extract_gee <- function(
 
     cli::cli_progress_update(id=pb)
 
+    via <- 'getInfo'
+
+    if (use_gcs)
+      via <- 'gcs'
+
+    if (use_drive)
+      via <- 'drive'
+
     extracted <- rgee::ee_extract(
       x = ic,
       y = p_feature,
@@ -158,6 +166,8 @@ extract_gee <- function(
       fun = ee_reducer_fun,
       lazy = FALSE,
       sf = TRUE,
+      quiet = !debug,
+      via = via,
       ...
     )
 
