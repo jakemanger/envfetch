@@ -92,7 +92,7 @@ fetch <- function(
     cli::cli_alert_info(cli::col_black('Creating time lagged points'))
     # generate all time lag intervals we want to extract data for
     x <- x %>%
-      create_time_lags(n_lag_range=c(.time_rep$n_start, .time_rep$n_end), time_lag=.time_rep$interval, relative_to_start=.time_rep$relative_to_start)
+      create_time_lags(n_lag_range=c(.time_rep$n_start, .time_rep$n_end), time_lag=.time_rep$interval, relative_to_start=.time_rep$relative_to_start, time_column_name=time_column_name)
     col_names_used_in_func <- c(col_names_used_in_func, 'envfetch__original_time_column', 'lag_amount')
   }
 
