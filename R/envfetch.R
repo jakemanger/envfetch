@@ -98,7 +98,11 @@ envfetch <- function(
       } else {
         subds=bands[[i]]
       }
-      cli::cli_alert(cli::col_black(paste('Loading raster proxy at', paste0(r[[i]], collapse = ", "))))
+
+      proxy_path <- paste0(r[[i]], collapse = ", ")
+      proxy_path <- ifelse(nchar(proxy_path) > 103, paste0(strtrim(proxy_path, 100), '...'), proxy_path)
+      cli::cli_alert(cli::col_black(paste('Loading raster proxy at', proxy_path)))
+
       r[[i]] <- terra::rast(r[[i]], subds)
     }
     if (inherits(r[[i]], "SpatRaster")) {
