@@ -91,20 +91,6 @@ envfetch <- function(
   functions <- c()
 
   for (i in 1:num_rasters) {
-    if (all(file.exists(r[[i]]))) {
-      # if the user provides a file path, load the raster
-      if (is.null(bands[[i]])) {
-        subds=0
-      } else {
-        subds=bands[[i]]
-      }
-
-      proxy_path <- paste0(r[[i]], collapse = ", ")
-      proxy_path <- ifelse(nchar(proxy_path) > 103, paste0(strtrim(proxy_path, 100), '...'), proxy_path)
-      cli::cli_alert(cli::col_black(paste('Loading raster proxy at', proxy_path)))
-
-      r[[i]] <- terra::rast(r[[i]], subds)
-    }
     if (inherits(r[[i]], "SpatRaster")) {
 
       if (!is.null(attr(spatial_fun[[i]], "class")) && attr(spatial_fun[[i]], "class") == "ee.Reducer") {
@@ -123,9 +109,15 @@ envfetch <- function(
         temporal_fun[[i]] <- function(x) { rowSums(x, na.rm=TRUE) }
       }
 
+      if (is.null(bands[[i]])) {
+        subds=0
+      } else {
+        subds=bands[[i]]
+      }
+
       functions <- c(
         functions,
-        create_extract_over_time_function(i, r, temporal_fun, spatial_fun)
+        create_extract_over_time_function(i, r, subds, temporal_fun, spatial_fun)
       )
     } else {
 
@@ -205,15 +197,17 @@ parse_input <- function(input, num_rasters) {
   return(input)
 }
 
-create_extract_over_time_function <- function(i, r, temporal_fun, spatial_fun) {
+create_extract_over_time_function <- function(i, r, subds, temporal_fun, spatial_fun) {
   force(i)
   force(r)
+  force(subds)
   force(temporal_fun)
   force(spatial_fun)
 
   ~extract_over_time(
     x = .x,
     r = r[[i]],
+    subds = subds,
     temporal_fun = temporal_fun[[i]],
     spatial_fun = spatial_fun[[i]],
     ...

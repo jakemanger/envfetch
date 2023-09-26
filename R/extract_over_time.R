@@ -5,8 +5,9 @@
 #'
 #' @param x An sf object containing the locations to be sampled.
 #' This should contain a column of type lubridate::interval to represent the time.
-#' @param r A SpatRaster object from the terra package. This is the raster data
+#' @param r A file path to a raster file or a SpatRaster object from the terra package. This is the raster data
 #' source from which the data will be extracted.
+#' @param subds positive integer or character to select a sub-dataset to extract from. If zero or "", all sub-datasets are extracted.
 #' @param temporal_fun A function used to summarise multiple data points
 #' found within a time interval. Default is `rowMeans(x, na.rm=TRUE)`. The user
 #' can supply vectorised summarisation functions (using rowMeans or rowSums) or
@@ -61,6 +62,7 @@
 extract_over_time <- function(
   x,
   r,
+  subds=0,
   temporal_fun=function(x) {rowMeans(x, na.rm=TRUE)},
   spatial_extraction_fun=function(x, r, ...) {
     extract_over_space(
@@ -95,7 +97,7 @@ extract_over_time <- function(
   cli::cli_alert(cli::col_black('Loading raster file'))
 
   if (is.character(r)) {
-    r <- terra::rast(r)
+    r <- terra::rast(r, subds=subds)
   }
   dates <- terra::time(r)
 
