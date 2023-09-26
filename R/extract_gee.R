@@ -38,12 +38,8 @@
 #' @param ee_reducer_fun A Google Earth Engine reducer function representing the function
 #'                       used to aggregate the data extracted from each image. Default is
 #'                       rgee::ee$Reducer$mean().
-#' @param cache_progress A logical indicating whether to cache the progress of the extraction
-#'                       for resuming in case of interruptions. Default is TRUE.
-#' @param cache_dir A string representing the directory in which to save the cache files.
-#'                  Default is './'.
-#' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
-#'                         is automatically selected.
+#' @inheritParams extract_over_time
+#' @param ...
 #' @return A dataframe or sf object with the same rows as the input `x`, and new columns
 #'         representing the extracted data. The new column names correspond to the `bands` parameter.
 #' @export
@@ -87,10 +83,9 @@ extract_gee <- function(
   max_chunk_time_day_range=365,
   max_feature_collection_size=5000,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
-  cache_progress=TRUE,
-  cache_dir='./',
   time_column_name=NULL,
   parallel=FALSE,
+  max_memory_per_core_mb=10000,
   workers=future::availableCores(),
   create_parallel_plan=TRUE,
   ...
@@ -99,8 +94,10 @@ extract_gee <- function(
   if (initialise_gee)
     rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
-  if (parallel)
-    future::plan(future::multisession, workers = workers)
+  if (parallel && create_parallel_plan) {
+    options('future.globals.maxSize' = max_memory_per_core_mb * 1024 ^2)
+    future::plan(future::multisession(workers = workers))
+  }
 
   x$original_order <- 1:nrow(x)  # use a id column to return array back to original order
 

@@ -33,8 +33,10 @@
 #' (does not use rowSums or rowMeans).
 #' @param parallel Whether to use parallel processing when calculating summary information for each time range.
 #' @param workers The number of parallel processing workers to use for summarisation over each data point's time range.
+#' @param max_memory_per_core_mb The RAM limit for each core when summarising and `parallel=TRUE` and `create_parallel_plan=TRUE`.
 #' @param create_parallel_plan Whether to create the `future` parallel processing plan for you. If `TRUE` (the default),
 #' this will use `future::plan(future::multisession(workers = workers))` with the provided `workers` argument.
+#' @param ... Additional arguments to pass to the `spatial_extraction_fun`.
 #' See https://future.futureverse.org/reference/plan.html for more parallel processing options (e.g. clusters or linux forking)
 #' @return A modified version of the input 'x' with additional columns
 #' containing the extracted data.
@@ -74,6 +76,7 @@ extract_over_time <- function(
   is_vectorised_summarisation_function=FALSE,
   parallel=FALSE,
   workers=future::availableCores(),
+  max_memory_per_core_mb=10000,
   create_parallel_plan=TRUE,
   ...
 ) {
@@ -84,8 +87,10 @@ extract_over_time <- function(
     terra::gdalCache(30000)
     terra::terraOptions(memfrac=0.9, progress=1)
   }
-  if (parallel && create_parallel_plan)
+  if (parallel && create_parallel_plan) {
+    options('future.globals.maxSize' = max_memory_per_core_mb * 1024 ^2)
     future::plan(future::multisession(workers = workers))
+  }
 
   cli::cli_alert(cli::col_black('Loading raster file'))
 
