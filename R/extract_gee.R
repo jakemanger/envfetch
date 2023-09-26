@@ -259,7 +259,7 @@ non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nm
         last_index <- find_closest_datetime(row_times, mn, find_closest_previous=TRUE)
         value <- row_values[last_index]
         if (length(value) == 0) {
-          warning('last value not found in extracted data. Increase your time_buffer to get a correct result')
+          warning('last value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
           value <- NA
         }
         temp_df[col_name] <- value
