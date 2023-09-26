@@ -94,11 +94,16 @@ extract_over_time <- function(
     future::plan(future::multisession(workers = workers))
   }
 
-  cli::cli_alert(cli::col_black('Loading raster file'))
 
   if (is.character(r)) {
+    file_path <- r
     r <- terra::rast(r, subds=subds)
+  } else {
+    file_path <- terra::sources(r)
   }
+  file_path <- ifelse(nchar(file_path) > 103, paste0(strtrim(file_path, 100), '...'), file_path)
+  cli::cli_alert(cli::col_black(paste('Loading raster at', file_path)))
+
   dates <- terra::time(r)
 
   if (is.null(time_column_name)) {

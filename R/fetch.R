@@ -137,9 +137,20 @@ fetch <- function(
     # generate unique hash with dataset and function
     # to save progress
     # and either read cached output or run the function
-    outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(fun), '.rds'))
+    function_env <- environment(fun)
+    function_args <- sapply(ls(function_env), function(x) {
+      out <- get(x, envir = function_env)
+      is_function <- is.function(out) || purrr::is_formula(out)
+      if (is_function) {
+        out <- deparse(out) # bytecode strings can mess up unique cache hashes the second time you run it
+      }
+      return(out)
+    })
+
+    outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(capture.output(c(fun_string, function_args))), '.rds'))
+
     if (!use_cache || !file.exists(outpath)) {
-      cli::cli_alert_info(cli::col_blue(paste('Running', fun_string)))
+      cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
 
       # Use do.call to pass not_funcs as additional arguments to fun
       out <- do.call(fun, c(list(.x = unique_x), not_funcs))
