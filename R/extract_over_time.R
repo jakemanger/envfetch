@@ -296,16 +296,19 @@ pad_true <- function(vec) {
   return(vec)
 }
 
-find_relevant_time_slices <- function(dates, time_intervals) {
+find_relevant_time_slices <- function(dates, time_intervals, pad=TRUE) {
   unique_time_intervals <- unique(time_intervals)
   relevant_indices <- sapply(
     dates,
     function(date) any(lubridate::`%within%`(date, unique_time_intervals))
   )
-  # pad these values, so that data before and after can be used in the
-  # summarisation function
-  relevant_indices <- pad_true(relevant_indices)
-  return(relevant_indices)
+
+  if (pad) {
+    # pad these values, so that data before and after can be used in the
+    # summarisation function
+    relevant_indices <- pad_true(relevant_indices)
+    return(relevant_indices)
+  }
 }
 
 # function to make names unique, as terra will produce duplicate
