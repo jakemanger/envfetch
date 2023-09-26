@@ -259,7 +259,8 @@ non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nm
         last_index <- find_closest_datetime(row_times, mn, find_closest_previous=TRUE)
         value <- row_values[last_index]
         if (length(value) == 0) {
-          stop('last value not found in extracted data. Increase your time_buffer to get a correct result')
+          warning('last value not found in extracted data. Increase your time_buffer to get a correct result')
+          value <- NA
         }
         temp_df[col_name] <- value
       } else {
@@ -334,7 +335,7 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
   min_date_on_rgee <- min(date_info$time_start)
   max_date_on_rgee <- max(date_info$time_end)
   if (min_date_on_rgee > min_datetime) {
-    stop(
+    warning(
       paste0(
         'Minimum date of ', min_datetime, ' in input is less than the',
         ' minimum date of the image collection, ', collection_name,
@@ -343,7 +344,7 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
     )
   }
   if (max_date_on_rgee < max_datetime) {
-    stop(
+    warning(
       paste0(
         'Maximum date of ', max_datetime, ' in input is more than the',
         ' maximum date of the image collection, ', collection_name,
@@ -352,7 +353,7 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
     )
   }
   if (max_date_on_rgee < min_datetime) {
-    stop(
+    warning(
       paste0(
         'Minimum date of ', min_datetime, ' in input is greater than the',
         ' maximum date of the image collection, ', collection_name,
@@ -361,7 +362,7 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
     )
   }
   if (min_date_on_rgee > max_datetime) {
-    stop(
+    warning(
       paste0(
         'Maximum date of ', max_datetime, ' in input is less than the',
         ' minimum date of the image collection, ', collection_name,
