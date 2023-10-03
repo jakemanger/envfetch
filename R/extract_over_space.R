@@ -35,7 +35,7 @@
 #' # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a spatial object:
 #' # result <- extract_over_space(x=some_sp, r=some_raster)
 #' @export
-extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=1.0, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, ...) {
+extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, max_ram_frac_per_chunk=1.0, extraction_fun=terra::extract, resample_scale=NULL, resample_fun=NULL, verbose=TRUE, ...) {
   # drop duplicate rows that don't need to be extracted multiple times
   geometry_column_name <- attr(x, "sf_column")
   x <- x %>% dplyr::group_by(across(c(!!geometry_column_name))) %>%
@@ -50,17 +50,18 @@ extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, m
   ram_available <- mem_info['available'] * 0.9
   ram_available_per_chunk <- ram_available * max_ram_frac_per_chunk
 
-  messg <-
-  cli::cli_alert(
-    cli::col_black(
-      paste(
-        ram_required,
-        'Kbs of RAM is required for extraction and',
-        ram_available_per_chunk,
-        'Kbs of RAM is available'
+  if (verbose) {
+    cli::cli_alert(
+      cli::col_black(
+        paste(
+          ram_required,
+          'Kbs of RAM is required for extraction and',
+          ram_available_per_chunk,
+          'Kbs of RAM is available'
+        )
       )
     )
-  )
+  }
 
   if (identical(extraction_fun, exactextractr::exact_extract)) {
     if (any(sf::st_geometry_type(unique_x) == "POINT")) {
@@ -74,9 +75,11 @@ extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, m
 
     num_chunks <- ceiling(ram_required / ram_available_per_chunk)
     chunk_size <- ceiling(length(times) / num_chunks)
-    cli::cli_alert(cli::col_black(paste('Splitting job into', num_chunks, 'chunks')))
+    if (verbose)
+      cli::cli_alert(cli::col_black(paste('Splitting job into', num_chunks, 'chunks')))
 
-    pb <- cli::cli_progress_bar("Extracting data in chunks", total = num_chunks)
+    if (verbose)
+      pb <- cli::cli_progress_bar("Extracting data in chunks", total = num_chunks)
 
     # initialize list to hold chunks
     r_chunks <- vector("list", num_chunks)
@@ -90,7 +93,7 @@ extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, m
 
     extractions <- lapply(r_chunks, function(chunk) {
       # run garbage collector to free up memory between extractions
-      gc()
+      # gc()
 
       if (!is.null(resample_scale)) {
         chunk <- resample_raster(chunk, resample_scale, resample_fun)
@@ -98,7 +101,8 @@ extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, m
 
       ex <- extraction_fun(x = chunk, y = unique_x, spatial_fun=spatial_fun, na.rm=na.rm, ...)
       # update progress bar after each extraction
-      cli::cli_progress_update(id=pb)
+      if (verbose)
+        cli::cli_progress_update(id=pb)
       return(ex)
     })
     # perform extraction on each chunk and combine results
@@ -113,16 +117,18 @@ extract_over_space <- function(x, r, spatial_fun=mean, na.rm=TRUE, chunk=TRUE, m
       chunk <- resample_raster(chunk, resample_scale, resample_fun)
     }
     # in case of a crash before hand make sure to free up memory
-    gc()
+    # gc()
 
     # perform extraction normally if raster fits in RAM
     extracted <- extraction_fun(x = r, y = unique_x, spatial_fun=spatial_fun, na.rm=na.rm, ...)
   }
-  cli::cli_alert(cli::col_black('Completed extraction'))
+
+  if (verbose)
+    cli::cli_alert(cli::col_black('Completed extraction'))
 
   # a final garbage collection so later extractions have cleared up memory
   # beforehand
-  gc()
+  # gc()
 
   # rename ID
   colnames(extracted)[colnames(extracted) == 'ID'] <- 'envfetch__duplicate_spatial_ID'

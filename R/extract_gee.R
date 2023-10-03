@@ -88,6 +88,7 @@ extract_gee <- function(
   max_memory_per_core_mb=10000,
   workers=future::availableCores(),
   create_parallel_plan=TRUE,
+  verbose=TRUE,
   ...
 ) {
 
@@ -121,11 +122,13 @@ extract_gee <- function(
   x$start_time <- x %>% dplyr::pull(time_column_name) %>% lubridate::int_start() %>% as.Date()
   pts_chunks <- split_time_chunks(x, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
 
-  pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks)*3)
+  if (verbose)
+    pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks)*3)
 
   extracteds <- lapply(pts_chunks, function(chunk) {
     p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
-    cli::cli_progress_update(id=pb)
+    if (verbose)
+      cli::cli_progress_update(id=pb)
 
     # get min and max dates from the x tibble
     chunk_time_column <- chunk %>% dplyr::pull(time_column_name)
@@ -134,7 +137,8 @@ extract_gee <- function(
     min_datetime <- format(min_datetime, "%Y-%m-%dT%H:%M:%S")
     max_datetime <- format(max_datetime, "%Y-%m-%dT%H:%M:%S")
 
-    cli::cli_progress_update(id=pb)
+    if (verbose)
+      cli::cli_progress_update(id=pb)
 
     check_dataset(min_datetime, max_datetime, collection_name)
 
@@ -146,7 +150,8 @@ extract_gee <- function(
       ic <- ic$select(bands)
     }
 
-    cli::cli_progress_update(id=pb)
+    if (verbose)
+      cli::cli_progress_update(id=pb)
 
     via <- 'getInfo'
 
@@ -209,7 +214,8 @@ extract_gee <- function(
     )
   }
 
-  cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
+  if (verbose)
+    cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
 
   extracted <- extracted[,stringr::str_starts(colnames(extracted), 'X')] %>% sf::st_drop_geometry()
   clnames <- colnames(extracted)

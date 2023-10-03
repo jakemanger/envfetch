@@ -1,0 +1,500 @@
+---
+title: "Comparison with other extraction methods"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{comparison with other extraction methods}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+There are many existing R packages to extract raster data at locations of vector
+geometries (points, lines or polygons). However, when your vector geometries
+are combined with time (single datetimes or intervals), large raster files and 
+many combinations of space and time to be extracted, the default strategies to 
+use these packages are slow or use too much RAM (often causing crashes).
+
+Below, we show how to more efficiently extract raster data over space and time.
+Each optimisation has been implemented in the simple `envfetch()` function, and
+this vignette functions as a reasoning for these optimisations, comparing each.
+For a guide on how to use `envfetch()` with these optimisations baked in, see 
+[]().
+
+
+All below code examples use a mock dataset created with the following code:
+```{r, cache=TRUE}
+library(envfetch)
+library(ggplot2)
+library(lubridate)
+library(terra)
+library(stars)
+
+tif = system.file("tif/L7_ETMs.tif", package = "stars")
+
+dates <- seq(as.Date('2018-01-01'), as.Date('2018-05-09'), 'day')
+
+r <- rast(tif)
+r <- rep(r, 22)[[1:129]]
+time(r) <- dates
+
+p <- throw(
+  offset=c(288700, 9110700),
+  cellsize=10000/32,
+  n=32,
+  time_interval=interval(start='2018-01-01', end='2018-01-01'),
+  crs=st_crs(r)
+)
+
+num_intervals <- 128
+interval_length <- nrow(p) / num_intervals
+
+for (i in 1:num_intervals) {
+  start_idx <- ((i-1) * interval_length) + 1
+  end_idx <- i * interval_length
+  start_time <- as.Date("2018-01-01") + (i-1)
+  end_time <- start_time + 1
+  
+  p$time_column[start_idx:end_idx] <- interval(start=start_time, end=end_time)
+}
+
+p$extracted <- NA
+```
+
+```{r, cache=TRUE}
+plot(r[[1]])
+points(st_coordinates(p), pch = 19, col = "red")
+```
+
+## Extract once
+
+The simplest approach to extract over space and time is to summarise rasters 
+temporally and then extract spatially within the locations of your vector data.
+For one time range, existing solutions are well suited to this task. Below is
+an example with the `terra` package:
+
+```{r, cache=TRUE}
+one_time_range <- p
+one_time_range$time_column <- interval(start='2018-01-01', end='2018-01-02')
+extract_one_time_range <- function() {
+  mean_r <- mean(r[[time(r) >= '2018-01-01' & time(r) <= '2018-01-02']])
+  return(extract(mean_r, one_time_range))
+}
+
+extract_one_time_range()
+
+microbenchmark::microbenchmark(
+  extract_one_time_range(),
+  times=10
+)
+```
+
+
+Taking our first approach to multiple time ranges starts to give us problems.
+For this approach to scale, we need to repeat our extraction multiple times for
+each time range. This results in us requiring approximately twice the time for 
+two time ranges, triple the time for three time ranges and so on.
+
+```{r, cache=TRUE}
+extract_n_time_ranges <- function(n) {
+  unique_time_ranges <- unique(p$time_column)
+  unique_time_ranges <- unique_time_ranges[1:n]
+  # loop through each unique time range and extract
+  for(i in seq_len(length(unique_time_ranges))) {
+    t <- unique_time_ranges[i]
+    indx <- as.character(p$time_column) == as.character(t)
+    mean_r <- mean(r[[time(r) >= int_start(t) & time(r) <= int_end(t)]])
+    subset <- p[indx,]
+    p$extracted[indx] <- extract(mean_r, subset, ID=FALSE)$mean
+  }
+  return(p)
+}
+
+bm <- microbenchmark::microbenchmark(
+  extract_n_time_ranges(n = 1),
+  extract_n_time_ranges(n = 2),
+  extract_n_time_ranges(n = 4),
+  extract_n_time_ranges(n = 8),
+  extract_n_time_ranges(n = 16),
+  extract_n_time_ranges(n = 32),
+  extract_n_time_ranges(n = 64),
+  extract_n_time_ranges(n = 128),
+  times=10
+)
+bm
+autoplot(bm)
+```
+
+
+When your vector data has many time ranges, a faster solution is to instead do
+one single extraction for all time ranges and then summarise the data. This
+avoids repeating the expensive extraction operation.
+
+```{r, cache=TRUE}
+extract_once <- function(n) {
+  # subset to only have the time columns we are interested in
+  time_column <- p$time_column
+  unique_time_ranges <- unique(time_column)
+  index <- time_column %in% unique_time_ranges[1:n]
+  p <- p[index,]
+  
+  x <- sf::st_drop_geometry(p)
+  
+  extracted <- extract(r, p, ID=FALSE)
+  times <- time(r)
+
+  p$extracted <- envfetch:::non_vectorised_summarisation(
+    x = x,
+    extracted = extracted,
+    IDs = 1:nrow(x),
+    temporal_fun = mean,
+    tms = times,
+    nms = names(extracted),
+    time_column_name = 'time_column',
+    new_col_names = c('L7_ETMs'),
+    multi_values_in_extraction_per_row = FALSE,
+    parallel = FALSE
+  )
+  return(p)
+}
+
+extracted_multiple_times <- extract_n_time_ranges(n = 128)
+extracted_once <- extract_once(n = 128)
+
+identical(extracted_multiple_times$extracted, extracted_once$L7_ETMs)
+
+bm <- microbenchmark::microbenchmark(
+  extract_n_time_ranges(n = 128),
+  extract_once(n = 128),
+  times=10
+)
+bm
+autoplot(bm)
+```
+
+
+## Only extract the time slices you are interested in
+
+Although it's faster to extract once, it may still be slow in cases where the
+raster file has many time slices.
+
+The solution is that we do not need to extract all time slices of the data.
+Simply, we can trim the time range of the raster around the minimum and
+maximum of our vector data, e.g. 
+`r[[times(r) > min_time & times(r) < min_time]]`. But more efficiently,
+especially when time ranges are far from one another, we can only extract from
+the time slices we are interested in.
+This is achievable by sub-setting the raster before the extraction with
+only the relevant time slices (calculated by the `find_relevant_time_slices()` 
+function in `envfetch`).
+
+Note, time to calculate the relevant time slices can be more than you
+benefit from the reduced extraction if there are few unique time ranges or time 
+ranges to extract are close to one another. We can see this in the below plot 
+when extracting only what we need only starts to have a benefit when extracting more than 128 unique time ranges.
+
+```{r, cache=TRUE}
+extract_only_what_we_need <- function(n) {
+  # subset to only have the time columns we are interested in
+  time_column <- p$time_column
+  unique_time_ranges <- unique(time_column)
+  index <- time_column %in% unique_time_ranges[1:n]
+  p <- p[index,]
+  
+  x <- sf::st_drop_geometry(p)
+
+  relevant_time_slices <- envfetch:::find_relevant_time_slices(time(r), x$time_column)
+  
+  r <- r[[relevant_time_slices]]
+  
+  extracted <- extract(r, p, ID=FALSE)
+  times <- time(r)
+  
+  p$extracted <- envfetch:::non_vectorised_summarisation(
+    x = x,
+    extracted = extracted,
+    IDs = 1:nrow(x),
+    temporal_fun = mean,
+    tms = times,
+    nms = names(extracted),
+    time_column_name = 'time_column',
+    new_col_names = c('L7_ETMs'),
+    multi_values_in_extraction_per_row = FALSE,
+    parallel = FALSE
+  )
+  return(p)
+}
+
+extracted_only_what_we_need <- extract_only_what_we_need(n = 128)
+
+identical(extracted_multiple_times$extracted, extracted_only_what_we_need$L7_ETMs)
+
+bm <- microbenchmark::microbenchmark(
+  extract_n_time_ranges(n = 32),
+  extract_n_time_ranges(n = 64),
+  extract_n_time_ranges(n = 128),
+  extract_once(n = 32),
+  extract_once(n = 64),
+  extract_once(n = 128),
+  extract_only_what_we_need(n = 32),
+  extract_only_what_we_need(n = 64),
+  extract_only_what_we_need(n = 128),
+  times=10
+)
+bm
+autoplot(bm)
+```
+
+
+## Vectorise summarisation functions
+
+Another optimisation is in the summarisation step. R is slow at running tasks
+repeatedly (e.g. row by row). Offsetting that task to a faster programming 
+language under the hood is possible with vectorised functions. Functions like
+`rowMeans()` and `rowSums()` are written in C instead of R. As a result, 
+they don't require as much overhead (of the R interpreter), giving us further 
+performance gains.
+
+```{r, cache=TRUE}
+extract_only_what_we_need_vectorised <- function(n) {
+  # subset to only have the time columns we are interested in
+  time_column <- p$time_column
+  unique_time_ranges <- unique(time_column)
+  index <- time_column %in% unique_time_ranges[1:n]
+  p <- p[index,]
+  
+  x <- sf::st_drop_geometry(p)
+
+  relevant_time_slices <- envfetch:::find_relevant_time_slices(time(r), x$time_column)
+  
+  r <- r[[relevant_time_slices]]
+  
+  extracted <- extract(r, p, ID=FALSE)
+  times <- time(r)
+  
+  p$extracted <- envfetch:::vectorised_summarisation(
+    x = x,
+    extracted = extracted,
+    temporal_fun = rowMeans,
+    tms = times,
+    nms = names(extracted),
+    time_column_name = 'time_column',
+    new_col_names = c('L7_ETMs'),
+    parallel = FALSE
+  )
+  return(p)
+}
+
+extracted_only_what_we_need_vectorised <- extract_only_what_we_need_vectorised(n = 128)
+
+identical(extracted_only_what_we_need$L7_ETMs, extracted_only_what_we_need_vectorised$L7_ETMs)
+
+bm <- microbenchmark::microbenchmark(
+  extract_only_what_we_need(n = 128),
+  extract_only_what_we_need_vectorised(n = 128),
+  times=10
+)
+bm
+autoplot(bm)
+```
+
+
+## Don't repeat yourself
+
+Finally, using existing packages with repeated data results in repeated
+extractions. That is, if you provide extraction functions with the same data 
+point multiple times, it will extract that point multiple times.
+
+```{r, cache=TRUE}
+duplicated_p <- p[rep(seq_len(nrow(p)), each = 20),]
+
+extract_duplicated_only_what_we_need_vectorised <- function(n) {
+  # subset to only have the time columns we are interested in
+  time_column <- duplicated_p$time_column
+  unique_time_ranges <- unique(time_column)
+  index <- time_column %in% unique_time_ranges[1:n]
+  duplicated_p <- duplicated_p[index,]
+  
+  x <- sf::st_drop_geometry(duplicated_p)
+
+  relevant_time_slices <- envfetch:::find_relevant_time_slices(time(r), x$time_column)
+  
+  r <- r[[relevant_time_slices]]
+  
+  extracted <- extract(r, duplicated_p, ID=FALSE)
+  times <- time(r)
+  
+  duplicated_p$extracted <- envfetch:::vectorised_summarisation(
+    x = x,
+    extracted = extracted,
+    temporal_fun = rowMeans,
+    tms = times,
+    nms = names(extracted),
+    time_column_name = 'time_column',
+    new_col_names = c('L7_ETMs'),
+    parallel = FALSE
+  )
+  return(duplicated_p)
+}
+
+repeated_extraction_without_duplicates <- extract_only_what_we_need_vectorised(n = 128)
+repeated_extraction_with_duplicates <- extract_duplicated_only_what_we_need_vectorised(n = 128)
+
+non_repeated_extraction_without_duplicates <- envfetch(p, r, use_cache=FALSE, verbose=FALSE)
+non_repeated_extraction_with_duplicates <- envfetch(duplicated_p, r, use_cache=FALSE, verbose=FALSE)
+
+identical(repeated_extraction_with_duplicates$L7_ETMs, non_repeating_extraction_with_duplicates$L7_ETMs)
+
+bm <- microbenchmark::microbenchmark(
+  extract_only_what_we_need_vectorised(n = 128),
+  extract_duplicated_only_what_we_need_vectorised(n = 128),
+  envfetch(p, r, use_cache=FALSE, verbose=FALSE),
+  envfetch(duplicated_p, r, use_cache=FALSE, verbose=FALSE),
+  times=10
+)
+bm
+autoplot(bm)
+```
+
+
+Similarly, if you have already extracted the data once, why extract it again? 
+Saving data after an extraction and reloading it when needed is convenient and
+saves time, especially if an extraction pipeline fails or crashes part of the 
+way through or between R sessions. For convenience, storing data for future
+requests (caching) is done automatically by `envfetch()`.
+
+
+```{r, cache=TRUE}
+extracted <- envfetch(p, r)
+
+# after running the first time above, the result is loaded straight from the cache
+# and not computed again
+extracted <- envfetch(p, r)
+```
+
+
+## > 30x speed improvement
+
+The above optimisations result in the speed benefits found in the `envfetch`
+function.
+
+```{r, cache=TRUE}
+bm <- microbenchmark::microbenchmark(
+  extract_n_time_ranges(n = 128),
+  envfetch(p, r, use_cache = FALSE, verbose = FALSE),
+  times=10
+)
+bm
+autoplot(bm)
+```
+
+Going from the most naive extraction solution with our small example (128 time 
+intervals), we have changed our extraction time from 30 seconds to 1 second
+That is a speed up of more than 30x. Note, these benefits get larger both with
+the number of time intervals that need to be extracted and how far in time
+each time interval are from one another in the raster file.
+
+To ensure this extraction process is possible on lower-end machines, there are 
+further strategies to optimise RAM usage described below.
+
+
+## Don't overuse RAM
+
+In an ideal world, it would be best to extract all the data necessary for the
+extraction at once. However, the amount of data a computer can extract at once
+is limited by how much RAM it has. 
+
+To allow computers with less RAM to complete the same extraction task, we can
+separate extractions into smaller chunks. These can then be processed one at a 
+time, limiting RAM usage within the available limits. We have implemented an
+automatic system to extract data in chunks in the `extract_over_space` function,
+used internally by `envfetch()`.
+
+Remember, all these optimisations are already baked into the `envfetch()`
+function so you don't need to repeat this when extracting your dataset.
+
+
+## Run on google cloud
+
+In cases where downloading of local files for extracting data are not possible 
+or practical, cloud solutions can provide a performant alternative. The largest
+and most commonly used cloud-based geospatial analysis platform is Google
+Earth Engine.
+
+Currently, there is only one R package with an implemented extraction function
+for Google earth engine (`rgee`). However, with large datasets or extraction tasks,
+standard use of the `rgee::ee_extract` function can causes crashes or overuse 
+of Google Earth Engine's memory limits, failing the extraction task. 
+
+We have implemented processing data in chunks with the `extract_gee` function,
+used internally by`envfetch()`, to allow processing of more data, while 
+remaining within your quota limits (https://developers.google.com/earth-engine/guides/usage#adjustable_quota_limits).
+
+Using `ee_extract` from `rgee` will by default fail with this dataset.
+```{r, cache=TRUE}
+rgee::ee_Initialize()
+# first half of extraction process (extracting between all time ranges)
+p_feature <- rgee::sf_as_ee(sf::st_geometry(p))
+
+ic <- rgee::ee$ImageCollection('MODIS/061/MOD13Q1')$
+  filterBounds(p_feature)$
+  filterDate(min(int_start(p$time_column)), max(int_end(p$time_column)))
+
+rgee_extracted <- rgee::ee_extract(
+  x = ic,
+  y = p_feature,
+  scale = 250,
+  fun = rgee::ee$Reducer$mean(),
+  lazy = FALSE,
+  sf = TRUE,
+)
+# ... you would then summarise this data
+```
+
+`envfetch` will process this same task in chunks to ensure it does not fail.
+```{r, cache=TRUE}
+envfetch_extracted <- envfetch(p, 'MODIS/061/MOD13Q1')
+```
+
+
+## `stars` has an existing local file extraction solution for single time slices
+
+Note, in the specific case of where you are extracting from single time slices
+(not a range or interval of times), the `stars` package has implemented support 
+for fast spatio-temporal extraction in the `st_extract` function, comparable to 
+the method used by `envfetch`. In addition to picking the nearest time slice in
+your raster data set, this can also bilinearly interpolate between time
+slices if your date or datetime falls between two slices in the raster.
+
+```{r, cache=TRUE}
+stars_r <- st_as_stars(r)
+
+# no support for time intervals or a similar data structure
+extracted <- st_extract(stars_r, p, time_column = 'time_column')
+# returns NA
+extracted
+
+# does work with single dates or datetimes
+single_date_p <- p
+single_date_p$time_column <- int_start(single_date_p$time_column)
+stars_extracted <- st_extract(stars_r, single_date_p, time_column = 'time_column')
+
+# stars has comparable performance to envfetch for this case
+# TODO: if stars is faster here, use that as the backend of the envfetch function
+# for that particular case.
+envfetch_extracted <- envfetch(r, single_date_p, time_column_name = 'time_column')
+
+identical(stars_extracted$L7_ETMs, envfetch_extracted$L7_ETMs)
+
+microbenchmark::microbenchmark(
+  st_extract(stars_r, single_date_p, time_column = 'time_column'),
+  envfetch(r, single_date_p, time_column_name = 'time_column', use_cache=FALSE, verbose=FALSE),
+  times=10
+)
+```

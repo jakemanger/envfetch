@@ -80,6 +80,7 @@ extract_over_time <- function(
   workers=future::availableCores(),
   max_memory_per_core_mb=10000,
   create_parallel_plan=TRUE,
+  verbose=TRUE,
   ...
 ) {
   if (override_terraOptions) {
@@ -94,7 +95,6 @@ extract_over_time <- function(
     future::plan(future::multisession(workers = workers))
   }
 
-
   if (is.character(r)) {
     file_path <- r
     r <- terra::rast(r, subds=subds)
@@ -102,7 +102,9 @@ extract_over_time <- function(
     file_path <- terra::sources(r)
   }
   file_path <- ifelse(nchar(file_path) > 103, paste0(strtrim(file_path, 100), '...'), file_path)
-  cli::cli_alert(cli::col_black(paste('Loading raster at', file_path)))
+
+  if (verbose)
+    cli::cli_alert(cli::col_black(paste('Loading raster at', file_path)))
 
   dates <- terra::time(r)
 
@@ -127,14 +129,16 @@ extract_over_time <- function(
   }
 
   # trim r and dates exteriors before finding time slices for speed
-  cli::cli_alert(cli::col_black('Finding relevant time slices'))
+  if (verbose)
+    cli::cli_alert(cli::col_black('Finding relevant time slices'))
   r <- r[[dates <= max_time & dates >= min_time]]
   dates <- terra::time(r)
   relevant_indices <- find_relevant_time_slices(dates, time_intervals)
 
-  gc() # added here as a lot of ram gets used with a large number of x (e.g. 10000+)
+  # gc() # added here as a lot of ram gets used with a large number of x (e.g. 10000+)
 
-  cli::cli_alert(cli::col_black('Extracting data...'))
+  if (verbose)
+    cli::cli_alert(cli::col_black('Extracting data...'))
 
   r_within_time <- r[[relevant_indices]]
 
@@ -149,6 +153,7 @@ extract_over_time <- function(
   extracted <- spatial_extraction_fun(
     x = x,
     r = r_within_time,
+    verbose = verbose,
     ...
   )
 
@@ -169,9 +174,10 @@ extract_over_time <- function(
     readline(prompt = "Paused as debug=TRUE, press enter to continue.")
   }
 
-  cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
+  if (verbose)
+    cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
 
-  new_col_names <- unique(stringr::str_split_i(nms, '_', 1))
+  new_col_names <- terra::varnames(r)
 
   # initialise variables with NA
   x[, new_col_names] <- NA
@@ -189,7 +195,7 @@ extract_over_time <- function(
   geometry <- sf::st_geometry(x)
   x <- sf::st_drop_geometry(x)
 
-  if (contains_rowSums_or_rowMeans(temporal_fun))
+  if (verbose && contains_rowSums_or_rowMeans(temporal_fun))
     cli::cli_alert(cli::col_black('Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.'))
 
   if (contains_rowSums_or_rowMeans(temporal_fun) || is_vectorised_summarisation_function) {
@@ -198,7 +204,8 @@ extract_over_time <- function(
 
     x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
   } else {
-    cli::cli_alert(cli::col_black('Detected a custom row summarisation function. Running on each row one by one.'))
+    if (verbose)
+      cli::cli_alert(cli::col_black('Detected a custom row summarisation function. Running on each row one by one.'))
     x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=parallel)
   }
 
@@ -310,9 +317,10 @@ pad_true <- function(vec) {
 
 find_relevant_time_slices <- function(dates, time_intervals, pad=TRUE) {
   unique_time_intervals <- unique(time_intervals)
-  relevant_indices <- sapply(
+  relevant_indices <- vapply(
     dates,
-    function(date) any(lubridate::`%within%`(date, unique_time_intervals))
+    function(date) any(lubridate::`%within%`(date, unique_time_intervals)),
+    logical(1)
   )
 
   if (pad) {

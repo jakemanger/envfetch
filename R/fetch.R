@@ -17,6 +17,7 @@
 #' is automatically selected.
 #' @param .time_rep A `time_rep` object. Used to repeat data extraction along repeating time intervals before and after the original datetime.
 #' This can be relative to the start or the end of the input time interval (specified by the `relative_to_start` argument of `time_rep`). Defaults to the start.
+#' @param verbose Whether to print progress and what stage of the extraction you are. Default is TRUE.
 #'
 #' @return tibble An augmented tibble with additional data fetched using supplied functions.
 #'
@@ -59,7 +60,13 @@ fetch <- function(
     time_column_name=NULL,
     .time_rep=NA
 ) {
-  cli::cli_h1(cli::col_black('🥏 🐕 Fetching your data'))
+
+  verbose <- list(...)$verbose
+  if (length(verbose) == 0)
+    verbose = TRUE
+
+  if (verbose)
+    cli::cli_h1(cli::col_black('🥏 🐕 Fetching your data'))
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
@@ -69,12 +76,14 @@ fetch <- function(
   if (is.null(time_column_name)) {
     time_column_name <- find_time_column_name(x)
   } else if (time_column_name == 'env_extract__SKIP') {
-    cli::cli_alert_info(cli::col_black('Doing simple extraction over all time slices'))
+    if (verbose)
+      cli::cli_alert_info(cli::col_black('Doing simple extraction over all time slices'))
     simple_extraction <- TRUE
     stop('Simple extraction not yet implemented.')
   }
 
-  cli::cli_alert(cli::col_black('Parsing time column'))
+  if (verbose)
+    cli::cli_alert(cli::col_black('Parsing time column'))
   x[,time_column_name] <- x %>% parse_time_column(time_column_name)
 
   geometry_column_name = attr(x, "sf_column")
@@ -89,7 +98,8 @@ fetch <- function(
   )
 
   if (length(.time_rep) > 1) {
-    cli::cli_alert_info(cli::col_black('Creating time lagged points'))
+    if (verbose)
+      cli::cli_alert_info(cli::col_black('Creating time lagged points'))
     # generate all time lag intervals we want to extract data for
     x <- x %>%
       create_time_lags(n_lag_range=c(.time_rep$n_start, .time_rep$n_end), time_lag=.time_rep$interval, relative_to_start=.time_rep$relative_to_start, time_column_name=time_column_name)
@@ -111,8 +121,10 @@ fetch <- function(
 
   # remove elements that aren't functions and raise a warning if any are
   is_function <- sapply(args, function(x) {is.function(x) || purrr::is_formula(x)})
-  unnamed <- startsWith(names(c(...)), '...') # in case an argument is a function
-  is_function <- is_function & unnamed
+  if (!is.null(names(args))) {
+    unnamed <- names(args) == '' | startsWith(names(args), '...') # in case an argument is a function
+    is_function <- is_function & unnamed
+  }
 
   not_funcs <- args[!is_function]
   funcs <- args[is_function]
@@ -150,19 +162,22 @@ fetch <- function(
     outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(capture.output(c(fun_string, function_args))), '.rds'))
 
     if (!use_cache || !file.exists(outpath)) {
-      cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
+      if (verbose)
+        cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
 
       # Use do.call to pass not_funcs as additional arguments to fun
       out <- do.call(fun, c(list(.x = unique_x), not_funcs))
 
       out <- out[,!(colnames(out) %in% colnames(unique_x))]
       out <- sf::st_drop_geometry(out)
-      cli::cli_alert_success(cli::col_green(paste('🐶 Completed', fun_string)))
+      if (verbose)
+        cli::cli_alert_success(cli::col_green(paste('🐶 Completed', fun_string)))
 
       if (use_cache)
         saveRDS(out, outpath)
     } else {
-      cli::cli_alert_success(cli::col_green(paste('🕳️🦴 Dug up cached result of', fun_string)))
+      if (verbose)
+        cli::cli_alert_success(cli::col_green(paste('🕳️🦴 Dug up cached result of', fun_string)))
       out <- readRDS(outpath)
     }
     return(out)
@@ -212,7 +227,8 @@ fetch <- function(
 
   if (!is.na(out_filename)) {
     out_path <- file.path(out_dir, out_filename)
-    cli::cli_alert_info(cli::col_black(paste('Saving to shapefile at', out_path)))
+    if (verbose)
+      cli::cli_alert_info(cli::col_black(paste('Saving to shapefile at', out_path)))
     if (overwrite && file.exists(out_path)) {
       file.remove(out_path)
     }
@@ -223,18 +239,20 @@ fetch <- function(
     } else {
       sf::st_write(x, out_path, append=ifelse(overwrite, FALSE, NA))
     }
-    cli::cli_alert_info(
-      cli::col_black(
-        paste0(
-          'Check the output directory (',
-          out_dir,
-          ') for your saved shapefile with your extracted x.'
+    if (verbose)
+      cli::cli_alert_info(
+        cli::col_black(
+          paste0(
+            'Check the output directory (',
+            out_dir,
+            ') for your saved shapefile with your extracted x.'
+          )
         )
       )
-    )
   }
 
-  cli::cli_h1(cli::col_black('🐩 Fetched'))
+  if (verbose)
+    cli::cli_h1(cli::col_black('🐩 Fetched'))
 
   return(x)
 }

@@ -16,6 +16,7 @@
 #' @param cache_dir Directory for caching files. Default is `./output/cache/`.
 #' @param time_column_name Name of the time column in `x`. Use `NULL` to auto-select a time column of type `lubridate::interval`. Default is NULL.
 #' @param .time_rep Specifies repeating time intervals for extraction. Default is `NA`.
+#' @param verbose Whether to print progress and what stage of the extraction you are. Default is TRUE.
 #' @param ... Additional arguments for underlying extraction functions.
 #'
 #' @details
