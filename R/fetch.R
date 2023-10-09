@@ -84,6 +84,8 @@ fetch <- function(
 
   if (verbose)
     cli::cli_alert(cli::col_black('Parsing time column'))
+
+
   x[,time_column_name] <- x %>% parse_time_column(time_column_name)
 
   geometry_column_name = attr(x, "sf_column")
@@ -135,6 +137,7 @@ fetch <- function(
 
   unique_x <- x[!duplicated(x$envfetch__duplicate_ID),]
 
+
   # loop through the supplied functions
   outs <- lapply(funcs, function(fun) {
     if (purrr::is_formula(fun)) {
@@ -154,7 +157,15 @@ fetch <- function(
       out <- get(x, envir = function_env)
       is_function <- is.function(out) || purrr::is_formula(out)
       if (is_function) {
-        out <- deparse(out) # bytecode strings can mess up unique cache hashes the second time you run it
+        # bytecode strings can mess up unique cache hashes the second time you run it
+        # so we deparse these function arguments as strings and then make the has
+        # the function string with the function args to make our hash
+        if ('signature' %in% names(out)) {
+          # special case to support ee Reducer functions
+          out <- out$signature$name
+        } else {
+          out <- deparse(out)
+        }
       }
       return(out)
     })

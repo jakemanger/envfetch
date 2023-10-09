@@ -161,6 +161,12 @@ extract_gee <- function(
     if (use_drive)
       via <- 'drive'
 
+
+    # if supplied as rgee::ee$Reducer$mean instead of rgee::ee$Reducer$mean()
+    if (is.function(ee_reducer_fun)) {
+      ee_reducer_fun <- ee_reducer_fun()
+    }
+
     extracted <- rgee::ee_extract(
       x = ic,
       y = p_feature,

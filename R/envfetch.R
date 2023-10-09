@@ -92,7 +92,11 @@ envfetch <- function(
   functions <- c()
 
   for (i in 1:num_rasters) {
-    if (inherits(r[[i]], "SpatRaster")) {
+    if (inherits(r[[i]], "SpatRaster") || any(file.exists(r[[i]]))) {
+
+      if (any(file.exists(r[[i]])) && !all(file.exists(r[[i]]))) {
+        stop(paste('Raster file at', r[[i]][!file.exists(r[[i]])], 'does not exist.'))
+      }
 
       if (!is.null(attr(spatial_fun[[i]], "class")) && attr(spatial_fun[[i]], "class") == "ee.Reducer") {
         stop("The provided spatial_fun for local file extraction is a rgee::ee$Reducer object. Use a function like mean instead.")
@@ -125,12 +129,27 @@ envfetch <- function(
       if (init_gee) {
         use_gcs = FALSE
         use_drive = FALSE
+
         if (!is.null(list(...)$use_gcs) && list(...)$use_gcs)
           use_gcs = TRUE
         if (!is.null(list(...)$use_drive) && list(...)$use_drive)
           use_drive = TRUE
 
-        rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
+        # check whether we have already initialised with these settings
+        users <- tryCatch(
+          {
+            rgee::ee_users()
+          },
+          error=function(cond) {
+            return(NA)
+          }
+        )
+
+        # if not already initialised or if any of the settings aren't what was
+        # requested, initialise
+        if (is.na(users) || (users$EE != 1 && (users$GD == 1) != use_drive && (users$GCS == 1) != use_gcs))
+          rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
+
         init_gee = FALSE
       }
 
@@ -139,9 +158,9 @@ envfetch <- function(
       }
 
       if (spatial_fun[[i]] == "mean") {
-        spatial_fun[[i]] <- rgee::ee$Reducer$mean()
+        spatial_fun[[i]] <- rgee::ee$Reducer$mean
       } else if (spatial_fun[[i]] == "sum") {
-        spatial_fun[[i]] <- rgee::ee$Reducer$sum()
+        spatial_fun[[i]] <- rgee::ee$Reducer$sum
       }
 
       if (temporal_fun[[i]] == 'mean') {
@@ -224,7 +243,7 @@ create_extract_gee_function <- function(r, bands, temporal_fun, spatial_fun) {
 
   return(
     ~extract_gee(
-      .x = x,
+      x = .x,
       collection_name = r,
       bands = bands,
       temporal_fun = temporal_fun,
