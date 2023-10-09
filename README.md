@@ -4,6 +4,8 @@
 # envfetch <a href="https://github.com/jakemanger/envfetch"><img src="man/figures/logo.png" align="right" height="238"/></a>
 
 <!-- badges: start -->
+
+[![R-CMD-check](https://github.com/jakemanger/envfetch/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/jakemanger/envfetch/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 Your trusty companion to fetch, extract and summarise environmental data

@@ -17,6 +17,7 @@ knitr::opts_chunk$set(
 
 <!-- badges: start -->
 
+[![R-CMD-check](https://github.com/jakemanger/envfetch/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/jakemanger/envfetch/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 Your trusty companion to fetch, extract and summarise environmental data over space (with `sf` points or polygons) and time (with a `lubridate` time `interval`, a single date or datetime).
