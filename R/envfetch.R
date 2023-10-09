@@ -94,7 +94,7 @@ envfetch <- function(
   for (i in 1:num_rasters) {
     if (inherits(r[[i]], "SpatRaster") || any(file.exists(r[[i]]))) {
 
-      if (any(file.exists(r[[i]])) && !all(file.exists(r[[i]]))) {
+      if (!inherits(r[[i]], "SpatRaster") && any(file.exists(r[[i]])) && !all(file.exists(r[[i]]))) {
         stop(paste('Raster file at', r[[i]][!file.exists(r[[i]])], 'does not exist.'))
       }
 
