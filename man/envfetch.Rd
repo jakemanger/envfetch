@@ -17,9 +17,7 @@ envfetch(
   cache_dir = file.path(out_dir, "cache/"),
   time_column_name = NULL,
   .time_rep = NA,
-  initialise_gee = TRUE,
-  use_gcs = FALSE,
-  use_drive = FALSE,
+  init_gee = TRUE,
   ...
 )
 }
@@ -49,6 +47,8 @@ envfetch(
 \item{.time_rep}{Specifies repeating time intervals for extraction. Default is \code{NA}.}
 
 \item{...}{Additional arguments for underlying extraction functions.}
+
+\item{verbose}{Whether to print progress and what stage of the extraction you are. Default is TRUE.}
 }
 \value{
 An enhanced version of the input \code{sf} collection, \code{x}, augmented with the extracted environmental data.

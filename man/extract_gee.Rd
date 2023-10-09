@@ -15,15 +15,15 @@ extract_gee(
   initialise_gee = TRUE,
   use_gcs = FALSE,
   use_drive = FALSE,
-  max_chunk_time_day_range = 64,
-  max_feature_collection_size = 10000,
+  max_chunk_time_day_range = 365,
+  max_feature_collection_size = 5000,
   ee_reducer_fun = rgee::ee$Reducer$mean(),
-  cache_progress = TRUE,
-  cache_dir = "./",
   time_column_name = NULL,
   parallel = FALSE,
+  max_memory_per_core_mb = 10000,
   workers = future::availableCores(),
   create_parallel_plan = TRUE,
+  verbose = TRUE,
   ...
 )
 }
@@ -61,25 +61,31 @@ requests. Default is FALSE.}
 
 \item{max_chunk_time_day_range}{An integer representing the maximum number of days to include
 in each time chunk when splitting the dataset for efficient
-memory use on Google Earth Engine's end. Default is 64.}
+memory use on Google Earth Engine's end. Default is 365.}
 
 \item{max_feature_collection_size}{An integer representing the maximum number of features
 (rows) to include in each chunk when splitting the
 dataset for efficient memory use on Google Earth Engine's end.
-Default is 10000.}
+Default is 5000.}
 
 \item{ee_reducer_fun}{A Google Earth Engine reducer function representing the function
 used to aggregate the data extracted from each image. Default is
 rgee::ee$Reducer$mean().}
 
-\item{cache_progress}{A logical indicating whether to cache the progress of the extraction
-for resuming in case of interruptions. Default is TRUE.}
-
-\item{cache_dir}{A string representing the directory in which to save the cache files.
-Default is './'.}
-
 \item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
 is automatically selected.}
+
+\item{parallel}{Whether to use parallel processing when calculating summary information for each time range.}
+
+\item{max_memory_per_core_mb}{The RAM limit for each core when summarising and \code{parallel=TRUE} and \code{create_parallel_plan=TRUE}.}
+
+\item{workers}{The number of parallel processing workers to use for summarisation over each data point's time range.}
+
+\item{create_parallel_plan}{Whether to create the \code{future} parallel processing plan for you. If \code{TRUE} (the default),
+this will use \code{future::plan(future::multisession(workers = workers))} with the provided \code{workers} argument.}
+
+\item{...}{Additional arguments to pass to the \code{spatial_extraction_fun}.
+See https://future.futureverse.org/reference/plan.html for more parallel processing options (e.g. clusters or linux forking)}
 }
 \value{
 A dataframe or sf object with the same rows as the input \code{x}, and new columns

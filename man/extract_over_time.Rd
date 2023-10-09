@@ -7,6 +7,7 @@
 extract_over_time(
   x,
   r,
+  subds = 0,
   temporal_fun = function(x) {
      rowMeans(x, na.rm = TRUE)
  },
@@ -21,7 +22,9 @@ extract_over_time(
   is_vectorised_summarisation_function = FALSE,
   parallel = FALSE,
   workers = future::availableCores(),
+  max_memory_per_core_mb = 10000,
   create_parallel_plan = TRUE,
+  verbose = TRUE,
   ...
 )
 }
@@ -29,8 +32,10 @@ extract_over_time(
 \item{x}{An sf object containing the locations to be sampled.
 This should contain a column of type lubridate::interval to represent the time.}
 
-\item{r}{A SpatRaster object from the terra package. This is the raster data
+\item{r}{A file path to a raster file or a SpatRaster object from the terra package. This is the raster data
 source from which the data will be extracted.}
+
+\item{subds}{positive integer or character to select a sub-dataset to extract from. If zero or "", all sub-datasets are extracted.}
 
 \item{temporal_fun}{A function used to summarise multiple data points
 found within a time interval. Default is \code{rowMeans(x, na.rm=TRUE)}. The user
@@ -67,8 +72,12 @@ necessary to be TRUE if the row-wise vectorised summarisation function has not b
 
 \item{workers}{The number of parallel processing workers to use for summarisation over each data point's time range.}
 
+\item{max_memory_per_core_mb}{The RAM limit for each core when summarising and \code{parallel=TRUE} and \code{create_parallel_plan=TRUE}.}
+
 \item{create_parallel_plan}{Whether to create the \code{future} parallel processing plan for you. If \code{TRUE} (the default),
-this will use \code{future::plan(future::multisession(workers = workers))} with the provided \code{workers} argument.
+this will use \code{future::plan(future::multisession(workers = workers))} with the provided \code{workers} argument.}
+
+\item{...}{Additional arguments to pass to the \code{spatial_extraction_fun}.
 See https://future.futureverse.org/reference/plan.html for more parallel processing options (e.g. clusters or linux forking)}
 }
 \value{

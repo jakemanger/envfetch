@@ -37,6 +37,8 @@ is automatically selected.}
 
 \item{.time_rep}{A \code{time_rep} object. Used to repeat data extraction along repeating time intervals before and after the original datetime.
 This can be relative to the start or the end of the input time interval (specified by the \code{relative_to_start} argument of \code{time_rep}). Defaults to the start.}
+
+\item{verbose}{Whether to print progress and what stage of the extraction you are. Default is TRUE.}
 }
 \value{
 tibble An augmented tibble with additional data fetched using supplied functions.

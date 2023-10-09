@@ -25,7 +25,7 @@ library(rgee)
 
 ee_install(py_env = 'rgee')
 
-ee_Initialise()
+ee_Initialize()
 ```
 
 and follow the prompts (saying `Y` when prompted).
@@ -77,7 +77,19 @@ We can visualise our input data with a plot:
 ``` r
 library(ggplot2)
 library(rnaturalearth)
+#> The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
+#> which was just loaded, were retired in October 2023.
+#> Please refer to R-spatial evolution reports for details, especially
+#> https://r-spatial.org/r/2023/05/15/evolution4.html.
+#> It may be desirable to make the sf package available;
+#> package maintainers should consider adding sf to Suggests:.
+#> Support for Spatial objects (`sp`) will be deprecated in {rnaturalearth} and will be removed in a future release of the package. Please use `sf` objects with {rnaturalearth}. For example: `ne_download(returnclass = 'sf')`
 library(rnaturalearthdata)
+#> 
+#> Attaching package: 'rnaturalearthdata'
+#> The following object is masked from 'package:rnaturalearth':
+#> 
+#>     countries110
 
 # load map of australia for reference
 world <- ne_countries(scale = "medium", returnclass = "sf")
@@ -115,12 +127,10 @@ such as `'/path/to/netcdf.nc'`.
 ``` r
 example_nc_path <- system.file("extdata", "example.nc", package = "envfetch")
 extracted <- envfetch(x = d, r = example_nc_path)
-
-
 #> ── 🥏 🐕 Fetching your data ────────────────────────────────────────────────────────────────────────────────
 #> → Parsing time column
 #> ℹ Running ~extract_over_time(x = .x, r = r[[i]], temporal_fun = temporal_fun[[i]], spatial_fun = spatial_fun[[i]], ...)
-#> → Loading raster file
+#> → Loading raster at path/to/envfetch/inst/extdata/example.nc
 #> → Finding relevant time slices
 #> → Extracting data...
 #> → 626080 Kbs of RAM is required for extraction and 2114265600 Kbs of RAM is available
@@ -136,8 +146,6 @@ or from a data set hosted on google earth engine.
 
 ``` r
 extracted <- envfetch(x = d, r = 'MODIS/061/MOD13Q1')
-
-
 #> ── rgee 1.1.5 ─────────────────────────────────────────────────────────────────── earthengine-api 0.1.323 ── 
 #>  ✔ user: not_defined
 #>  ✔ Initializing Google Earth Engine:  DONE!
@@ -166,8 +174,6 @@ extracted <- envfetch(
     'MODIS/061/MOD13Q1'
   )
 )
-
-
 #> ── rgee 1.1.5 ─────────────────────────────────────────────────────────────────── earthengine-api 0.1.323 ── 
 #>  ✔ user: not_defined
 #>  ✔ Initializing Google Earth Engine:  DONE!
@@ -203,8 +209,6 @@ extracted <- envfetch(
     'mean'
   )
 )
-
-
 #> ── rgee 1.1.5 ─────────────────────────────────────────────────────────────────── earthengine-api 0.1.323 ── 
 #>  ✔ user: not_defined
 #>  ✔ Initializing Google Earth Engine:  DONE!
@@ -214,7 +218,7 @@ extracted <- envfetch(
 #> ── 🥏 🐕 Fetching your data ────────────────────────────────────────────────────────────────────────────────
 #> → Parsing time column
 #> ℹ Running ~extract_over_time(x = .x, r = r[[i]], temporal_fun = temporal_fun[[i]], spatial_fun = spatial_fun[[i]], ...)
-#> → Loading raster file
+#> → Loading raster at path/to/envfetch/inst/extdata/example.nc
 #> → Finding relevant time slices
 #> → Extracting data...
 #> → 626080 Kbs of RAM is required for extraction and 2163716352 Kbs of RAM is available

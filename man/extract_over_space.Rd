@@ -14,6 +14,7 @@ extract_over_space(
   extraction_fun = terra::extract,
   resample_scale = NULL,
   resample_fun = NULL,
+  verbose = TRUE,
   ...
 )
 }

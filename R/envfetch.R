@@ -138,7 +138,7 @@ envfetch <- function(
         # check whether we have already initialised with these settings
         users <- tryCatch(
           {
-            rgee::ee_users()
+             rgee::ee_users(quiet=TRUE)
           },
           error=function(cond) {
             return(NA)
@@ -147,7 +147,7 @@ envfetch <- function(
 
         # if not already initialised or if any of the settings aren't what was
         # requested, initialise
-        if (is.na(users) || (users$EE != 1 && (users$GD == 1) != use_drive && (users$GCS == 1) != use_gcs))
+        if (any(is.na(users)) || (users$EE != 1 && (users$GD == 1) != use_drive && (users$GCS == 1) != use_gcs))
           rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
         init_gee = FALSE
