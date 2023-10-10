@@ -80,8 +80,8 @@ extract_gee <- function(
   initialise_gee=TRUE,
   use_gcs=FALSE,
   use_drive=FALSE,
-  max_chunk_time_day_range=365,
-  max_feature_collection_size=5000,
+  max_chunk_time_day_range=183,
+  max_feature_collection_size=500,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   time_column_name=NULL,
   parallel=FALSE,
@@ -97,7 +97,7 @@ extract_gee <- function(
 
   if (parallel && create_parallel_plan) {
     options('future.globals.maxSize' = max_memory_per_core_mb * 1024 ^2)
-    future::plan(future::multisession(workers = workers))
+    future::plan('future::multisession', workers = workers)
   }
 
   x$original_order <- 1:nrow(x)  # use a id column to return array back to original order
@@ -123,12 +123,10 @@ extract_gee <- function(
   pts_chunks <- split_time_chunks(x, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
 
   if (verbose)
-    pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks)*3)
+    pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks))
 
   extracteds <- lapply(pts_chunks, function(chunk) {
     p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
-    if (verbose)
-      cli::cli_progress_update(id=pb)
 
     # get min and max dates from the x tibble
     chunk_time_column <- chunk %>% dplyr::pull(time_column_name)
@@ -136,9 +134,6 @@ extract_gee <- function(
     max_datetime <- max(lubridate::int_end(chunk_time_column)) + time_buffer
     min_datetime <- format(min_datetime, "%Y-%m-%dT%H:%M:%S")
     max_datetime <- format(max_datetime, "%Y-%m-%dT%H:%M:%S")
-
-    if (verbose)
-      cli::cli_progress_update(id=pb)
 
     check_dataset(min_datetime, max_datetime, collection_name)
 
@@ -150,9 +145,6 @@ extract_gee <- function(
       ic <- ic$select(bands)
     }
 
-    if (verbose)
-      cli::cli_progress_update(id=pb)
-
     via <- 'getInfo'
 
     if (use_gcs)
@@ -160,7 +152,6 @@ extract_gee <- function(
 
     if (use_drive)
       via <- 'drive'
-
 
     # if supplied as rgee::ee$Reducer$mean instead of rgee::ee$Reducer$mean()
     if (is.function(ee_reducer_fun)) {
@@ -182,6 +173,10 @@ extract_gee <- function(
     # use this to make sure the correct columns
     # are sampled below
     extracted[is.na(extracted)] <- 'No data'
+
+    if (verbose)
+      cli::cli_progress_update(id=pb)
+
     return(extracted)
   })
 

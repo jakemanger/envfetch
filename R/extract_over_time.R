@@ -92,7 +92,7 @@ extract_over_time <- function(
   }
   if (parallel && create_parallel_plan) {
     options('future.globals.maxSize' = max_memory_per_core_mb * 1024 ^2)
-    future::plan(future::multisession(workers = workers))
+    future::plan('future::multisession', workers = workers)
   }
 
   if (is.character(r)) {

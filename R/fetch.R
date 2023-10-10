@@ -60,16 +60,25 @@ fetch <- function(
     time_column_name=NULL,
     .time_rep=NA
 ) {
+  # capture the supplied ... arguments as a list to preserve names
+  args <- c(...)
 
-  verbose <- list(...)$verbose
-  if (length(verbose) == 0)
-    verbose = TRUE
+  verbose <- ifelse("verbose" %in% names(args), args$verbose, TRUE)
 
   if (verbose)
     cli::cli_h1(cli::col_black('🥏 🐕 Fetching your data'))
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
+
+  parallel <- ifelse("parallel" %in% names(args), args$parallel, FALSE)
+
+  if (parallel) {
+    if (!requireNamespace("future", quietly = TRUE) |
+        !requireNamespace("furrr", quietly = TRUE)) {
+      stop("Please install both 'future' and 'furrr' packages to use the parallel summarisation option.")
+    }
+  }
 
   simple_extraction <- FALSE
 
@@ -117,9 +126,6 @@ fetch <- function(
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
   hash <- rlang::hash(x)
 
-
-  # capture the supplied ... arguments as a list to preserve names
-  args <- c(...)
 
   # remove elements that aren't functions and raise a warning if any are
   is_function <- sapply(args, function(x) {is.function(x) || purrr::is_formula(x)})

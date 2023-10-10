@@ -130,14 +130,15 @@ envfetch <- function(
         use_gcs = FALSE
         use_drive = FALSE
 
-        if (!is.null(list(...)$use_gcs) && list(...)$use_gcs)
-          use_gcs = TRUE
-        if (!is.null(list(...)$use_drive) && list(...)$use_drive)
-          use_drive = TRUE
+        args <- c(...)
+
+        use_gcs <- ifelse("use_gcs" %in% names(args), args$use_gcs, FALSE)
+        use_drive <- ifelse("use_drive" %in% names(args), args$use_drive, FALSE)
 
         # check whether we have already initialised with these settings
         users <- tryCatch(
           {
+             rgee::ee_user_info() # will fail here if not initialised
              rgee::ee_users(quiet=TRUE)
           },
           error=function(cond) {

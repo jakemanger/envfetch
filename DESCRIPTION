@@ -23,7 +23,12 @@ Suggests:
     testthat (>= 3.0.0),
     ggplot2,
     knitr,
-    rmarkdown
+    rmarkdown,
+    rnaturalearthdata,
+    rnaturalearth,
+    furrr,
+    future,
+    sf
 Config/testthat/edition: 3
 Imports: 
     cli,
@@ -33,7 +38,6 @@ Imports:
     magrittr,
     purrr,
     rgee,
-    rnaturalearth,
     stringr,
     terra,
     tidyr
