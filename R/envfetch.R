@@ -1,10 +1,10 @@
 #' envfetch: Extract Environmental Data for Spatial-Temporal Objects
 #'
-#' `envfetch` extracts environmental data based on spatial-temporal inputs from local raster datasets or Google Earth Engine.
+#' `envfetch` extracts environmental data of spatial-temporal inputs from local raster datasets or Google Earth Engine.
 #' The function includes features for caching, memory management, and data summarisation. For extracting from multiple data
-#' sources, specify the `r`, `bands` and `temporal_fun` parameters accordingly.
+#' sources, ensure any custom parameters for `r`, `bands`, `temporal_fun` or `spatial_fun` are specified appropriately.
 #'
-#' @param x A tibble containing an `sf` "geometry" column, and optionally, a time column.
+#' @param x A `sf` collection with a geometry column and a time column.
 #' @param r Specifies the data source: either a local raster file path (which can include subdatasets) or a Google Earth Engine collection name. For multiple sources, provide a list and also specify the `bands` and `temporal_fun`, and optionally `time_column_name`, parameters accordingly.
 #' @param bands Numeric or character vector specifying band numbers or names to extract. Use `NULL` to extract all bands. For multiple sources, provide a list of vectors.
 #' @param temporal_fun Function or string used to summarize data for each time interval. Default is `mean(x, na.rm=TRUE)`. For Google Earth Engine, the string `'last'` returns the value closest to the start of the time interval. For multiple sources, provide a list of functions or strings.
@@ -16,12 +16,14 @@
 #' @param cache_dir Directory for caching files. Default is `./output/cache/`.
 #' @param time_column_name Name of the time column in `x`. Use `NULL` to auto-select a time column of type `lubridate::interval`. Default is NULL.
 #' @param .time_rep Specifies repeating time intervals for extraction. Default is `NA`.
-#' @param verbose Whether to print progress and what stage of the extraction you are. Default is TRUE.
+#' @param init_gee A logical indicating whether to initialise Google Earth Engine within the function. Default is TRUE.
 #' @param ... Additional arguments for underlying extraction functions.
+#' @inheritDotParams extract_over_time -x -r -subds -temporal_fun -spatial_extraction_fun
+#' @inheritDotParams extract_gee -x -collection_name -bands -temporal_fun -initialise_gee -ee_reducer_fun
 #'
 #' @details
 #' `envfetch` serves as a high-level wrapper for specific data extraction methods:
-#' - For local raster files, it employs either `extract_over_space` or `extract_over_time`.
+#' - For local raster files, it employs `extract_over_time`.
 #' - For Google Earth Engine collections, it uses `extract_gee`.
 #' It also supports caching, allowing you to avoid repeated calculations and
 #' resume work after interruptions.
@@ -135,21 +137,7 @@ envfetch <- function(
         use_gcs <- ifelse("use_gcs" %in% names(args), args$use_gcs, FALSE)
         use_drive <- ifelse("use_drive" %in% names(args), args$use_drive, FALSE)
 
-        # check whether we have already initialised with these settings
-        users <- tryCatch(
-          {
-             rgee::ee_user_info() # will fail here if not initialised
-             rgee::ee_users(quiet=TRUE)
-          },
-          error=function(cond) {
-            return(NA)
-          }
-        )
-
-        # if not already initialised or if any of the settings aren't what was
-        # requested, initialise
-        if (any(is.na(users)) || (users$EE != 1 && (users$GD == 1) != use_drive && (users$GCS == 1) != use_gcs))
-          rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
+        rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
         init_gee = FALSE
       }

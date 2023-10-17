@@ -127,7 +127,7 @@ fetch <- function(
   hash <- rlang::hash(x)
 
 
-  # remove elements that aren't functions and raise a warning if any are
+  # split ... arguments and functions
   is_function <- sapply(args, function(x) {is.function(x) || purrr::is_formula(x)})
   if (!is.null(names(args))) {
     unnamed <- names(args) == '' | startsWith(names(args), '...') # in case an argument is a function
@@ -262,7 +262,7 @@ fetch <- function(
           paste0(
             'Check the output directory (',
             out_dir,
-            ') for your saved shapefile with your extracted x.'
+            ') for your saved vector data with your extracted x.'
           )
         )
       )

@@ -7,8 +7,7 @@
 #' of each interval in the dataset. This function is best used within the
 #' `fetch` function.
 #'
-#' @param x An sf object containing the locations to be sampled.
-#'               This should contain a time column of type lubridate::interval.
+#' @param x A `sf` collection with a geometry column and a time column.
 #' @param collection_name A character string representing the Google Earth Engine
 #'                        image collection from which to extract data.
 #' @param bands A vector of character strings representing the band names to extract
@@ -39,7 +38,7 @@
 #'                       used to aggregate the data extracted from each image. Default is
 #'                       rgee::ee$Reducer$mean().
 #' @inheritParams extract_over_time
-#' @param ...
+#' @param ... Additional arguments for underlying extraction function, `rgee::ee_extract`.
 #' @return A dataframe or sf object with the same rows as the input `x`, and new columns
 #'         representing the extracted data. The new column names correspond to the `bands` parameter.
 #' @export
@@ -100,7 +99,8 @@ extract_gee <- function(
     future::plan('future::multisession', workers = workers)
   }
 
-  x$original_order <- 1:nrow(x)  # use a id column to return array back to original order
+  # use an id column to return array back to original order at end
+  x$original_order <- 1:nrow(x)
 
   if (is.null(time_column_name)) {
     time_column_name <- find_time_column_name(x)
@@ -116,7 +116,7 @@ extract_gee <- function(
     lubridate::with_tz(lubridate::int_end(time_column_after_sort), 'UTC'),
   )
 
-  # chunk incorporating the start date of intervals to ensure efficient memory usage on gee's end
+  # chunk incorporating the start date of intervals to ensure efficient memory usage on gee's end.
   # otherwise, gee will need to extract raster data from the full time range of
   # the dataset
   x$start_time <- x %>% dplyr::pull(time_column_name) %>% lubridate::int_start() %>% as.Date()
@@ -125,6 +125,7 @@ extract_gee <- function(
   if (verbose)
     pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks))
 
+  # run extractions over each chunk
   extracteds <- lapply(pts_chunks, function(chunk) {
     p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
 
@@ -170,9 +171,13 @@ extract_gee <- function(
       ...
     )
 
-    # use this to make sure the correct columns
-    # are sampled below
-    extracted[is.na(extracted)] <- 'No data'
+    # temporarily set NAs to NULL to distinguish between NAs introduced by
+    # bind_rows and NAs from missing data (this case). See below.
+    extracted[is.na(extracted)] <- NULL
+
+    # drop geometry as it uses too much ram and data will be in the same order
+    # as x after bind_rows
+    extracted <- sf::st_drop_geometry(extracted)
 
     if (verbose)
       cli::cli_progress_update(id=pb)
@@ -180,16 +185,16 @@ extract_gee <- function(
     return(extracted)
   })
 
+  # combine extracted data into tibble
   extracted <- dplyr::bind_rows(extracteds)
   # nas are created by bind rows without the same number of columns,
-  # so we use this string trick to make sure we don't mix up no data with
-  # NAs introduced by bind_rows
+  # so we use this string trick to make sure we don't mix up no data from the
+  # extract with NAs introduced by bind_rows. NAs introduced by bind_rows are
+  # set to 'No sample', as we did not sample them and NAs from missing data are
+  # set to NA.
   extracted[is.na(extracted)] <- 'No sample'
-  extracted_no_geom <- extracted %>% sf::st_drop_geometry()
-  extracted_no_geom[extracted_no_geom=='No data'] <- NA
-  sf::st_geometry(extracted_no_geom) <- sf::st_geometry(extracted)
-  extracted <- extracted_no_geom
-  extracted_no_geom <- NULL
+  extracted[is.null(extracted)] <- NA
+  extracted <- NULL
 
 
   if (ncol(extracted) == 2) {
@@ -197,8 +202,8 @@ extract_gee <- function(
   }
 
   if (debug) {
-    missing_some_data <- apply(is.na(sf::st_drop_geometry(extracted)), 1, any)
-    missing_all_data <- apply(is.na(sf::st_drop_geometry(extracted)), 1, all)
+    missing_some_data <- apply(is.na(extracted), 1, any)
+    missing_all_data <- apply(is.na(extracted), 1, all)
     extracted$missing_status <- dplyr::if_else(
       missing_all_data,
       'All missing',
@@ -208,7 +213,7 @@ extract_gee <- function(
     print(
       ggplot2::ggplot(data = world) +
         ggplot2::geom_sf() +
-        ggplot2::geom_sf(data = extracted, ggplot2::aes(color = missing_status), size = 2) +
+        ggplot2::geom_sf(data = x, ggplot2::aes(color = missing_status), size = 2) +
         ggplot2::scale_color_manual(values = c("blue", "orange", "red")) +
         ggplot2::labs(color = "Missing Data") +
         ggplot2::theme_minimal()
@@ -218,20 +223,21 @@ extract_gee <- function(
   if (verbose)
     cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
 
-  extracted <- extracted[,stringr::str_starts(colnames(extracted), 'X')] %>% sf::st_drop_geometry()
+  # prepare data needed for summarisation
+  extracted <- extracted[,stringr::str_starts(colnames(extracted), 'X')]
   clnames <- colnames(extracted)
   tms <- as.Date(unlist(lapply(clnames, get_date_from_gee_colname)))
   nms <- stringr::str_split_i(clnames, '_', 4)
-
   new_col_names <- unique(nms)
 
-  x[, new_col_names] <- NA
-
   geometry <- sf::st_geometry(x)
+  x[, new_col_names] <- NA
   x <- sf::st_drop_geometry(x)
 
+  # summarise
   x <- non_vectorised_summarisation_gee(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
 
+  # add back geometry
   sf::st_geometry(x) <- geometry
 
   # return x to its original order and assign back the time column

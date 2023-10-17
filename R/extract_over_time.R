@@ -1,10 +1,12 @@
 #' Extract values from a raster over time
 #'
 #' This function extracts raster data over time ranges of each row and
-#' summarises the extracted data using a custom function.
+#' summarises the extracted data using a custom function. The function
+#' summarises this information for each row in your dataset (`x`). This function
+#'  is best used within the `fetch` function.
 #'
-#' @param x An sf object containing the locations to be sampled.
-#' This should contain a column of type lubridate::interval to represent the time.
+#'
+#' @param x A `sf` collection with a geometry column and a time column.
 #' @param r A file path to a raster file or a SpatRaster object from the terra package. This is the raster data
 #' source from which the data will be extracted.
 #' @param subds positive integer or character to select a sub-dataset to extract from. If zero or "", all sub-datasets are extracted.
@@ -251,6 +253,7 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
   }
 
   if (parallel) {
+    browser()
     results <- furrr::future_map(unique_time_ranges, summarise)
   } else {
     results <- purrr::map(unique_time_ranges, summarise)
