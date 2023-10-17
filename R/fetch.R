@@ -5,7 +5,7 @@
 #' shows progress and estimated time to completion and
 #' allows you to repeat sampling across different times.
 #'
-#' @param x A tibble with a `sf` "geometry" and a column with time (a `lubridate` interval or date), specified by the `time_column_name` parameter.
+#' @param x A tibble with a `sf` "geometry" and a column with time (a `lubridate` interval or date), detected automatically or specified by the `time_column_name` parameter.
 #' @param ... Anonymous functions you would like to use on each row of the dataset.
 #' @param use_cache Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.
 #' Also avoids recomputing extractions between R sessions.
@@ -71,20 +71,12 @@ fetch <- function(
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
 
-  simple_extraction <- FALSE
-
   if (is.null(time_column_name)) {
     time_column_name <- find_time_column_name(x)
-  } else if (time_column_name == 'env_extract__SKIP') {
-    if (verbose)
-      cli::cli_alert_info(cli::col_black('Doing simple extraction over all time slices'))
-    simple_extraction <- TRUE
-    stop('Simple extraction not yet implemented.')
   }
 
   if (verbose)
     cli::cli_alert(cli::col_black('Parsing time column'))
-
 
   x[,time_column_name] <- x %>% parse_time_column(time_column_name)
 
@@ -117,7 +109,6 @@ fetch <- function(
   # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
   hash <- rlang::hash(x)
 
-
   # split ... arguments and functions
   is_function <- sapply(args, function(x) {is.function(x) || purrr::is_formula(x)})
   if (!is.null(names(args))) {
@@ -133,7 +124,6 @@ fetch <- function(
     dplyr::ungroup()
 
   unique_x <- x[!duplicated(x$envfetch__duplicate_ID),]
-
 
   # loop through the supplied functions
   outs <- lapply(funcs, function(fun) {

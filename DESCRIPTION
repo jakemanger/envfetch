@@ -26,9 +26,6 @@ Suggests:
     rmarkdown,
     rnaturalearthdata,
     rnaturalearth,
-    furrr,
-    future,
-    sf
 Config/testthat/edition: 3
 Imports: 
     cli,
@@ -40,5 +37,6 @@ Imports:
     rgee,
     stringr,
     terra,
-    tidyr
+    tidyr,
+    sf
 VignetteBuilder: knitr

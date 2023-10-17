@@ -4,10 +4,10 @@
 #' The function includes features for caching, memory management, and data summarisation. For extracting from multiple data
 #' sources, ensure any custom parameters for `r`, `bands`, `temporal_fun` or `spatial_fun` are specified appropriately.
 #'
-#' @param x A `sf` collection with a geometry column and a time column.
+#' @param x A `sf` collection with a geometry column and a time column (a `Date`, `datetime` or a range of datetimes as a `lubridate::interval`.
 #' @param r Specifies the data source: either a local raster file path (which can include subdatasets) or a Google Earth Engine collection name. For multiple sources, provide a list and also specify the `bands` and `temporal_fun`, and optionally `time_column_name`, parameters accordingly.
 #' @param bands Numeric or character vector specifying band numbers or names to extract. Use `NULL` to extract all bands. For multiple sources, provide a list of vectors.
-#' @param temporal_fun Function or string used to summarize data for each time interval. Default is `mean(x, na.rm=TRUE)`. For Google Earth Engine, the string `'last'` returns the value closest to the start of the time interval. For multiple sources, provide a list of functions or strings.
+#' @param temporal_fun Function or string used to summarize data for each time interval. Is ignored if time is a date or datetime. Default is `mean(x, na.rm=TRUE)`. For Google Earth Engine, the string `'last'` returns the value closest to the start of the time interval. For multiple sources, provide a list of functions or strings.
 #' @param spatial_fun Function or string used to summarize data spatially (if `x` is a polygon). Default (`'mean'`) for local files is `mean(x, na.rm=TRUE)` and for google earth engine is `rgee::ee$Reducer$mean()`. For local files, use `NULL` to not summarise spatially before summarising temporally.  If you are extracting from google earth engine, you must specify a google earth engine reducer `rgee::ee$Reducer` function (e.g. `rgee::ee$Reducer$sum()`). See https://r-spatial.github.io/rgee/reference/ee_extract.html". For different behaviour with multiple sources, provide a list of functions or strings.
 #' @param use_cache Logical flag indicating whether to use caching. Default is `TRUE`.
 #' @param out_dir Output directory for files. Default is `./output/`.
