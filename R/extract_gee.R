@@ -83,21 +83,12 @@ extract_gee <- function(
   max_feature_collection_size=500,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   time_column_name=NULL,
-  parallel=FALSE,
-  max_memory_per_core_mb=10000,
-  workers=future::availableCores(),
-  create_parallel_plan=TRUE,
   verbose=TRUE,
   ...
 ) {
 
   if (initialise_gee)
     rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
-
-  if (parallel && create_parallel_plan) {
-    options('future.globals.maxSize' = max_memory_per_core_mb * 1024 ^2)
-    future::plan('future::multisession', workers = workers)
-  }
 
   # use an id column to return array back to original order at end
   x$original_order <- 1:nrow(x)
@@ -235,7 +226,7 @@ extract_gee <- function(
   x <- sf::st_drop_geometry(x)
 
   # summarise
-  x <- non_vectorised_summarisation_gee(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
+  x <- non_vectorised_summarisation_gee(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names)
 
   # add back geometry
   sf::st_geometry(x) <- geometry
@@ -250,7 +241,7 @@ extract_gee <- function(
   return(x)
 }
 
-non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=TRUE) {
+non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
   pb <- cli::cli_progress_bar('Summarising extracted data with temporal_fun', total=nrow(x))
 
   x_time_column <- x[[time_column_name]]
@@ -285,11 +276,7 @@ non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nm
     return(temp_df)
   }
 
-  if (parallel) {
-    results <- furrr::future_map(1:nrow(x), summarise)
-  } else {
-    results <- purrr::map(1:nrow(x), summarise)
-  }
+  results <- purrr::map(1:nrow(x), summarise)
 
   x <- do.call(rbind, results)
 

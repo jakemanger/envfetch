@@ -34,13 +34,7 @@
 #' @param is_vectorised_summarisation_function Whether the summarisation is vectorised (like rowSums or rowMeans). Is only
 #' necessary to be TRUE if the row-wise vectorised summarisation function has not been automatically detected
 #' (does not use rowSums or rowMeans).
-#' @param parallel Whether to use parallel processing when calculating summary information for each time range.
-#' @param workers The number of parallel processing workers to use for summarisation over each data point's time range.
-#' @param max_memory_per_core_mb The RAM limit for each core when summarising and `parallel=TRUE` and `create_parallel_plan=TRUE`.
-#' @param create_parallel_plan Whether to create the `future` parallel processing plan for you. If `TRUE` (the default),
-#' this will use `future::plan(future::multisession(workers = workers))` with the provided `workers` argument.
 #' @param ... Additional arguments to pass to the `spatial_extraction_fun`.
-#' See https://future.futureverse.org/reference/plan.html for more parallel processing options (e.g. clusters or linux forking)
 #' @return A modified version of the input 'x' with additional columns
 #' containing the extracted data.
 #'
@@ -78,10 +72,6 @@ extract_over_time <- function(
   override_terraOptions=TRUE,
   time_column_name=NULL,
   is_vectorised_summarisation_function=FALSE,
-  parallel=FALSE,
-  workers=future::availableCores(),
-  max_memory_per_core_mb=10000,
-  create_parallel_plan=TRUE,
   verbose=TRUE,
   ...
 ) {
@@ -91,10 +81,6 @@ extract_over_time <- function(
     # so it can run much faster with big files
     terra::gdalCache(30000)
     terra::terraOptions(memfrac=0.9, progress=1)
-  }
-  if (parallel && create_parallel_plan) {
-    options('future.globals.maxSize' = max_memory_per_core_mb * 1024 ^2)
-    future::plan('future::multisession', workers = workers)
   }
 
   if (is.character(r)) {
@@ -204,11 +190,11 @@ extract_over_time <- function(
     if (multi_values_in_extraction_per_row)
       stop('You cannot use a vectorised row summarisation function with fun=NULL when extracting with polygons or lines. Use a non-vectorised alternative for the `temporal_fun` instead, e.g. `sum`, `mean` or `function(x) {mean(x, na.rm=TRUE)}')
 
-    x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=parallel)
+    x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names)
   } else {
     if (verbose)
       cli::cli_alert(cli::col_black('Detected a custom row summarisation function. Running on each row one by one.'))
-    x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=parallel)
+    x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row)
   }
 
   sf::st_geometry(x) <- geometry
@@ -216,7 +202,7 @@ extract_over_time <- function(
   return(x)
 }
 
-vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, parallel=TRUE) {
+vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
   # directly access time ranges without pipes
   time_ranges <- x[[time_column_name]]
   time_range_starts <- lubridate::int_start(time_ranges)
@@ -252,19 +238,14 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
     return(temp_df)
   }
 
-  if (parallel) {
-    browser()
-    results <- furrr::future_map(unique_time_ranges, summarise)
-  } else {
-    results <- purrr::map(unique_time_ranges, summarise)
-  }
+  results <- purrr::map(unique_time_ranges, summarise)
 
   x <- do.call(rbind, results)
 
   return(x)
 }
 
-non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row, parallel=TRUE) {
+non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row) {
   pb <- cli::cli_progress_bar("Summarising extracted data", total = nrow(x))
 
   time_ranges <- x[[time_column_name]]
@@ -292,11 +273,7 @@ non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, n
     return(temp_df)
   }
 
-  if (parallel) {
-    results <- furrr::future_map(1:nrow(x), summarise)
-  } else {
-    results <- purrr::map(1:nrow(x), summarise)
-  }
+  results <- purrr::map(1:nrow(x), summarise)
 
   x <- do.call(rbind, results)
 

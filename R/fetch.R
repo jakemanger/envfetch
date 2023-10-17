@@ -71,15 +71,6 @@ fetch <- function(
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
 
-  parallel <- ifelse("parallel" %in% names(args), args$parallel, FALSE)
-
-  if (parallel) {
-    if (!requireNamespace("future", quietly = TRUE) |
-        !requireNamespace("furrr", quietly = TRUE)) {
-      stop("Please install both 'future' and 'furrr' packages to use the parallel summarisation option.")
-    }
-  }
-
   simple_extraction <- FALSE
 
   if (is.null(time_column_name)) {
