@@ -83,6 +83,7 @@ extract_over_time <- function(
     terra::terraOptions(memfrac=0.9, progress=1)
   }
 
+  # load raster file
   if (is.character(r)) {
     file_path <- r
     r <- terra::rast(r, subds=subds)
@@ -94,21 +95,18 @@ extract_over_time <- function(
   if (verbose)
     cli::cli_alert(cli::col_black(paste('Loading raster at', file_path)))
 
+  # configure time
   dates <- terra::time(r)
-
   if (is.null(time_column_name)) {
     time_column_name <- find_time_column_name(x)
   }
-
   time_intervals <- x %>% dplyr::pull(time_column_name)
-
   lubridate::int_start(time_intervals) <- lubridate::int_start(time_intervals) - time_buffer
   lubridate::int_end(time_intervals) <- lubridate::int_end(time_intervals) + time_buffer
 
   # get min and max times from x to check for errors
   min_time <- min(lubridate::int_start(time_intervals))
   max_time <- max(lubridate::int_end(time_intervals))
-
   if (min(dates) > max_time) {
     stop('All requested data are before minimum time in data source')
   }
@@ -121,16 +119,13 @@ extract_over_time <- function(
     cli::cli_alert(cli::col_black('Finding relevant time slices'))
   r <- r[[dates <= max_time & dates >= min_time]]
   dates <- terra::time(r)
+
+  # find relevant times
   relevant_indices <- find_relevant_time_slices(dates, time_intervals)
-
-  # gc() # added here as a lot of ram gets used with a large number of x (e.g. 10000+)
-
-  if (verbose)
-    cli::cli_alert(cli::col_black('Extracting data...'))
-
+  # subset raster to the relevant times
   r_within_time <- r[[relevant_indices]]
 
-  # fix layer names to make sure there are no duplicates
+  # make sure there are no duplicates in layer names
   # so we can easily do spatial joins later
   fixed_layer_names <- make_unique_names(names(r_within_time))
   names(r_within_time) <- fixed_layer_names
@@ -138,6 +133,7 @@ extract_over_time <- function(
   nms <- names(r_within_time)
   tms <- terra::time(r_within_time)
 
+  # start extraction
   extracted <- spatial_extraction_fun(
     x = x,
     r = r_within_time,
@@ -162,27 +158,26 @@ extract_over_time <- function(
     readline(prompt = "Paused as debug=TRUE, press enter to continue.")
   }
 
+
   if (verbose)
     cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
 
+  # prepare data for summarisation
   new_col_names <- terra::varnames(r)
-
   # initialise variables with NA
   x[, new_col_names] <- NA
-
   multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)
-
   # remove ID column from extracted values
   IDs <- extracted %>% dplyr::select(ID)
   extracted <- extracted %>% dplyr::select(-c('ID'))
   # make sure that the order of the columns in extracted have not changed
   stopifnot(all(colnames(extracted) == nms))
-
   # remove the sf geometry before summarisation, as it is faster to work
   # with a dataframe
   geometry <- sf::st_geometry(x)
   x <- sf::st_drop_geometry(x)
 
+  # do summarisation
   if (verbose && contains_rowSums_or_rowMeans(temporal_fun))
     cli::cli_alert(cli::col_black('Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.'))
 
