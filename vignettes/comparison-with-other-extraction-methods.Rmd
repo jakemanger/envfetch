@@ -39,7 +39,7 @@ library(lubridate)
 library(terra)
 library(stars)
 
-num_benchmark_repeats <- 5
+num_benchmark_repeats <- 3
 
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
 
@@ -356,8 +356,7 @@ extract_duplicated_only_what_we_need_vectorised <- function(n) {
       tms = times,
       nms = names(extracted),
       time_column_name = 'time_column',
-      new_col_names = c('L7_ETMs'),
-      parallel = FALSE
+      new_col_names = c('L7_ETMs')
     )
   )
 }
@@ -399,7 +398,7 @@ extracted <- envfetch(p, r)
 ```
 
 
-## > 30x speed improvement
+## > 15x speed improvement
 
 The above optimisations result in the speed benefits found in the `envfetch`
 function.
@@ -415,8 +414,8 @@ autoplot(bm)
 ```
 
 Going from the most naive extraction solution with our small example (128 time 
-intervals), we have changed our extraction time from 30 seconds to 1 second.
-That is a speed up of more than 30x. Note, these benefits get larger both with
+intervals), we have changed our extraction time from 15 seconds to 1 second.
+That is a speed up of 15x. Note, these benefits get larger both with
 the number of time intervals that need to be extracted and how far in time
 time intervals are from one another in the raster file. Extraction tasks that
 would otherwise take multiple days can be achievable in minutes or hours with 
@@ -459,13 +458,17 @@ used internally by`envfetch()`, to allow processing of more data, while
 remaining within your quota limits (https://developers.google.com/earth-engine/guides/usage#adjustable_quota_limits).
 
 Using `ee_extract` from `rgee` will by default fail with this dataset.
-```{r, cache=TRUE}
+```{r, error=TRUE, cache=TRUE}
+rgee::ee_Initialize()
 # first half of extraction process (extracting between all time ranges)
 p_feature <- rgee::sf_as_ee(sf::st_geometry(large_p))
 
 ic <- rgee::ee$ImageCollection('MODIS/061/MOD13Q1')$
   filterBounds(p_feature)$
-  filterDate(min(int_start(p$time_column)), max(int_end(p$time_column)))
+  filterDate(
+    as.character(as_date(min(int_start(p$time_column)))),
+    as.character(as_date(max(int_end(p$time_column))))
+  )
 
 rgee_extracted <- rgee::ee_extract(
   x = ic,
@@ -475,17 +478,20 @@ rgee_extracted <- rgee::ee_extract(
   lazy = FALSE,
   sf = TRUE,
 )
-# ... you would then summarise this data
+
+# ... you would then also need to make a custom solution to summarise this data
 ```
 
 `envfetch` will process this same task in chunks to ensure it does not fail.
-It will additionally summarise the data.
+It will also summarise the data for you.
 ```{r, cache=TRUE}
 envfetch_extracted <- envfetch(large_p, 'MODIS/061/MOD13Q1')
 ```
 
-The chunk size can be optimised for your particular task by modifying arguments
-in `envfetch()`, see the [help file]().
+The chunk size can be optimised for your particular task by modifying the
+`max_chunk_time_day_range` and `max_feature_collection_size` arguments in
+`envfetch()`.
+
 
 ## `stars` has an existing local file extraction solution for single time slices
 
@@ -497,28 +503,26 @@ your raster data set, this can also bilinearly interpolate between time
 slices if your date or datetime falls between two slices in the raster.
 
 ```{r, cache=TRUE}
-# stars_r <- st_as_stars(r)
-# 
-# # no support for time intervals or a similar data structure
-# extracted <- st_extract(stars_r, p, time_column = 'time_column')
-# # returns NA
-# extracted
-# 
-# # does work with single dates or datetimes
-# single_date_p <- p
-# single_date_p$time_column <- int_start(single_date_p$time_column)
-# stars_extracted <- st_extract(stars_r, single_date_p, time_column = 'time_column')
-# 
-# # stars has comparable performance to envfetch for this case
-# # TODO: if stars is faster here, use that as the backend of the envfetch function
-# # for that particular case.
-# envfetch_extracted <- envfetch(r, single_date_p, time_column_name = 'time_column')
-# 
-# identical(stars_extracted$L7_ETMs, envfetch_extracted$L7_ETMs)
-# 
-# microbenchmark::microbenchmark(
-#   st_extract(stars_r, single_date_p, time_column = 'time_column'),
-#   envfetch(r, single_date_p, time_column_name = 'time_column', use_cache=FALSE, verbose=FALSE),
-#   times=num_benchmark_repeats
-# )
+stars_r <- st_as_stars(r)
+
+# no support for time intervals or a similar data structure
+extracted <- st_extract(stars_r, p, time_column = 'time_column')
+# returns NA
+extracted
+
+# does work with single dates or datetimes
+single_date_p <- p
+single_date_p$time_column <- int_start(single_date_p$time_column)
+stars_extracted <- st_extract(stars_r, single_date_p, time_column = 'time_column')
+
+# stars has comparable performance to envfetch for this case
+envfetch_extracted <- envfetch(r, single_date_p, time_column_name = 'time_column')
+
+identical(stars_extracted$L7_ETMs, envfetch_extracted$L7_ETMs)
+
+microbenchmark::microbenchmark(
+  st_extract(stars_r, single_date_p, time_column = 'time_column'),
+  envfetch(r, single_date_p, time_column_name = 'time_column', use_cache=FALSE, verbose=FALSE),
+  times=num_benchmark_repeats
+)
 ```

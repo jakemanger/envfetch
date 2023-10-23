@@ -19,7 +19,8 @@
 #'                    collection. Default is lubridate::days(20).
 #' @param temporal_fun A function or string representing the function used to summarise
 #'                      the data extracted for each interval. Default is 'last', which returns
-#'                      the value closest to the start of the interval.
+#'                      the value closest to the start of the interval. Other built-in options are
+#'                      'closest' and 'next'.
 #' @param debug A logical indicating whether to produce debugging plots. Default is FALSE.
 #' @param initialise_gee A logical indicating whether to initialise Google Earth Engine
 #'                       within the function. Default is TRUE.
@@ -129,10 +130,13 @@ extract_gee <- function(
 
     check_dataset(min_datetime, max_datetime, collection_name)
 
+    # first filter by min and max date +- the time buffer
+    # and filter spatially
     ic <- rgee::ee$ImageCollection(collection_name)$
-      filterBounds(p_feature)$
-      filterDate(min_datetime, max_datetime)
+      filterDate(min_datetime, max_datetime)$
+      filterBounds(p_feature)
 
+    # then select specific bands
     if (!is.null(bands)) {
       ic <- ic$select(bands)
     }
@@ -150,6 +154,7 @@ extract_gee <- function(
       ee_reducer_fun <- ee_reducer_fun()
     }
 
+    # finally do the extraction
     extracted <- rgee::ee_extract(
       x = ic,
       y = p_feature,
@@ -162,13 +167,13 @@ extract_gee <- function(
       ...
     )
 
-    # temporarily set NAs to NULL to distinguish between NAs introduced by
-    # bind_rows and NAs from missing data (this case). See below.
-    extracted[is.na(extracted)] <- NULL
-
     # drop geometry as it uses too much ram and data will be in the same order
     # as x after bind_rows
     extracted <- sf::st_drop_geometry(extracted)
+
+    # temporarily set NAs to NaN to distinguish between NAs introduced by
+    # bind_rows and NAs from missing data (this case). See below.
+    extracted[is.na(extracted)] <- NaN
 
     if (verbose)
       cli::cli_progress_update(id=pb)
@@ -178,15 +183,13 @@ extract_gee <- function(
 
   # combine extracted data into tibble
   extracted <- dplyr::bind_rows(extracteds)
-  # nas are created by bind rows without the same number of columns,
-  # so we use this string trick to make sure we don't mix up no data from the
-  # extract with NAs introduced by bind_rows. NAs introduced by bind_rows are
+  # NAs are created by bind rows without the same number of columns,
+  # so we use this trick to make sure we don't mix up no data from the
+  # data with NAs introduced by bind_rows. NAs introduced by bind_rows are
   # set to 'No sample', as we did not sample them and NAs from missing data are
   # set to NA.
-  extracted[is.na(extracted)] <- 'No sample'
-  extracted[is.null(extracted)] <- NA
-  extracted <- NULL
-
+  extracted[is.na(extracted) & !is.nan(extracted)] <- 'No sample'
+  extracted[is.nan(extracted)] <- NA
 
   if (ncol(extracted) == 2) {
     warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
@@ -259,17 +262,38 @@ non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nm
       row_values <- row_values[indx]
       row_values <- as.numeric(row_values)
 
-      if (is.character(temporal_fun) && temporal_fun == 'last') {
-        last_index <- find_closest_datetime(row_times, mn, find_closest_previous=TRUE)
+      # using a r function for the summarisation step
+      if (!is.character(temporal_fun)) {
+        index <- lubridate::`%within%`(row_times, x_time_column[i])
+        if (length(index) == 0) {
+          warning('No value returned within requested time range. Perhaps you would like to use the "closest", "last" or "next" summarisation functions instead. Returning NA')
+        }
+        temp_df[col_name] <- temporal_fun(row_values[index])
+      } # using a 'closest', 'next' or 'after' function for summarisation.
+      else if (is.character(temporal_fun) && temporal_fun == 'last') {
+        last_index <- find_closest_datetime(row_times, mn, before=TRUE)
         value <- row_values[last_index]
         if (length(value) == 0) {
           warning('last value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
           value <- NA
         }
         temp_df[col_name] <- value
-      } else {
-        index <- lubridate::`%within%`(row_times, x_time_column[i])
-        temp_df[col_name] <- temporal_fun(row_values[index])
+      } else if (is.character(temporal_fun) && temporal_fun == 'next') {
+        next_index <- find_closest_datetime(row_times, mn, before=FALSE)
+        value <- row_values[next_index]
+        if (length(value) == 0) {
+          warning('next value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
+          value <- NA
+        }
+        temp_df[col_name] <- value
+      } else if (is.character(temporal_fun) && temporal_fun == 'closest') {
+        closest_index <- find_closest_datetime(row_times, mn, before=NA)
+        value <- row_values[closest_index]
+        if (length(value) == 0) {
+          warning('closest value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
+          value <- NA
+        }
+        temp_df[col_name] <- value
       }
     }
     cli::cli_progress_update(id=pb)
@@ -281,18 +305,6 @@ non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nm
   x <- do.call(rbind, results)
 
   return(x)
-}
-
-
-find_closest_datetime <- function(dates, x, find_closest_previous=TRUE) {
-  dates <- lubridate::as_datetime(dates)
-  x <- lubridate::as_datetime(x)
-  if (find_closest_previous) {
-    # add filter to only include dates earlier than x
-    return(which(abs(dates[dates < x]-x) == min(abs(dates[dates < x] - x))))
-  } else {
-    return(which(abs(dates-x) == min(abs(dates - x))))
-  }
 }
 
 get_date_from_gee_colname <- function(my_string) {

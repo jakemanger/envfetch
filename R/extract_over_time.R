@@ -292,6 +292,7 @@ pad_true <- function(vec) {
 
 find_relevant_time_slices <- function(dates, time_intervals, pad=TRUE) {
   unique_time_intervals <- unique(time_intervals)
+
   relevant_indices <- vapply(
     dates,
     function(date) any(lubridate::`%within%`(date, unique_time_intervals)),
