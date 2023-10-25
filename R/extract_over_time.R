@@ -51,8 +51,7 @@
 #'   fetch(
 #'       ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
 #'       .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
-#'     )
-#'   }
+#'   )
 #' }
 #' @export
 extract_over_time <- function(
