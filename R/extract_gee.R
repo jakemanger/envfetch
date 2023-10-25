@@ -188,8 +188,8 @@ extract_gee <- function(
   # data with NAs introduced by bind_rows. NAs introduced by bind_rows are
   # set to 'No sample', as we did not sample them and NAs from missing data are
   # set to NA.
-  extracted[is.na(extracted) & !is.nan(extracted)] <- 'No sample'
-  extracted[is.nan(extracted)] <- NA
+  extracted[is.na(extracted) & !is.nan(as.matrix(extracted))] <- 'No sample'
+  extracted[is.nan(as.matrix(extracted))] <- NA
 
   if (ncol(extracted) == 2) {
     warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
