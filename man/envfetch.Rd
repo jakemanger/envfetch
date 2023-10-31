@@ -22,13 +22,13 @@ envfetch(
 )
 }
 \arguments{
-\item{x}{A tibble containing an \code{sf} "geometry" column, and optionally, a time column.}
+\item{x}{A \code{sf} collection with a geometry column and a time column (a \code{Date}, \code{datetime} or a range of datetimes as a \code{lubridate::interval}.}
 
 \item{r}{Specifies the data source: either a local raster file path (which can include subdatasets) or a Google Earth Engine collection name. For multiple sources, provide a list and also specify the \code{bands} and \code{temporal_fun}, and optionally \code{time_column_name}, parameters accordingly.}
 
 \item{bands}{Numeric or character vector specifying band numbers or names to extract. Use \code{NULL} to extract all bands. For multiple sources, provide a list of vectors.}
 
-\item{temporal_fun}{Function or string used to summarize data for each time interval. Default is \code{mean(x, na.rm=TRUE)}. For Google Earth Engine, the string \code{'last'} returns the value closest to the start of the time interval. For multiple sources, provide a list of functions or strings.}
+\item{temporal_fun}{Function or string used to summarize data for each time interval. Is ignored if time is a date or datetime. Default is \code{mean(x, na.rm=TRUE)}. For Google Earth Engine, the string \code{'last'} returns the value before the start of the time interval, \code{'next'} returns the value after the start of the time interval and \code{'closest'} finds the closest value to the start of the time interval. For multiple sources, provide a list of functions or strings.}
 
 \item{spatial_fun}{Function or string used to summarize data spatially (if \code{x} is a polygon). Default (\code{'mean'}) for local files is \code{mean(x, na.rm=TRUE)} and for google earth engine is \code{rgee::ee$Reducer$mean()}. For local files, use \code{NULL} to not summarise spatially before summarising temporally.  If you are extracting from google earth engine, you must specify a google earth engine reducer \code{rgee::ee$Reducer} function (e.g. \code{rgee::ee$Reducer$sum()}). See https://r-spatial.github.io/rgee/reference/ee_extract.html". For different behaviour with multiple sources, provide a list of functions or strings.}
 
@@ -46,22 +46,49 @@ envfetch(
 
 \item{.time_rep}{Specifies repeating time intervals for extraction. Default is \code{NA}.}
 
-\item{...}{Additional arguments for underlying extraction functions.}
+\item{init_gee}{A logical indicating whether to initialise Google Earth Engine within the function. Default is TRUE.}
 
-\item{verbose}{Whether to print progress and what stage of the extraction you are. Default is TRUE.}
+\item{...}{
+  Arguments passed on to \code{\link[=extract_over_time]{extract_over_time}}, \code{\link[=extract_gee]{extract_gee}}
+  \describe{
+    \item{\code{time_buffer}}{Time buffer used to adjust the time interval for data extraction.
+The function always uses the time before and after the interval to prevent errors
+when summarising the earliest and latest times. Default is 0 days.}
+    \item{\code{debug}}{If TRUE, pauses the function and displays a plot for each extracted
+point. This is useful for debugging unexpected extracted values. Default is FALSE.}
+    \item{\code{override_terraOptions}}{If TRUE, overrides terra's default terraOptions
+with those specified in the envfetch's package. Default is TRUE.}
+    \item{\code{is_vectorised_summarisation_function}}{Whether the summarisation is vectorised (like rowSums or rowMeans). Is only
+necessary to be TRUE if the row-wise vectorised summarisation function has not been automatically detected
+(does not use rowSums or rowMeans).}
+    \item{\code{scale}}{A numeric value representing the scale at which to perform the
+extraction in meters. Default is 250.}
+    \item{\code{use_gcs}}{A logical indicating whether to use Google Cloud Storage for
+larger requests. Default is FALSE.}
+    \item{\code{use_drive}}{A logical indicating whether to use Google Drive for larger
+requests. Default is FALSE.}
+    \item{\code{max_chunk_time_day_range}}{An integer representing the maximum number of days to include
+in each time chunk when splitting the dataset for efficient
+memory use on Google Earth Engine's end. Default is 365.}
+    \item{\code{max_feature_collection_size}}{An integer representing the maximum number of features
+(rows) to include in each chunk when splitting the
+dataset for efficient memory use on Google Earth Engine's end.
+Default is 5000.}
+  }}
 }
 \value{
 An enhanced version of the input \code{sf} collection, \code{x}, augmented with the extracted environmental data.
 }
 \description{
-\code{envfetch} extracts environmental data based on spatial-temporal inputs from local raster datasets or Google Earth Engine.
+\code{envfetch} extracts environmental data of spatial-temporal inputs from local raster datasets or Google Earth Engine.
+The time or time range for the extraction can vary between geometries.
 The function includes features for caching, memory management, and data summarisation. For extracting from multiple data
-sources, specify the \code{r}, \code{bands} and \code{temporal_fun} parameters accordingly.
+sources, ensure any custom parameters for \code{r}, \code{bands}, \code{temporal_fun} or \code{spatial_fun} are specified appropriately.
 }
 \details{
 \code{envfetch} serves as a high-level wrapper for specific data extraction methods:
 \itemize{
-\item For local raster files, it employs either \code{extract_over_space} or \code{extract_over_time}.
+\item For local raster files, it employs \code{extract_over_time}.
 \item For Google Earth Engine collections, it uses \code{extract_gee}.
 It also supports caching, allowing you to avoid repeated calculations and
 resume work after interruptions.

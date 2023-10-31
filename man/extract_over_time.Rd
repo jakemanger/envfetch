@@ -20,17 +20,12 @@ extract_over_time(
   override_terraOptions = TRUE,
   time_column_name = NULL,
   is_vectorised_summarisation_function = FALSE,
-  parallel = FALSE,
-  workers = future::availableCores(),
-  max_memory_per_core_mb = 10000,
-  create_parallel_plan = TRUE,
   verbose = TRUE,
   ...
 )
 }
 \arguments{
-\item{x}{An sf object containing the locations to be sampled.
-This should contain a column of type lubridate::interval to represent the time.}
+\item{x}{A \code{sf} collection with a geometry column and a time column.}
 
 \item{r}{A file path to a raster file or a SpatRaster object from the terra package. This is the raster data
 source from which the data will be extracted.}
@@ -68,17 +63,7 @@ is automatically selected.}
 necessary to be TRUE if the row-wise vectorised summarisation function has not been automatically detected
 (does not use rowSums or rowMeans).}
 
-\item{parallel}{Whether to use parallel processing when calculating summary information for each time range.}
-
-\item{workers}{The number of parallel processing workers to use for summarisation over each data point's time range.}
-
-\item{max_memory_per_core_mb}{The RAM limit for each core when summarising and \code{parallel=TRUE} and \code{create_parallel_plan=TRUE}.}
-
-\item{create_parallel_plan}{Whether to create the \code{future} parallel processing plan for you. If \code{TRUE} (the default),
-this will use \code{future::plan(future::multisession(workers = workers))} with the provided \code{workers} argument.}
-
-\item{...}{Additional arguments to pass to the \code{spatial_extraction_fun}.
-See https://future.futureverse.org/reference/plan.html for more parallel processing options (e.g. clusters or linux forking)}
+\item{...}{Additional arguments to pass to the \code{spatial_extraction_fun}.}
 }
 \value{
 A modified version of the input 'x' with additional columns
@@ -86,5 +71,23 @@ containing the extracted data.
 }
 \description{
 This function extracts raster data over time ranges of each row and
-summarises the extracted data using a custom function.
+summarises the extracted data using a custom function. The function
+summarises this information for each row in your dataset (\code{x}). This function
+is best used within the \code{fetch} function.
+}
+\examples{
+\dontrun{
+extracted <- d \%>\%
+  fetch(
+    ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
+  )
+
+# repeatedly extract and summarise data every fortnight for the last six months
+# relative to the start of the time column in `d`
+rep_extracted <- d \%>\%
+  fetch(
+      ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
+      .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
+  )
+}
 }

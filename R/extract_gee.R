@@ -114,6 +114,11 @@ extract_gee <- function(
   x$start_time <- x %>% dplyr::pull(time_column_name) %>% lubridate::int_start() %>% as.Date()
   pts_chunks <- split_time_chunks(x, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
 
+  # figure out min and max datetime found on gee
+  min_datetime <- min(lubridate::int_start(time_column_after_sort)) - time_buffer
+  max_datetime <- max(lubridate::int_end(time_column_after_sort)) + time_buffer
+  rgee_datetime_bounds <- check_dataset(min_datetime, max_datetime, collection_name)
+
   if (verbose)
     pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks))
 
@@ -125,10 +130,13 @@ extract_gee <- function(
     chunk_time_column <- chunk %>% dplyr::pull(time_column_name)
     min_datetime <- min(lubridate::int_start(chunk_time_column)) - time_buffer
     max_datetime <- max(lubridate::int_end(chunk_time_column)) + time_buffer
+    # if these min and max datetimes extend past the min and max in the data,
+    # trip them to the bounds in the gee dataset
+    min_datetime <- max(min_datetime, rgee_datetime_bounds[1])
+    max_datetime <- min(max_datetime, rgee_datetime_bounds[2])
+    # format the datetimes for gee
     min_datetime <- format(min_datetime, "%Y-%m-%dT%H:%M:%S")
     max_datetime <- format(max_datetime, "%Y-%m-%dT%H:%M:%S")
-
-    check_dataset(min_datetime, max_datetime, collection_name)
 
     # first filter by min and max date +- the time buffer
     # and filter spatially
@@ -382,4 +390,5 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
       )
     )
   }
+  return(c(min_date_on_rgee, max_date_on_rgee))
 }

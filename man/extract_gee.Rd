@@ -19,17 +19,12 @@ extract_gee(
   max_feature_collection_size = 500,
   ee_reducer_fun = rgee::ee$Reducer$mean(),
   time_column_name = NULL,
-  parallel = FALSE,
-  max_memory_per_core_mb = 10000,
-  workers = future::availableCores(),
-  create_parallel_plan = TRUE,
   verbose = TRUE,
   ...
 )
 }
 \arguments{
-\item{x}{An sf object containing the locations to be sampled.
-This should contain a time column of type lubridate::interval.}
+\item{x}{A \code{sf} collection with a geometry column and a time column.}
 
 \item{collection_name}{A character string representing the Google Earth Engine
 image collection from which to extract data.}
@@ -46,7 +41,8 @@ collection. Default is lubridate::days(20).}
 
 \item{temporal_fun}{A function or string representing the function used to summarise
 the data extracted for each interval. Default is 'last', which returns
-the value closest to the start of the interval.}
+the value closest to the start of the interval. Other built-in options are
+'closest' and 'next'.}
 
 \item{debug}{A logical indicating whether to produce debugging plots. Default is FALSE.}
 
@@ -75,17 +71,7 @@ rgee::ee$Reducer$mean().}
 \item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
 is automatically selected.}
 
-\item{parallel}{Whether to use parallel processing when calculating summary information for each time range.}
-
-\item{max_memory_per_core_mb}{The RAM limit for each core when summarising and \code{parallel=TRUE} and \code{create_parallel_plan=TRUE}.}
-
-\item{workers}{The number of parallel processing workers to use for summarisation over each data point's time range.}
-
-\item{create_parallel_plan}{Whether to create the \code{future} parallel processing plan for you. If \code{TRUE} (the default),
-this will use \code{future::plan(future::multisession(workers = workers))} with the provided \code{workers} argument.}
-
-\item{...}{Additional arguments to pass to the \code{spatial_extraction_fun}.
-See https://future.futureverse.org/reference/plan.html for more parallel processing options (e.g. clusters or linux forking)}
+\item{...}{Additional arguments for underlying extraction function, \code{rgee::ee_extract}.}
 }
 \value{
 A dataframe or sf object with the same rows as the input \code{x}, and new columns

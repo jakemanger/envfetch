@@ -458,7 +458,7 @@ used internally by`envfetch()`, to allow processing of more data, while
 remaining within your quota limits (https://developers.google.com/earth-engine/guides/usage#adjustable_quota_limits).
 
 Using `ee_extract` from `rgee` will by default fail with this dataset.
-```{r, error=TRUE, cache=TRUE}
+```{r eval=FALSE}
 rgee::ee_Initialize()
 # first half of extraction process (extracting between all time ranges)
 p_feature <- rgee::sf_as_ee(sf::st_geometry(large_p))
@@ -478,6 +478,9 @@ rgee_extracted <- rgee::ee_extract(
   lazy = FALSE,
   sf = TRUE,
 )
+#> Error in py_call_impl(callable, call_args$unnamed, call_args$named) :
+#> ee.ee_exception.EEException: User memory limit exceeded.
+#> Run `reticulate::py_last_error()` for details.
 
 # ... you would then also need to make a custom solution to summarise this data
 ```

@@ -17,7 +17,7 @@ fetch(
 )
 }
 \arguments{
-\item{x}{A tibble with a \code{sf} "geometry" and a column with time (a \code{lubridate} interval or date), specified by the \code{time_column_name} parameter.}
+\item{x}{A tibble with a \code{sf} "geometry" and a column with time (a \code{lubridate} interval or date), detected automatically or specified by the \code{time_column_name} parameter.}
 
 \item{...}{Anonymous functions you would like to use on each row of the dataset.}
 
