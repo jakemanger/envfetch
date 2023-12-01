@@ -26,6 +26,7 @@
 #' `envfetch` serves as a high-level wrapper for specific data extraction methods:
 #' - For local raster files, it employs `extract_over_time`.
 #' - For Google Earth Engine collections, it uses `extract_gee`.
+#'
 #' It also supports caching, allowing you to avoid repeated calculations and
 #' resume work after interruptions.
 #'
@@ -95,9 +96,13 @@ envfetch <- function(
   functions <- c()
 
   for (i in 1:num_rasters) {
-    if (inherits(r[[i]], "SpatRaster") || any(file.exists(r[[i]]))) {
+    if (inherits(r[[i]], "SpatRaster") || inherits(r[[i]], "stars") || any(file.exists(r[[i]]))) {
 
-      if (!inherits(r[[i]], "SpatRaster") && any(file.exists(r[[i]])) && !all(file.exists(r[[i]]))) {
+      if (
+        (!inherits(r[[i]], "SpatRaster") && !inherits(r[[i]], "stars"))
+        && any(file.exists(r[[i]]))
+        && !all(file.exists(r[[i]]))
+      ) {
         stop(paste('Raster file at', r[[i]][!file.exists(r[[i]])], 'does not exist.'))
       }
 
@@ -123,6 +128,24 @@ envfetch <- function(
         subds=bands[[i]]
       }
 
+      if (requireNamespace("stars", quietly = TRUE)) {
+        if (is.null(time_column_name)) {
+          time_column_name <- find_time_column_name(x)
+        }
+        time <- x %>% sf::st_drop_geometry() %>% dplyr::pull(time_column_name)
+        if (!is.interval(time) && is_date(time)) {
+          # if the user wants to extract single time slices, use the optimised
+          # approach of stars
+          functions <- c(
+            functions,
+            create_st_extract_function(r[[i]], subds, spatial_fun[[i]])
+          )
+          next  # go to next loop iteration
+        }
+      }
+
+
+      # otherwise, use our approach for summarising multiple time slices
       functions <- c(
         functions,
         create_extract_over_time_function(r[[i]], subds, temporal_fun[[i]], spatial_fun[[i]])
@@ -222,6 +245,22 @@ create_extract_over_time_function <- function(r, subds, temporal_fun, spatial_fu
       spatial_fun = spatial_fun,
       ...
     )
+  )
+}
+
+create_st_extract_function <- function(r, bands, spatial_fun) {
+  force(r)
+  force(bands)
+  force(spatial_fun)
+
+  return(
+    function(.x, verbose=FALSE) {
+      # convert time intervals spanning single dates to dates
+      .x$time_column <- lubridate::as_date(lubridate::int_start(.x$time_column))
+      return(
+        stars::st_extract(stars::st_as_stars(r), .x, time_column = 'time_column')
+      )
+    }
   )
 }
 

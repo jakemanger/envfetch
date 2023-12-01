@@ -137,7 +137,7 @@ extracted <- envfetch(x = d, r = example_nc_path)
 or from a data set hosted on google earth engine.
 
 ```{r, output='asconsole'}
-extracted <- envfetch(x = d, r = 'MODIS/061/MOD13Q1')
+extracted <- envfetch(x = d, r = 'MODIS/061/MOD13Q1', use_cache=F)
 ```
 
 If you want to extract from multiple data sets at once, specify multiple items

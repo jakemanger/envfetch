@@ -106,8 +106,8 @@ fetch <- function(
   # remove unnecessary columns so caching can work here and to make things work faster
   x <- x %>% dplyr::select(-c(extra_cols))
 
-  # create unique name to cache progress of extracted point data (so you can continue if you lose progress)
-  hash <- rlang::hash(x)
+  # create hash of input unique name to cache progress of extracted point data (so you can continue if you lose progress)
+  input_hash <- rlang::hash(x)
 
   # split ... arguments and functions
   is_function <- sapply(args, function(x) {is.function(x) || purrr::is_formula(x)})
@@ -136,30 +136,10 @@ fetch <- function(
       fun_string <- gsub("\\s+", " ", fun_string)
     }
 
-    # generate unique hash with dataset and function
-    # to save progress
-    # and either read cached output or run the function
-    function_env <- environment(fun)
-    function_args <- sapply(ls(function_env), function(x) {
-      out <- get(x, envir = function_env)
-      is_function <- is.function(out) || purrr::is_formula(out)
-      if (is_function) {
-        # bytecode strings can mess up unique cache hashes the second time you run it
-        # so we deparse these function arguments as strings and then make the has
-        # the function string with the function args to make our hash
-        if ('signature' %in% names(out)) {
-          # special case to support ee Reducer functions
-          out <- out$signature$name
-        } else {
-          out <- deparse(out)
-        }
-      }
-      return(out)
-    })
+    if (use_cache)
+      outpath <- get_cache_path(fun, input_hash, fun_string, cache_dir)
 
-    outpath <- file.path(cache_dir, paste0(hash, '_', rlang::hash(capture.output(c(fun_string, function_args))), '.rds'))
-
-    if (!use_cache || !file.exists(outpath)) {
+    if (!use_cache || (use_cache && !file.exists(outpath))) {
       if (verbose)
         cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
 
@@ -169,13 +149,13 @@ fetch <- function(
       out <- out[,!(colnames(out) %in% colnames(unique_x))]
       out <- sf::st_drop_geometry(out)
       if (verbose)
-        cli::cli_alert_success(cli::col_green(paste('🐶 Completed', fun_string)))
+        cli::cli_alert_success(cli::col_green(paste('🐶 Completed', '{fun_string}')))
 
       if (use_cache)
         saveRDS(out, outpath)
     } else {
       if (verbose)
-        cli::cli_alert_success(cli::col_green(paste('🕳️🦴 Dug up cached result of', fun_string)))
+        cli::cli_alert_success(cli::col_green(paste('🕳️🦴 Dug up cached result of', '{fun_string}')))
       out <- readRDS(outpath)
     }
     return(out)
@@ -258,4 +238,29 @@ fetch <- function(
 getFileExtension <- function(file) {
   splt <- strsplit(file, ".", fixed=T)[[1]][]
   return(splt[length(splt)])
+}
+
+get_cache_path <- function(fun, input_hash, fun_string, cache_dir) {
+  # generate unique hash with function and dataset (input hash)
+  # to save progress
+  # and either read cached output or run the function
+  function_env <- environment(fun)
+  function_args <- sapply(ls(function_env), function(x) {
+    out <- get(x, envir = function_env)
+    is_function <- is.function(out) || purrr::is_formula(out)
+    if (is_function) {
+      # bytecode strings can mess up unique cache hashes the second time you run it
+      # so we deparse these function arguments as strings and then make the hash
+      # the function string with the function args to make our hash
+      if ('signature' %in% names(out)) {
+        # special case to support ee Reducer functions
+        out <- out$signature$name
+      } else {
+        out <- deparse(out)
+      }
+    }
+    return(out)
+  })
+
+  return(file.path(cache_dir, paste(input_hash, '_', rlang::hash(c(fun_string, function_args)), '.rds')))
 }

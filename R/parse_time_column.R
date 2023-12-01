@@ -69,8 +69,7 @@ string_to_interval <- function(time_column) {
 
 is_date <- function(x) {
   tryCatch({
-    lubridate::as_date(x)
-    TRUE
+    !any(is.na(lubridate::as_date(x)))
   }, warning = function(w) {
     FALSE
   }, error = function(e) {

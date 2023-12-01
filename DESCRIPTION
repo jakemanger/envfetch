@@ -38,5 +38,6 @@ Imports:
     stringr,
     terra,
     tidyr,
-    sf
+    sf,
+    stars
 VignetteBuilder: knitr
