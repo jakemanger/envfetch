@@ -133,7 +133,7 @@ envfetch <- function(
           time_column_name <- find_time_column_name(x)
         }
         time <- x %>% sf::st_drop_geometry() %>% dplyr::pull(time_column_name)
-        if (!is.interval(time) && is_date(time)) {
+        if (!lubridate::is.interval(time) && is_date(time)) {
           # if the user wants to extract single time slices, use the optimised
           # approach of stars
           functions <- c(
