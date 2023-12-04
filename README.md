@@ -32,9 +32,13 @@ ee_Initialize()
 
 and follow the prompts (saying `Y` when prompted).
 
-Note, these instructions are from the `rgee` page
-[here](https://cran.r-project.org/web/packages/rgee/vignettes/rgee01.html).
-See this page if you run into problems.
+Note, these instructions are from the `rgee` page,
+[here](https://github.com/r-spatial/rgee#installation). See this page if
+you run into problems. You may need to set the specific python
+environment used by `rgee` with
+`reticulate::use_python("path/in/ee_install/to/r-miniconda/envs/rgee/python.exe")`
+replacing `path/in/ee_install/to/r-miniconda/envs/rgee/python.exe` with
+the path of the installation listed by `ee_install()`.
 
 ## Example
 
@@ -79,19 +83,7 @@ We can visualise our input data with a plot:
 ``` r
 library(ggplot2)
 library(rnaturalearth)
-#> The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
-#> which was just loaded, were retired in October 2023.
-#> Please refer to R-spatial evolution reports for details, especially
-#> https://r-spatial.org/r/2023/05/15/evolution4.html.
-#> It may be desirable to make the sf package available;
-#> package maintainers should consider adding sf to Suggests:.
-#> Support for Spatial objects (`sp`) will be deprecated in {rnaturalearth} and will be removed in a future release of the package. Please use `sf` objects with {rnaturalearth}. For example: `ne_download(returnclass = 'sf')`
 library(rnaturalearthdata)
-#> 
-#> Attaching package: 'rnaturalearthdata'
-#> The following object is masked from 'package:rnaturalearth':
-#> 
-#>     countries110
 
 # load map of australia for reference
 world <- ne_countries(scale = "medium", returnclass = "sf")
@@ -113,7 +105,8 @@ ggplot(data = australia) +
 - extracts and summarises data over space (within each `sf` geometry)
   and time (at each time or within each time range) of your input,
 - provides a simple function to extract from local files or google earth
-  engine (at the fastest possible speeds, see our [benchmark]()),
+  engine (at fast speeds, see our [comparison with other
+  methods](./docs/articles/comparison-with-other-extraction-methods.html)),
 - ensures you don’t overuse memory on your machine or google earth
   engine,
 - caches progress, so you don’t have to re-extract the same thing twice
