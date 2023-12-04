@@ -20,12 +20,22 @@ knitr::opts_chunk$set(
 )
 ```
 
-There are many existing R packages to extract raster data at locations of vector geometries (points, lines or polygons). However, when your vector geometries are combined with time (single datetimes or intervals), large raster files and many combinations of space and time to be extracted, the default strategies to use these packages are slow or use too much RAM (often causing crashes).
 
-Envfetch uses `sf` , `terra` and `stars` package in an optimal way for fast and memory-efficient extraction of raster data over space and time. Each optimisation has been implemented in the simple `envfetch()` function, and this vignette functions as a reasoning for these optimisations. For a guide on how to use `envfetch()` optimisations automatically applied, see [ ]().
+There are many existing R packages to extract raster data at locations of vector
+geometries (points, lines or polygons). However, when your vector geometries
+are combined with time (single datetimes or intervals), large raster files and 
+many combinations of space and time to be extracted, the default strategies to 
+use these packages are slow or use too much RAM (often causing crashes).
+
+Envfetch uses `sf` , `terra` and `stars` package in an optimal way
+for fast and memory-efficient extraction of raster data over space and time.
+Each optimisation has been implemented in the simple `envfetch()` function, and
+this vignette functions as a reasoning for these optimisations.
+For a guide on how to use `envfetch()` optimisations automatically applied, see 
+[]().
+
 
 All below code examples use a mock dataset created with the following code:
-
 ```{r, cache=TRUE}
 library(envfetch)
 library(ggplot2)
@@ -75,7 +85,10 @@ points(st_coordinates(p), pch = 19, col = "red")
 
 ## Extract once
 
-The simplest approach to extract over space and time is to summarise rasters temporally and then extract spatially within the locations of your vector data. For one time range, existing solutions are well suited to this task. Below is an example with the `terra` package:
+The simplest approach to extract over space and time is to summarise rasters 
+temporally and then extract spatially within the locations of your vector data.
+For one time range, existing solutions are well suited to this task. Below is
+an example with the `terra` package:
 
 ```{r, cache=TRUE}
 one_time_range <- p
@@ -93,7 +106,11 @@ microbenchmark::microbenchmark(
 )
 ```
 
-Taking our first approach to multiple time ranges starts to give us problems. For this approach to scale, we need to repeat our extraction multiple times for each time range. This results in us requiring approximately twice the time for two time ranges, triple the time for three time ranges and so on.
+
+Taking our first approach to multiple time ranges starts to give us problems.
+For this approach to scale, we need to repeat our extraction multiple times for
+each time range. This results in us requiring approximately twice the time for 
+two time ranges, triple the time for three time ranges and so on.
 
 ```{r, cache=TRUE}
 extract_n_time_ranges <- function(n, p, r) {
@@ -125,7 +142,10 @@ bm
 autoplot(bm)
 ```
 
-When your vector data has many time ranges, a faster solution is to instead do one single extraction for all time ranges and then summarise the data. This avoids repeating the expensive extraction operation.
+
+When your vector data has many time ranges, a faster solution is to instead do
+one single extraction for all time ranges and then summarise the data. This
+avoids repeating the expensive extraction operation.
 
 ```{r, cache=TRUE}
 extract_once <- function(n, p, r) {
@@ -169,15 +189,30 @@ bm
 autoplot(bm)
 ```
 
+
 ## Only extract the time slices you are interested in
 
-Although it's faster to extract once, it may still be slow in cases where the raster stack is very large or times to extract are far from one another in the raster stack.
+Although it's faster to extract once, it may still be slow in cases where the
+raster stack is very large or times to extract are far from one another in the
+raster stack.
 
-The solution is that we do not need to extract all time slices of the data. A simple optimisation is to trim the time range of the raster around the minimum and maximum of our vector data, e.g. `r[[times(r) > min_time & times(r) < min_time]]`. This would help if the time ranges you wish to extract are close together within a raster stack.
+The solution is that we do not need to extract all time slices of the data.
+A simple optimisation is to trim the time range of the raster around the
+minimum and maximum of our vector data, e.g. 
+`r[[times(r) > min_time & times(r) < min_time]]`. This would help if the time 
+ranges you wish to extract are close together within a raster stack.
 
-But to also optimise in other cases, especially when time ranges are far from one another, we can only extract from the time slices we are interested in. This is achievable by sub-setting the raster before the extraction with only the relevant time slices (calculated by the `find_relevant_time_slices()` function in `envfetch`).
+But to also optimise in other cases, especially when time ranges are far from
+one another, we can only extract from the time slices we are interested 
+in. This is achievable by sub-setting the raster before the extraction with
+only the relevant time slices (calculated by the `find_relevant_time_slices()` 
+function in `envfetch`).
 
-Note, time to calculate the relevant time slices can be more than you benefit from the reduced extraction if time ranges to extract are close to one another and the raster stack is small. We can see this in the below plot where extracting only what we need only has a benefit when extracting from a large raster with time slices far from one another.
+Note, time to calculate the relevant time slices can be more than you
+benefit from the reduced extraction if time ranges to extract are close to one 
+another and the raster stack is small. We can see this in the below plot where
+extracting only what we need only has a benefit when extracting from a
+large raster with time slices far from one another.
 
 ```{r, cache=TRUE}
 large_p <- p
@@ -240,11 +275,20 @@ bm
 autoplot(bm)
 ```
 
-For cases where you intend to extract single time slices not time ranges for each geometry, we have also implemented a wrapper around the approach used by `stars` in their `st_extract` function. This uses a similar approach by only extracting the time slices needed.
+For cases where you intend to extract single time slices not time ranges for 
+each geometry, we have also implemented a wrapper around the approach used by
+`stars` in their `st_extract` function. This uses a similar approach by only 
+extracting the time slices needed.
+
 
 ## Vectorise summarisation functions
 
-Another optimisation is in the summarisation step. R is slow at running tasks repeatedly (e.g. row by row). Offsetting that task to a faster programming language under the hood is possible with vectorised functions. Functions like `rowMeans()` and `rowSums()` are written in C instead of R. As a result, they don't require as much overhead (of the R interpreter), giving us further performance gains.
+Another optimisation is in the summarisation step. R is slow at running tasks
+repeatedly (e.g. row by row). Offsetting that task to a faster programming 
+language under the hood is possible with vectorised functions. Functions like
+`rowMeans()` and `rowSums()` are written in C instead of R. As a result, 
+they don't require as much overhead (of the R interpreter), giving us further 
+performance gains.
 
 ```{r, cache=TRUE}
 extract_only_what_we_need_vectorised <- function(n) {
@@ -289,9 +333,12 @@ bm
 autoplot(bm)
 ```
 
+
 ## Don't repeat yourself
 
-Finally, using existing packages with repeated data results in repeated extractions. That is, if you provide extraction functions with the same data point multiple times, it will extract that point multiple times.
+Finally, using existing packages with repeated data results in repeated
+extractions. That is, if you provide extraction functions with the same data 
+point multiple times, it will extract that point multiple times.
 
 ```{r, cache=TRUE}
 duplicated_p <- p[rep(seq_len(nrow(p)), each = 20),]
@@ -344,7 +391,14 @@ bm
 autoplot(bm)
 ```
 
-Similarly, if you have already extracted the data once, why extract it again? Saving data after an extraction and reloading it when needed is convenient and saves time, especially if an extraction pipeline fails or crashes part of the way through or if you want to use the data between R sessions. For convenience, storing data for future requests (caching) is done automatically by `envfetch()`.
+
+Similarly, if you have already extracted the data once, why extract it again? 
+Saving data after an extraction and reloading it when needed is convenient and
+saves time, especially if an extraction pipeline fails or crashes part of the 
+way through or if you want to use the data between R sessions. For convenience,
+storing data for future requests (caching) is done automatically by 
+`envfetch()`.
+
 
 ```{r, cache=TRUE}
 extracted <- envfetch(p, r)
@@ -354,9 +408,11 @@ extracted <- envfetch(p, r)
 extracted <- envfetch(p, r)
 ```
 
-## \> 15x speed improvement
 
-The above optimisations result in the speed benefits found in the `envfetch` function.
+## > 15x speed improvement
+
+The above optimisations result in the speed benefits found in the `envfetch`
+function.
 
 ```{r, cache=TRUE, message=FALSE}
 bm <- microbenchmark::microbenchmark(
@@ -368,28 +424,51 @@ bm
 autoplot(bm)
 ```
 
-Going from the most naive extraction solution with our small example (128 time intervals), we have changed our extraction time from 15 seconds to 1 second. That is a speed up of 15x. Note, these benefits get larger both with the number of time intervals that need to be extracted and how far in time time intervals are from one another in the raster file. Extraction tasks that would otherwise take multiple days can be achievable in minutes or hours with `envfetch`.
+Going from the most naive extraction solution with our small example (128 time 
+intervals), we have changed our extraction time from 15 seconds to 1 second.
+That is a speed up of 15x. Note, these benefits get larger both with
+the number of time intervals that need to be extracted and how far in time
+time intervals are from one another in the raster file. Extraction tasks that
+would otherwise take multiple days can be achievable in minutes or hours with 
+`envfetch`.
 
-To ensure this extraction process is possible on lower-end machines, there are further strategies to optimise RAM usage described below.
+To ensure this extraction process is possible on lower-end machines, there are 
+further strategies to optimise RAM usage described below.
+
 
 ## Don't overuse RAM
 
-In an ideal world, it would be best to extract all the data necessary for the extraction at once. However, the amount of data a computer can extract at once is limited by how much RAM it has.
+In an ideal world, it would be best to extract all the data necessary for the
+extraction at once. However, the amount of data a computer can extract at once
+is limited by how much RAM it has. 
 
-To allow computers with less RAM to complete the same extraction task, we can separate extractions into smaller chunks. These can then be processed one at a time, limiting RAM usage within the available limits. We have implemented an automatic system to extract data in chunks in the `extract_over_space` function, used internally by `envfetch()`.
+To allow computers with less RAM to complete the same extraction task, we can
+separate extractions into smaller chunks. These can then be processed one at a 
+time, limiting RAM usage within the available limits. We have implemented an
+automatic system to extract data in chunks in the `extract_over_space` function,
+used internally by `envfetch()`.
 
-Remember, all these optimisations are built into the `envfetch()` function so you don't need to repeat this when extracting your dataset.
+Remember, all these optimisations are built into the `envfetch()`
+function so you don't need to repeat this when extracting your dataset.
+
 
 ## Run on google cloud
 
-In cases where downloading of local files for extracting data are not possible or practical, cloud solutions can provide a performant alternative. The largest and most commonly used cloud-based geospatial analysis platform is Google Earth Engine.
+In cases where downloading of local files for extracting data are not possible 
+or practical, cloud solutions can provide a performant alternative. The largest
+and most commonly used cloud-based geospatial analysis platform is Google
+Earth Engine.
 
-Currently, there is one R package with an implemented extraction function for Google earth engine, `rgee`. However, with large datasets or extraction tasks, standard use of the `rgee::ee_extract` function can causes crashes or overuse of Google Earth Engine's memory limits, failing the extraction task.
+Currently, there is one R package with an implemented extraction function
+for Google earth engine, `rgee`. However, with large datasets or extraction tasks,
+standard use of the `rgee::ee_extract` function can causes crashes or overuse 
+of Google Earth Engine's memory limits, failing the extraction task. 
 
-We have implemented processing data in chunks with the `extract_gee` function, used internally by `envfetch()`, to allow processing of more data, while remaining within your quota limits (<https://developers.google.com/earth-engine/guides/usage#adjustable_quota_limits>).
+We have implemented processing data in chunks with the `extract_gee` function,
+used internally by `envfetch()`, to allow processing of more data, while 
+remaining within your quota limits (https://developers.google.com/earth-engine/guides/usage#adjustable_quota_limits).
 
 Using `ee_extract` from `rgee` will by default fail with this dataset.
-
 ```{r eval=FALSE}
 rgee::ee_Initialize()
 # first half of extraction process (extracting between all time ranges)
@@ -417,10 +496,15 @@ rgee_extracted <- rgee::ee_extract(
 # ... you would then also need to make a custom solution to summarise this data
 ```
 
-`envfetch` will process this same task in chunks to ensure it does not fail. It will also summarise the data for you.
-
+`envfetch` will process this same task in chunks to ensure it does not fail.
+It will also summarise the data for you.
 ```{r, cache=TRUE}
 envfetch_extracted <- envfetch(large_p, 'MODIS/061/MOD13Q1')
 ```
 
-The chunk size can be optimised for your particular task by modifying the `max_chunk_time_day_range` and `max_feature_collection_size` arguments in `envfetch()`.
+The chunk size can be optimised for your particular task by modifying the
+`max_chunk_time_day_range` and `max_feature_collection_size` arguments in
+`envfetch()`.
+
+
+
