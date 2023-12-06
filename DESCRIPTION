@@ -1,5 +1,5 @@
 Package: envfetch
-Title: Fetch environmental data with canine-like efficiency
+Title: Fetch environmental data over spatio-temporal geometries
 Version: 0.0.0.9000
 Authors@R: 
     c(person(given="Jake",
@@ -14,7 +14,7 @@ Authors@R:
              comment = c(ORCID = "0000-0002-7059-2131"))
     )
 Description: Your trusty companion to fetch, extract and summarise environmental
-  data across time and space using `sf` points or polygons.
+  data over space and time using `sf` points or polygons.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -24,6 +24,7 @@ Suggests:
     ggplot2,
     knitr,
     rmarkdown,
+    microbenchmark,
     rnaturalearthdata,
     rnaturalearth,
 Config/testthat/edition: 3
