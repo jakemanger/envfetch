@@ -2,7 +2,7 @@
 % Please edit documentation in R/envfetch.R
 \name{envfetch}
 \alias{envfetch}
-\title{envfetch: Extract Environmental Data for Spatial-Temporal Objects}
+\title{envfetch: Fetch environmental data over spatio-temporal geometries}
 \usage{
 envfetch(
   x,
@@ -80,7 +80,7 @@ Default is 5000.}
 An enhanced version of the input \code{sf} collection, \code{x}, augmented with the extracted environmental data.
 }
 \description{
-\code{envfetch} extracts environmental data of spatial-temporal inputs from local raster datasets or Google Earth Engine.
+\code{envfetch} extracts environmental data of spatio-temporal inputs from local raster datasets or Google Earth Engine.
 The time or time range for the extraction can vary between geometries.
 The function includes features for caching, memory management, and data summarisation. For extracting from multiple data
 sources, ensure any custom parameters for \code{r}, \code{bands}, \code{temporal_fun} or \code{spatial_fun} are specified appropriately.
@@ -88,11 +88,12 @@ sources, ensure any custom parameters for \code{r}, \code{bands}, \code{temporal
 \details{
 \code{envfetch} serves as a high-level wrapper for specific data extraction methods:
 \itemize{
-\item For local raster files, it employs \code{extract_over_time}.
+\item For local raster files, it employs \code{extract_over_time} with datetime ranges and \code{stars::st_extract} with single datetimes.
 \item For Google Earth Engine collections, it uses \code{extract_gee}.
+}
+
 It also supports caching, allowing you to avoid repeated calculations and
 resume work after interruptions.
-}
 }
 \examples{
 \dontrun{

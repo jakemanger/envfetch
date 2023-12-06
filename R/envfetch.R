@@ -1,6 +1,6 @@
-#' envfetch: Extract Environmental Data for Spatial-Temporal Objects
+#' envfetch: Fetch environmental data over spatio-temporal geometries
 #'
-#' `envfetch` extracts environmental data of spatial-temporal inputs from local raster datasets or Google Earth Engine.
+#' `envfetch` extracts environmental data of spatio-temporal inputs from local raster datasets or Google Earth Engine.
 #' The time or time range for the extraction can vary between geometries.
 #' The function includes features for caching, memory management, and data summarisation. For extracting from multiple data
 #' sources, ensure any custom parameters for `r`, `bands`, `temporal_fun` or `spatial_fun` are specified appropriately.
@@ -24,7 +24,7 @@
 #'
 #' @details
 #' `envfetch` serves as a high-level wrapper for specific data extraction methods:
-#' - For local raster files, it employs `extract_over_time`.
+#' - For local raster files, it employs `extract_over_time` with datetime ranges and `stars::st_extract` with single datetimes.
 #' - For Google Earth Engine collections, it uses `extract_gee`.
 #'
 #' It also supports caching, allowing you to avoid repeated calculations and
