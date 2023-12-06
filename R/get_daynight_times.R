@@ -24,6 +24,11 @@ get_daynight_times <- function(points, time_column_name=NULL, save=FALSE, savepa
   if (is.null(time_column_name)) {
     time_column_name <- find_time_column_name(points)
   }
+
+  if (!requireNamespace("suncalc", quietly = TRUE)) {
+    stop('Package `suncalc` is required for calculating day and night times')
+  }
+
   message('Calculating time since sunrise')
   pb <- dplyr::progress_estimated(nrow(points))
   time_since_sunrises <- 1:nrow(points) %>%
