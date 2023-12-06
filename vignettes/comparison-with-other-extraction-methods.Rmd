@@ -498,8 +498,27 @@ rgee_extracted <- rgee::ee_extract(
 
 `envfetch` will process this same task in chunks to ensure it does not fail.
 It will also summarise the data for you.
-```{r, cache=TRUE}
+```{r, eval=FALSE}
 envfetch_extracted <- envfetch(large_p, 'MODIS/061/MOD13Q1')
+#> ── rgee 1.1.5 ───────────────────────────────────────────────────────────────────────────────────────── earthengine-api 0.1.374 ── 
+#>  ✔ user: not_defined
+#>  ✔ Initializing Google Earth Engine:  DONE!
+#>  ✔ Earth Engine account: users/dungbeetlelab 
+#> ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 
+#> 
+#> ── 🥏 🐕 Fetching your data ──────────────────────────────────────────────────────────────────────────────────────────────────────
+#> → Parsing time column
+#> ℹ Running ~extract_gee(x = .x, collection_name = r, bands = bands, temporal_fun = temporal_fun, ee_reducer_fun = spatial_fun, initialise_gee = FALSE, ...)
+#> Number of features: 500                     
+#> Number of features: 500                                               17% | ETA:  3m
+#> Number of features: 24                     ■■■■                       33% | ETA:  3m
+#> Number of features: 500                     ■■■■■■■■                  50% | ETA:  2m
+#> Number of features: 500                     ■■■■■■■■■■■■■             67% | ETA:  1m
+#> Number of features: 24                     ■■■■■■■■■■■■■■■■■■■        83% | ETA: 44s
+#> → Summarising extracted data over specified times                                    
+#> ✔ 🐶 Completed ~extract_gee(x = .x, collection_name = r, bands = bands, temporal_fun = temporal_fun, ee_reducer_fun = spatial_fun, initialise_gee = FALSE, ...)
+#> 
+#> ── 🐩 Fetched ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
 The chunk size can be optimised for your particular task by modifying the
