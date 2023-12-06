@@ -16,7 +16,6 @@ envfetch_vs_terra <- function(temporal_fun, polygons=FALSE) {
       out_filename=NA
     )
 
-
   # extract with terra and some mean math
   terra_out <- terra::extract(r, d, ID=TRUE)
   ID_column <- terra_out$ID

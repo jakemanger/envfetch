@@ -103,10 +103,11 @@ extract_gee <- function(
 
   # convert x time column to UTC, as it is used by gee
   time_column_after_sort <- x %>% dplyr::pull(time_column_name)
-  x[,time_column_name] <- lubridate::interval(
+  time_column_after_sort <- lubridate::interval(
     lubridate::with_tz(lubridate::int_start(time_column_after_sort), 'UTC'),
     lubridate::with_tz(lubridate::int_end(time_column_after_sort), 'UTC'),
   )
+  x[,time_column_name] <- time_column_after_sort
 
   # chunk incorporating the start date of intervals to ensure efficient memory usage on gee's end.
   # otherwise, gee will need to extract raster data from the full time range of
@@ -118,6 +119,8 @@ extract_gee <- function(
   min_datetime <- min(lubridate::int_start(time_column_after_sort)) - time_buffer
   max_datetime <- max(lubridate::int_end(time_column_after_sort)) + time_buffer
   rgee_datetime_bounds <- check_dataset(min_datetime, max_datetime, collection_name)
+  # make sure timezones are the same
+  rgee_datetime_bounds <- lubridate::with_tz(rgee_datetime_bounds, tzone=lubridate::tz(min_datetime))
 
   if (verbose)
     pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks))
@@ -354,6 +357,8 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
   date_info <- rgee::ee_get_date_ic(rgee::ee$ImageCollection(collection_name), time_end=TRUE)
   min_date_on_rgee <- min(date_info$time_start)
   max_date_on_rgee <- max(date_info$time_end)
+
+
   if (min_date_on_rgee > min_datetime) {
     warning(
       paste0(
@@ -373,7 +378,7 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
     )
   }
   if (max_date_on_rgee < min_datetime) {
-    warning(
+    stop(
       paste0(
         'Minimum date of ', min_datetime, ' in input is greater than the',
         ' maximum date of the image collection, ', collection_name,
@@ -382,7 +387,7 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
     )
   }
   if (min_date_on_rgee > max_datetime) {
-    warning(
+    stop(
       paste0(
         'Maximum date of ', max_datetime, ' in input is less than the',
         ' minimum date of the image collection, ', collection_name,

@@ -163,6 +163,10 @@ extract_over_time <- function(
 
   # prepare data for summarisation
   new_col_names <- terra::varnames(r)
+  if (new_col_names == '') {
+    new_col_names <- unique(sapply(strsplit(names(r), '_'), '[[', 1))
+    warning(paste('varnames in the raster is empty. Assuming these are:', paste(new_col_names, collapse=', ')))
+  }
   # initialise variables with NA
   x[, new_col_names] <- NA
   multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)

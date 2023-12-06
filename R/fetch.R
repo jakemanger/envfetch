@@ -104,7 +104,7 @@ fetch <- function(
   extra_cols <- extra_cols[!(extra_cols %in% col_names_used_in_func)]
 
   # remove unnecessary columns so caching can work here and to make things work faster
-  x <- x %>% dplyr::select(-c(extra_cols))
+  x <- x %>% dplyr::select(-dplyr::any_of(c(extra_cols)))
 
   # create hash of input unique name to cache progress of extracted point data (so you can continue if you lose progress)
   input_hash <- rlang::hash(x)
@@ -119,7 +119,7 @@ fetch <- function(
   not_funcs <- args[!is_function]
   funcs <- args[is_function]
 
-  x <- x %>% dplyr::group_by(across(c(time_column_name, geometry_column_name))) %>%
+  x <- x %>% dplyr::group_by(across(dplyr::all_of(c(time_column_name, geometry_column_name)))) %>%
     dplyr::mutate(envfetch__duplicate_ID = dplyr::cur_group_id()) %>%
     dplyr::ungroup()
 
@@ -136,8 +136,9 @@ fetch <- function(
       fun_string <- gsub("\\s+", " ", fun_string)
     }
 
-    if (use_cache)
+    if (use_cache) {
       outpath <- get_cache_path(fun, input_hash, fun_string, cache_dir)
+    }
 
     if (!use_cache || (use_cache && !file.exists(outpath))) {
       if (verbose)
@@ -168,18 +169,18 @@ fetch <- function(
   cols_to_remove <- colnames(x)[!(colnames(x) %in% c('envfetch__duplicate_ID'))]
   x <- dplyr::left_join(
     x,
-    unique_x %>% dplyr::select(-cols_to_remove),
+    unique_x %>% dplyr::select(-dplyr::any_of(cols_to_remove)),
     by = "envfetch__duplicate_ID"
-  ) %>% dplyr::select(-c('envfetch__duplicate_ID'))
+  ) %>% dplyr::select(-dplyr::all_of(c('envfetch__duplicate_ID')))
 
   if (length(.time_rep) > 1) {
     # now take those time lagged x and set them as columns for their
     # original point
     cols_to_get_vals_from <- colnames(x)[!(colnames(x) %in% c(extra_cols, col_names_used_in_func))]
-    extra_col_vals <- original_x %>% dplyr::select(c(extra_cols)) %>%
+    extra_col_vals <- original_x %>% dplyr::select(dplyr::all_of(c(extra_cols))) %>%
       sf::st_drop_geometry()
     x <- x %>%
-      dplyr::select(-c(time_column_name)) %>%
+      dplyr::select(-dplyr::any_of(c(time_column_name))) %>%
       tidyr::pivot_wider(
         names_from = 'lag_amount',
         values_from = cols_to_get_vals_from,
@@ -189,7 +190,9 @@ fetch <- function(
     if (length(extra_cols) > 0) {
       # add back any extra columns not used in the pivot_wider
       extra_col_vals <- extra_col_vals %>% dplyr::select(
-        colnames(extra_col_vals)[!(colnames(extra_col_vals) %in% colnames(x))]
+        dplyr::all_of(
+          colnames(extra_col_vals)[!(colnames(extra_col_vals) %in% colnames(x))]
+        )
       )
       x <- x %>% dplyr::bind_cols(
         extra_col_vals
@@ -262,5 +265,5 @@ get_cache_path <- function(fun, input_hash, fun_string, cache_dir) {
     return(out)
   })
 
-  return(file.path(cache_dir, paste(input_hash, '_', rlang::hash(c(fun_string, function_args)), '.rds')))
+  return(file.path(cache_dir, paste0(input_hash, '_', rlang::hash(capture.output(c(fun_string, function_args))), '.rds')))
 }

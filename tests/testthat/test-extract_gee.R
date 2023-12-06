@@ -1,3 +1,8 @@
+# skip on cran and ci without environmental variables for rgee testing
+skip_on_cran()
+skip_on_ci()
+
+
 test_that("correct_results_returned_last", {
   point1 <- sf::st_point(c(115.798, -31.95)) # uwa
   point2 <- sf::st_point(c(131.034571, -25.345269)) # uluru
@@ -98,7 +103,7 @@ test_that("extracting_outside_data_range_errors", {
       out_filename=NA,
       use_cache=FALSE
     ),
-    'Minimum date of'
+    'Maximum date of'
   )
   points$time <- lubridate::ymd('2200-01-01', tz='Australia/Perth')
 
@@ -114,6 +119,6 @@ test_that("extracting_outside_data_range_errors", {
       out_filename=NA,
       use_cache=FALSE
     ),
-    'Maximum date of'
+    'Minimum date of'
   )
 })

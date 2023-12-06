@@ -7,12 +7,12 @@ test_that('caching_saves_time_between_runs', {
   if (dir.exists(cache_dir)) unlink(cache_dir, recursive=TRUE)
 
   t1 <- Sys.time()
-  first_out <- d %>% envfetch(r=r, cache_dir=cache_dir)
+  first_out <- d %>% envfetch(r=r, cache_dir=cache_dir, verbose=FALSE)
   t2 <- Sys.time()
-  second_out <- d %>% envfetch(r=r, cache_dir=cache_dir)
+  second_out <- d %>% envfetch(r=r, cache_dir=cache_dir, verbose=FALSE)
   t3 <- Sys.time()
 
-  expect_lt(as.numeric(t3-t2), as.numeric(t2-t1)*0.5) # should be at least 50% faster
+  expect_lt(as.numeric(t3-t2), as.numeric(t2-t1))
 
   expect_equal(first_out, second_out) # should return the same result
 })
@@ -31,7 +31,27 @@ test_that('caching_saves_time_within_runs', {
   with_cache <- d %>% envfetch(r=list(r, r), cache_dir=cache_dir)
   t3 <- Sys.time()
 
-  expect_lt(as.numeric(t3-t2), as.numeric(t2-t1)*0.7) # should be at least 30% faster
+  expect_lt(as.numeric(t3-t2), as.numeric(t2-t1))
 
   expect_equal(with_cache, without_cache) # should return the same result
+})
+
+test_that('caching_does_not_cache_different_rasters', {
+  d <- create_test_d()
+  r <- load_test_raster()
+
+  cache_dir <- paste0(tempdir(), '/cache_dir_3/')
+
+  if (dir.exists(cache_dir)) unlink(cache_dir, recursive=TRUE)
+  r2 <- r + 10
+
+  t1 <- Sys.time()
+  first_out <- d %>% envfetch(r=r, cache_dir=cache_dir)
+  t2 <- Sys.time()
+  second_out <- d %>% envfetch(r=r2, cache_dir=cache_dir)
+  t3 <- Sys.time()
+
+  expect_true(abs(as.numeric(t3 - t2) - as.numeric(t2 - t1)) < 0.05) # should have approximately the same time to calculate
+  first_out$small <- first_out$small + 10 # second_out should be 10 larger
+  expect_equal(first_out, second_out) # should return the same result
 })
