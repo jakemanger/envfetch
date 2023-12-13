@@ -7,33 +7,41 @@
 #'
 #'
 #' @param x A `sf` collection with a geometry column and a time column.
-#' @param r A file path to a raster file or a SpatRaster object from the terra package. This is the raster data
+#' @param r A file path to a raster file or a SpatRaster object from the terra
+#' package. This is the raster data.
 #' source from which the data will be extracted.
-#' @param subds positive integer or character to select a sub-dataset to extract from. If zero or "", all sub-datasets are extracted.
+#' @param subds positive integer or character to select a sub-dataset to extract
+#'  from. If zero or "", all sub-datasets are extracted.
 #' @param temporal_fun A function used to summarise multiple data points
 #' found within a time interval. Default is `rowMeans(x, na.rm=TRUE)`. The user
 #' can supply vectorised summarisation functions (using rowMeans or rowSums) or
 #' non-vectorised summarisation functions (e.g., `sum`, `mean`, `min`, `max`).
-#' If supplying a custom vectorised `temporal_fun`, set `is_vectorised_temporal_fun`
-#' to `TRUE` to ensure the vectorised approach is used for performance. Note,
-#' vectorised summarisation functions are not possible when `fun=NULL` and you
-#' are extracting with polygon or line geometries (i.e. `temporal_fun` is used
-#' to summarise, treating each time and space value independently).
+#' If supplying a custom vectorised `temporal_fun`, set
+#' `is_vectorised_temporal_fun` to `TRUE` to ensure the vectorised approach is
+#' used for performance. Note, vectorised summarisation functions are not
+#' possible when `fun=NULL` and you are extracting with polygon or line
+#' geometries (i.e. `temporal_fun` is used to summarise, treating each time and
+#' space value independently).
 #' @param spatial_extraction_fun A function used to extract points spatially for
-#' each time slice of the raster. Default is the default implementation of `extract_over_space`
-#' (extracts the `mean` of points within polygons or lines, removing NAs).
-#' @param time_buffer Time buffer used to adjust the time interval for data extraction.
-#' The function always uses the time before and after the interval to prevent errors
-#' when summarising the earliest and latest times. Default is 0 days.
-#' @param debug If TRUE, pauses the function and displays a plot for each extracted
-#' point. This is useful for debugging unexpected extracted values. Default is FALSE.
+#' each time slice of the raster. Default is the default implementation of
+#' `extract_over_space` (extracts the `mean` of points within polygons or lines,
+#' removing NAs).
+#' @param time_buffer Time buffer used to adjust the time interval for data
+#' extraction. The function always uses the time before and after the interval
+#' to prevent errors when summarising the earliest and latest times. Default is
+#' 0 days.
+#' @param debug If TRUE, pauses the function and displays a plot for each
+#' extracted point. This is useful for debugging unexpected extracted values.
+#' Default is FALSE.
 #' @param override_terraOptions If TRUE, overrides terra's default terraOptions
 #' with those specified in the envfetch's package. Default is TRUE.
-#' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
-#' is automatically selected.
-#' @param is_vectorised_summarisation_function Whether the summarisation is vectorised (like rowSums or rowMeans). Is only
-#' necessary to be TRUE if the row-wise vectorised summarisation function has not been automatically detected
-#' (does not use rowSums or rowMeans).
+#' @param time_column_name Name of the time column in the dataset. If NULL (the
+#' default), a column of type lubridate::interval is automatically selected.
+#' @param is_vectorised_summarisation_function Whether the summarisation is
+#' vectorised (like rowSums or rowMeans). Is only necessary to be TRUE if the
+#' row-wise vectorised summarisation function has not been automatically
+#' detected (does not use rowSums or rowMeans).
+#' @param verbose Whether to print messages to the console. Defaults to TRUE.
 #' @param ... Additional arguments to pass to the `spatial_extraction_fun`.
 #' @return A modified version of the input 'x' with additional columns
 #' containing the extracted data.
@@ -45,7 +53,7 @@
 #'     ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
 #'   )
 #'
-#' # repeatedly extract and summarise data every fortnight for the last six months
+#' # extract and summarise data every fortnight for the past six months
 #' # relative to the start of the time column in `d`
 #' rep_extracted <- d %>%
 #'   fetch(

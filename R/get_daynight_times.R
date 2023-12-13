@@ -4,23 +4,36 @@
 #' night hours for points in an `sf` object. The function also optionally saves
 #' the output as an RDS file.
 #'
-#' @param points An `sf` object containing geometry and a time_column with datetime
-#' as a `lubridate::interval`.
-#' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
-#' is automatically selected.
-#' @param save A logical value indicating whether to save the extracted day and night
-#' time information as an RDS file. Default is `FALSE`.
-#' @param savepath The path to save the RDS file, defaults to './output/extracted_day_night_stats.rds'.
-#' @param units A string specifying the units of time to return, defaults to 'hours'.
+#' @param points An `sf` object containing geometry and a time_column with
+#' datetime as a `lubridate::interval`.
+#' @param time_column_name Name of the time column in the dataset. If NULL (the
+#' default), a column of type lubridate::interval is automatically selected.
+#' @param save A logical value indicating whether to save the extracted day and
+#' night time information as an RDS file. Default is `FALSE`.
+#' @param savepath The path to save the RDS file, defaults to
+#' './output/extracted_day_night_stats.rds'.
+#' @param units A string specifying the units of time to return, defaults to
+#' 'hours'.
 #'
-#' @return An `sf` object containing the original points and additional day and night time-related information.
+#' @return An `sf` object containing the original points and additional day and
+#' night time-related information.
 #'
 #' @examples
 #' \dontrun{
-#' sf_with_times <- get_daynight_times(points_sf, save=TRUE, savepath='./daynight.rds', units='minutes')
+#' sf_with_times <- get_daynight_times(
+#'   points_sf,
+#'   save=TRUE,
+#'   savepath='./daynight.rds', units='minutes'
+#' )
 #' }
 #' @export
-get_daynight_times <- function(points, time_column_name=NULL, save=FALSE, savepath='./output/extracted_day_night_stats.rds', units='hours') {
+get_daynight_times <- function(
+  points,
+  time_column_name=NULL,
+  save=FALSE,
+  savepath='./output/extracted_day_night_stats.rds',
+  units='hours'
+) {
   if (is.null(time_column_name)) {
     time_column_name <- find_time_column_name(points)
   }

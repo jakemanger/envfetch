@@ -8,40 +8,43 @@
 #' `fetch` function.
 #'
 #' @param x A `sf` collection with a geometry column and a time column.
-#' @param collection_name A character string representing the Google Earth Engine
-#'                        image collection from which to extract data.
-#' @param bands A vector of character strings representing the band names to extract
-#'              from the image collection.
+#' @param collection_name A character string representing the Google Earth
+#' Engine image collection from which to extract data.
+#' @param bands A vector of character strings representing the band names to
+#' extract from the image collection.
 #' @param scale A numeric value representing the scale at which to perform the
-#'              extraction in meters. Default is 250.
+#' extraction in meters. Default is 250.
 #' @param time_buffer A lubridate duration representing the amount of time to add
-#'                    before and after each time interval when filtering the image
-#'                    collection. Default is lubridate::days(20).
-#' @param temporal_fun A function or string representing the function used to summarise
-#'                      the data extracted for each interval. Default is 'last', which returns
-#'                      the value closest to the start of the interval. Other built-in options are
-#'                      'closest' and 'next'.
-#' @param debug A logical indicating whether to produce debugging plots. Default is FALSE.
-#' @param initialise_gee A logical indicating whether to initialise Google Earth Engine
-#'                       within the function. Default is TRUE.
+#' before and after each time interval when filtering the image collection.
+#' Default is lubridate::days(20).
+#' @param temporal_fun A function or string representing the function used to
+#' summarise the data extracted for each interval. Default is 'last', which
+#' returns the value closest to the start of the interval. Other built-in
+#' options are 'closest' and 'next'.
+#' @param debug A logical indicating whether to produce debugging plots. Default
+#' is FALSE.
+#' @param initialise_gee A logical indicating whether to initialise Google Earth
+#' Engine within the function. Default is TRUE.
 #' @param use_gcs A logical indicating whether to use Google Cloud Storage for
-#'                larger requests. Default is FALSE.
+#' larger requests. Default is FALSE.
 #' @param use_drive A logical indicating whether to use Google Drive for larger
-#'                  requests. Default is FALSE.
-#' @param max_chunk_time_day_range An integer representing the maximum number of days to include
-#'                                 in each time chunk when splitting the dataset for efficient
-#'                                 memory use on Google Earth Engine's end. Default is 365.
-#' @param max_feature_collection_size An integer representing the maximum number of features
-#'                                    (rows) to include in each chunk when splitting the
-#'                                    dataset for efficient memory use on Google Earth Engine's end.
-#'                                    Default is 5000.
-#' @param ee_reducer_fun A Google Earth Engine reducer function representing the function
-#'                       used to aggregate the data extracted from each image. Default is
-#'                       rgee::ee$Reducer$mean().
+#' requests. Default is FALSE.
+#' @param max_chunk_time_day_range An integer representing the maximum number of
+#' days to include in each time chunk when splitting the dataset for efficient
+#' memory use on Google Earth Engine's end. Default is 365.
+#' @param max_feature_collection_size An integer representing the maximum number
+#' of features (rows) to include in each chunk when splitting the dataset for
+#' efficient memory use on Google Earth Engine's end. Default is 5000.
+#' @param ee_reducer_fun A Google Earth Engine reducer function representing the
+#' function used to aggregate the data extracted from each image. Default is
+#' rgee::ee$Reducer$mean().
+#' @param verbose Whether to print messages to the console. Defaults to TRUE.
 #' @inheritParams extract_over_time
-#' @param ... Additional arguments for underlying extraction function, `rgee::ee_extract`.
-#' @return A dataframe or sf object with the same rows as the input `x`, and new columns
-#'         representing the extracted data. The new column names correspond to the `bands` parameter.
+#' @param ... Additional arguments for underlying extraction function,
+#' `rgee::ee_extract`.
+#' @return A dataframe or sf object with the same rows as the input `x`, and new
+#' columns representing the extracted data. The new column names correspond to
+#' the `bands` parameter.
 #' @export
 #'
 #' @examples
@@ -56,7 +59,7 @@
 #'      )
 #'   )
 #'
-#' # repeatedly extract and summarise data every fortnight for the last six months
+#' # extract and summarise data every fortnight for the last six months
 #' # relative to the start of the time column in `d`
 #' rep_extracted <- d %>%
 #'   fetch(

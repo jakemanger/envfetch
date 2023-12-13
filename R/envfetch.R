@@ -1,37 +1,69 @@
 #' envfetch: Fetch environmental data over spatio-temporal geometries
 #'
-#' `envfetch` extracts environmental data of spatio-temporal inputs from local raster datasets or Google Earth Engine.
+#' `envfetch` extracts environmental data of spatio-temporal inputs from local
+#' raster datasets or Google Earth Engine.
 #' The time or time range for the extraction can vary between geometries.
-#' The function includes features for caching, memory management, and data summarisation. For extracting from multiple data
-#' sources, ensure any custom parameters for `r`, `bands`, `temporal_fun` or `spatial_fun` are specified appropriately.
+#' The function includes features for caching, memory management, and data
+#' summarisation. For extracting from multiple data sources, ensure any custom
+#' parameters for `r`, `bands`, `temporal_fun` or `spatial_fun` are specified
+#' appropriately.
 #'
-#' @param x A `sf` collection with a geometry column and a time column (a `Date`, `datetime` or a range of datetimes as a `lubridate::interval`.
-#' @param r Specifies the data source: either a local raster file path (which can include subdatasets) or a Google Earth Engine collection name. For multiple sources, provide a list and also specify the `bands` and `temporal_fun`, and optionally `time_column_name`, parameters accordingly.
-#' @param bands Numeric or character vector specifying band numbers or names to extract. Use `NULL` to extract all bands. For multiple sources, provide a list of vectors.
-#' @param temporal_fun Function or string used to summarize data for each time interval. Is ignored if time is a date or datetime. Default is `mean(x, na.rm=TRUE)`. For Google Earth Engine, the string `'last'` returns the value before the start of the time interval, `'next'` returns the value after the start of the time interval and `'closest'` finds the closest value to the start of the time interval. For multiple sources, provide a list of functions or strings.
-#' @param spatial_fun Function or string used to summarize data spatially (if `x` is a polygon). Default (`'mean'`) for local files is `mean(x, na.rm=TRUE)` and for google earth engine is `rgee::ee$Reducer$mean()`. For local files, use `NULL` to not summarise spatially before summarising temporally.  If you are extracting from google earth engine, you must specify a google earth engine reducer `rgee::ee$Reducer` function (e.g. `rgee::ee$Reducer$sum()`). See https://r-spatial.github.io/rgee/reference/ee_extract.html". For different behaviour with multiple sources, provide a list of functions or strings.
-#' @param use_cache Logical flag indicating whether to use caching. Default is `TRUE`.
+#' @param x A `sf` collection with a geometry column and a time column (a
+#' `Date`, `datetime` or a range of datetimes as a `lubridate::interval`).
+#' @param r Specifies the data source: either a local raster file path (which
+#' can include subdatasets) or a Google Earth Engine collection name. For
+#' multiple sources, provide a list and also specify the `bands` and
+#' `temporal_fun`, and optionally `time_column_name`, parameters accordingly.
+#' @param bands Numeric or character vector specifying band numbers or names to
+#' extract. Use `NULL` to extract all bands. For multiple sources, provide a
+#' list of vectors.
+#' @param temporal_fun Function or string used to summarize data for each time
+#' interval. Is ignored if time is a date or datetime. Default is
+#' `mean(x, na.rm=TRUE)`. For Google Earth Engine, the string `'last'` returns
+#' the value before the start of the time interval, `'next'` returns the value
+#' after the start of the time interval and `'closest'` finds the closest value
+#' to the start of the time interval. For multiple sources, provide a list of
+#' functions or strings.
+#' @param spatial_fun Function or string used to summarize data spatially (if
+#' `x` is a polygon). Default (`'mean'`) for local files is
+#' `mean(x, na.rm=TRUE)` and for google earth engine is
+#' `rgee::ee$Reducer$mean()`. For local files, use `NULL` to not summarise
+#' spatially before summarising temporally.  If you are extracting from google
+#' earth engine, you must specify a google earth engine reducer
+#' `rgee::ee$Reducer` function (e.g. `rgee::ee$Reducer$sum()`). See
+#' https://r-spatial.github.io/rgee/reference/ee_extract.html". For different
+#' behaviour with multiple sources, provide a list of functions or strings.
+#' @param use_cache Logical flag indicating whether to use caching. Default is
+#' `TRUE`.
 #' @param out_dir Output directory for files. Default is `./output/`.
-#' @param out_filename Name for the output file, defaulting to a timestamped `.gpkg` file.
-#' @param overwrite Logical flag to overwrite existing output files. Default is `TRUE`.
+#' @param out_filename Name for the output file, defaulting to a timestamped
+#' `.gpkg` file.
+#' @param overwrite Logical flag to overwrite existing output files. Default is
+#' `TRUE`.
 #' @param cache_dir Directory for caching files. Default is `./output/cache/`.
-#' @param time_column_name Name of the time column in `x`. Use `NULL` to auto-select a time column of type `lubridate::interval`. Default is NULL.
-#' @param .time_rep Specifies repeating time intervals for extraction. Default is `NA`.
-#' @param init_gee A logical indicating whether to initialise Google Earth Engine within the function. Default is TRUE.
+#' @param time_column_name Name of the time column in `x`. Use `NULL` to
+#' auto-select a time column of type `lubridate::interval`. Default is NULL.
+#' @param .time_rep Specifies repeating time intervals for extraction. Default
+#' is `NA`.
+#' @param init_gee A logical indicating whether to initialise Google Earth
+#' Engine within the function. Default is TRUE.
 #' @param ... Additional arguments for underlying extraction functions.
 #' @inheritDotParams extract_over_time -x -r -subds -temporal_fun -spatial_extraction_fun
 #' @inheritDotParams extract_gee -x -collection_name -bands -temporal_fun -initialise_gee -ee_reducer_fun
 #'
 #' @details
-#' `envfetch` serves as a high-level wrapper for specific data extraction methods:
-#' - For local raster files, it employs `extract_over_time` with datetime ranges and `stars::st_extract` with single datetimes.
+#' `envfetch` serves as a high-level wrapper for specific data extraction
+#' methods:
+#' - For local raster files, it employs `extract_over_time` with datetime ranges
+#'  and `stars::st_extract` with single datetimes.
 #' - For Google Earth Engine collections, it uses `extract_gee`.
 #'
 #' It also supports caching, allowing you to avoid repeated calculations and
 #' resume work after interruptions.
 #'
 #' @return
-#' An enhanced version of the input `sf` collection, `x`, augmented with the extracted environmental data.
+#' An enhanced version of the input `sf` collection, `x`, augmented with the
+#' extracted environmental data.
 #'
 #' @examples
 #' \dontrun{
@@ -54,7 +86,11 @@
 #' # multiple data sources example (both local raster and Google Earth Engine)
 #' extracted_multi_data <- envfetch(
 #'   x = my_data,
-#'   r = list("/path/to/local/raster/file1.tif", "GEE_COLLECTION_NAME1", "/path/to/local/raster/file2.tif"),
+#'   r = list(
+#'     "/path/to/local/raster/file1.tif",
+#'     "GEE_COLLECTION_NAME1",
+#'     "/path/to/local/raster/file2.tif"
+#'   ),
 #'   bands = list(c(1, 2), c('BAND_NAME_1', 'BAND_NAME_2'), c(3, 4)),
 #'   temporal_fun = list(mean, 'last', median),
 #'   time_column_name = "time"
@@ -62,7 +98,8 @@
 #' }
 #'
 #' @seealso
-#' Other relevant functions, used internally by `envfetch`: \code{\link{fetch}}, \code{\link{extract_gee}}, \code{\link{extract_over_time}}
+#' Other relevant functions, used internally by `envfetch`: \code{\link{fetch}},
+#' \code{\link{extract_gee}}, \code{\link{extract_over_time}}
 #'
 #' @export
 envfetch <- function(

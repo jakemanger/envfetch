@@ -1,25 +1,37 @@
 #' Fetch data from each row using anonymous functions
 #'
 #' This function passes your data through your supplied extraction functions,
-#' caches progress, so that if your function crashes somewhere, you can continue where you left off,
-#' shows progress and estimated time to completion and
+#' caches progress, so that if your function crashes somewhere, you can continue
+#' where you left off, shows progress and estimated time to completion and
 #' allows you to repeat sampling across different times.
 #'
-#' @param x A tibble with a `sf` "geometry" and a column with time (a `lubridate` interval or date), detected automatically or specified by the `time_column_name` parameter.
-#' @param ... Anonymous functions you would like to use on each row of the dataset.
-#' @param use_cache Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.
-#' Also avoids recomputing extractions between R sessions.
-#' @param out_dir A directory to output your result. Is ignored if out_filename = NA.
-#' @param out_filename The path to output the result. Set to NA (the default) to not save the result and only return the result.
+#' @param x A tibble with a `sf` "geometry" and a column with time (a
+#' `lubridate` interval or date), detected automatically or specified by the
+#' `time_column_name` parameter.
+#' @param ... Anonymous functions you would like to use on each row of the
+#' dataset.
+#' @param use_cache Whether to cache your progress. Allows you to continue where
+#' you left off in case of an error or the process is interrupted. Also avoids
+#' recomputing extractions between R sessions.
+#' @param out_dir A directory to output your result. Is ignored if
+#' out_filename = NA.
+#' @param out_filename The path to output the result. Set to NA (the default) to
+#' not save the result and only return the result.
 #' @param overwrite Overwrite output file if exists.
-#' @param cache_dir A directory to output cached progress. Is ignored if use_cache = FALSE.
-#' @param time_column_name Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
-#' is automatically selected.
-#' @param .time_rep A `time_rep` object. Used to repeat data extraction along repeating time intervals before and after the original datetime.
-#' This can be relative to the start or the end of the input time interval (specified by the `relative_to_start` argument of `time_rep`). Defaults to the start.
-#' @param verbose Whether to print progress and what stage of the extraction you are. Default is TRUE.
+#' @param cache_dir A directory to output cached progress. Is ignored if
+#' use_cache = FALSE.
+#' @param time_column_name Name of the time column in the dataset. If NULL
+#' (the default), a column of type lubridate::interval is automatically
+#' selected.
+#' @param .time_rep A `time_rep` object. Used to repeat data extraction along
+#' repeating time intervals before and after the original datetime. This can be
+#' relative to the start or the end of the input time interval (specified by the
+#' `relative_to_start` argument of `time_rep`). Defaults to the start.
+#' @inheritDotParams extract_over_time -verbose
+#' @inheritDotParams extract_gee -verbose
 #'
-#' @return tibble An augmented tibble with additional data fetched using supplied functions.
+#' @return tibble An augmented tibble with additional data fetched using
+#' supplied functions.
 #'
 #' @examples
 #' \dontrun{
@@ -34,7 +46,7 @@
 #'      )
 #'   )
 #'
-#' # repeatedly extract and summarise data every fortnight for the last six months
+#' # extract and summarise data every fortnight for the last six months
 #' # relative to the start of the time column in `d`
 #' rep_extracted <- d %>%
 #'   fetch(

@@ -5,12 +5,14 @@
 #' their time interval shifted by a specified lag duration.
 #'
 #' @param x A tibble containing the original data.
-#' @param n_lag_range A numeric vector of length 2 defining the range of lag times.
+#' @param n_lag_range A numeric vector of length 2 defining the range of lag
+#' times.
 #' @param time_lag A duration object specifying the size of the time lag.
 #' @param lag_amount_units A duration object or a numeric in seconds that
 #' determines the unit for the 'lag_amount' column.
 #' @param relative_to_start A logical value indicating whether the lag should be
 #' relative to the start or the end of the input time interval.
+#' @param time_column_name Name of the time column in `x`.
 #'
 #' @return A tibble with the original data and additional time-lagged rows.
 #'

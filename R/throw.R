@@ -19,7 +19,8 @@
 #' @param what A string indicating what kind of geometries to return: 'centers'
 #' for point geometries in the center of the cells, 'polygons' for polygon
 #' geometries filling the cells. Default is 'centers'.
-#' @param square A logical indicating whether to use square cells. Default is TRUE.
+#' @param square A logical indicating whether to use square cells. Default is
+#' TRUE.
 #' @param flat_topped A logical indicating whether to use flat-topped or
 #' pointy-topped hexagon cells. Ignored if square is TRUE. Default is FALSE.
 #'

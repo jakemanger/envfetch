@@ -1,4 +1,3 @@
-
 parse_time_column <- function(
   d,
   time_column_name='time_column'
