@@ -80,77 +80,54 @@ extract_over_time <- function(
   time_column_name=NULL,
   is_vectorised_summarisation_function=FALSE,
   verbose=TRUE,
+  trim_raster=TRUE,
+  subset_raster_indices=TRUE,
   ...
 ) {
-  if (override_terraOptions) {
-    # set the gdalCache size to 30000 MB
-    # as opposed to the default 1632 MB
-    # so it can run much faster with big files
-    terra::gdalCache(30000)
-    terra::terraOptions(memfrac=0.9, progress=1)
-  }
+  if (override_terraOptions)
+    override_terra_options()
 
-  # load raster file
-  if (is.character(r)) {
-    file_path <- r
-    r <- terra::rast(r, subds=subds)
-  } else {
-    file_path <- terra::sources(r)
-  }
-  file_path <- ifelse(nchar(file_path) > 103, paste0(strtrim(file_path, 100), '...'), file_path)
-
-  if (verbose)
-    cli::cli_alert(cli::col_black(paste('Loading raster at', file_path)))
-
-  # configure time
-  dates <- terra::time(r)
-  if (is.null(time_column_name)) {
+  if (is.null(time_column_name))
     time_column_name <- find_time_column_name(x)
-  }
-  time_intervals <- x %>% dplyr::pull(time_column_name)
-  lubridate::int_start(time_intervals) <- lubridate::int_start(time_intervals) - time_buffer
-  lubridate::int_end(time_intervals) <- lubridate::int_end(time_intervals) + time_buffer
 
-  # get min and max times from x to check for errors
-  min_time <- min(lubridate::int_start(time_intervals))
-  max_time <- max(lubridate::int_end(time_intervals))
-  if (min(dates) > max_time) {
-    stop('All requested data are before minimum time in data source')
-  }
-  if (max(dates) < min_time) {
-    stop('All requested data are after maximum time in data source')
-  }
-
-  # trim r and dates exteriors before finding time slices for speed
-  if (verbose)
-    cli::cli_alert(cli::col_black('Finding relevant time slices'))
-  r <- r[[dates <= max_time & dates >= min_time]]
+  r <- load_raster(r, subds, verbose)
   dates <- terra::time(r)
 
-  # find relevant times
-  relevant_indices <- find_relevant_time_slices(dates, time_intervals)
-  # subset raster to the relevant times
-  r_within_time <- r[[relevant_indices]]
+  out <- configure_time_and_check(dates, x %>% dplyr::pull(time_column_name), time_buffer)
+  time_intervals <- out$time_intervals
+  min_time <- out$min_time
+  max_time <- out$max_time
+
+  if (trim_raster) {
+    r <- trim_r(r, dates, min_time, max_time, verbose)
+    dates <- terra::time(r)
+  }
+
+  if (subset_raster_indices) {
+    relevant_indices <- find_relevant_time_slices(dates, time_intervals)
+    # subset raster to the relevant times
+    r <- r[[relevant_indices]]
+  }
 
   # make sure there are no duplicates in layer names
   # so we can easily do spatial joins later
-  fixed_layer_names <- make_unique_names(names(r_within_time))
-  names(r_within_time) <- fixed_layer_names
+  fixed_layer_names <- make_unique_names(names(r))
+  names(r) <- fixed_layer_names
 
-  nms <- names(r_within_time)
-  tms <- terra::time(r_within_time)
+  nms <- names(r)
+  tms <- terra::time(r)
 
   # start extraction
   extracted <- spatial_extraction_fun(
     x = x,
-    r = r_within_time,
+    r = r,
     verbose = verbose,
     ...
   )
 
   if (debug) {
     cli::cli_alert(cli::col_black('Creating debug plot'))
-    r_to_plot <- r_within_time[[1]]
+    r_to_plot <- r[[1]]
 
     lims <- sf::st_bbox(x)
     r_lims <- sf::st_bbox(r_to_plot)
@@ -164,7 +141,6 @@ extract_over_time <- function(
     graphics::title('Sampling x and a slice of data to extract from')
     readline(prompt = "Paused as debug=TRUE, press enter to continue.")
   }
-
 
   if (verbose)
     cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
@@ -337,4 +313,53 @@ make_unique_names <- function(names) {
   }
 
   return(unique_names)
+}
+
+override_terra_options <- function() {
+  # set the gdalCache size to 30000 MB
+  # as opposed to the default 1632 MB
+  # so it can run much faster with big files
+  terra::gdalCache(30000)
+  terra::terraOptions(memfrac=0.9, progress=1)
+}
+
+load_raster <- function(r, subds, verbose) {
+  # load raster file
+  if (is.character(r)) {
+    file_path <- r
+    r <- terra::rast(r, subds=subds)
+  } else {
+    file_path <- terra::sources(r)
+  }
+  file_path <- ifelse(nchar(file_path) > 103, paste0(strtrim(file_path, 100), '...'), file_path)
+
+  if (verbose)
+    cli::cli_alert(cli::col_black(paste('Loading raster at', file_path)))
+
+  return(r)
+}
+
+configure_time_and_check <- function(dates, time_intervals, time_buffer) {
+  lubridate::int_start(time_intervals) <- lubridate::int_start(time_intervals) - time_buffer
+  lubridate::int_end(time_intervals) <- lubridate::int_end(time_intervals) + time_buffer
+
+  # get min and max times from x to check for errors
+  min_time <- min(lubridate::int_start(time_intervals))
+  max_time <- max(lubridate::int_end(time_intervals))
+  if (min(dates) > max_time) {
+    stop('All requested data are before minimum time in data source')
+  }
+  if (max(dates) < min_time) {
+    stop('All requested data are after maximum time in data source')
+  }
+  return(list(time_intervals=time_intervals, min_time=min_time, max_time=max_time))
+}
+
+trim_r <- function(r, dates, min_time, max_time, verbose) {
+  # trim r and dates exteriors before finding time slices for speed
+  if (verbose)
+    cli::cli_alert(cli::col_black('Finding relevant time slices'))
+  r <- r[[dates <= max_time & dates >= min_time]]
+
+  return(r)
 }
