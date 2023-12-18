@@ -43,11 +43,11 @@ get_daynight_times <- function(
   }
 
   message('Calculating time since sunrise')
-  pb <- dplyr::progress_estimated(nrow(points))
+  pb <- cli::cli_progress_bar(nrow(points))
   time_since_sunrises <- 1:nrow(points) %>%
     purrr::map(
       function(x) {
-        pb$tick()$print()
+        cli::cli_progress_update(id=pb)
         start_time <- sf::st_drop_geometry(points)[x,] %>% dplyr::pull(time_column_name) %>% lubridate::int_start()
         coords <- sf::st_coordinates(sf::st_geometry(points))
         get_time_since_sunrise(
@@ -63,11 +63,11 @@ get_daynight_times <- function(
   points <- points %>% dplyr::bind_cols(time_since_sunrises=unlist(time_since_sunrises))
 
   message('Calculating time since sunset')
-  pb <- dplyr::progress_estimated(nrow(points))
+  pb <- cli::cli_progress_bar(nrow(points))
   time_since_sunsets <- 1:nrow(points) %>%
     purrr::map(
       function(x) {
-        pb$tick()$print()
+        cli::cli_progress_update(id=pb)
         start_time <- sf::st_drop_geometry(points)[x,] %>% dplyr::pull(time_column_name) %>% lubridate::int_start()
         coords <- sf::st_coordinates(sf::st_geometry(points)[x])
         get_time_since_sunset(
@@ -82,11 +82,11 @@ get_daynight_times <- function(
   points <- points %>% dplyr::bind_cols(time_since_sunsets=unlist(time_since_sunsets))
 
   message('Calculating day and night hours')
-  pb <- dplyr::progress_estimated(nrow(points))
+  pb <- cli::cli_progress_bar(nrow(points))
   light_dark_minutes <- 1:nrow(points) %>%
     purrr::map(
       function(x) {
-        pb$tick()$print()
+        cli::cli_progress_update(id=pb)
         start_time <- sf::st_drop_geometry(points)[x,] %>% dplyr::pull(time_column_name) %>% lubridate::int_start()
         end_time <- sf::st_drop_geometry(points)[x,] %>% dplyr::pull(time_column_name) %>% lubridate::int_end()
         coords <- sf::st_coordinates(sf::st_geometry(points)[x])
