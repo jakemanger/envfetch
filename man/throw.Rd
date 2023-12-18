@@ -36,7 +36,8 @@ Default is sf::st_crs(4326), which is the WGS 84 geographic coordinate system.}
 for point geometries in the center of the cells, 'polygons' for polygon
 geometries filling the cells. Default is 'centers'.}
 
-\item{square}{A logical indicating whether to use square cells. Default is TRUE.}
+\item{square}{A logical indicating whether to use square cells. Default is
+TRUE.}
 
 \item{flat_topped}{A logical indicating whether to use flat-topped or
 pointy-topped hexagon cells. Ignored if square is TRUE. Default is FALSE.}

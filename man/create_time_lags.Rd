@@ -16,7 +16,8 @@ create_time_lags(
 \arguments{
 \item{x}{A tibble containing the original data.}
 
-\item{n_lag_range}{A numeric vector of length 2 defining the range of lag times.}
+\item{n_lag_range}{A numeric vector of length 2 defining the range of lag
+times.}
 
 \item{time_lag}{A duration object specifying the size of the time lag.}
 
@@ -25,6 +26,8 @@ determines the unit for the 'lag_amount' column.}
 
 \item{relative_to_start}{A logical value indicating whether the lag should be
 relative to the start or the end of the input time interval.}
+
+\item{time_column_name}{Name of the time column in \code{x}.}
 }
 \value{
 A tibble with the original data and additional time-lagged rows.

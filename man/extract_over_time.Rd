@@ -27,41 +27,50 @@ extract_over_time(
 \arguments{
 \item{x}{A \code{sf} collection with a geometry column and a time column.}
 
-\item{r}{A file path to a raster file or a SpatRaster object from the terra package. This is the raster data
+\item{r}{A file path to a raster file or a SpatRaster object from the terra
+package. This is the raster data.
 source from which the data will be extracted.}
 
-\item{subds}{positive integer or character to select a sub-dataset to extract from. If zero or "", all sub-datasets are extracted.}
+\item{subds}{positive integer or character to select a sub-dataset to extract
+from. If zero or "", all sub-datasets are extracted.}
 
 \item{temporal_fun}{A function used to summarise multiple data points
 found within a time interval. Default is \code{rowMeans(x, na.rm=TRUE)}. The user
 can supply vectorised summarisation functions (using rowMeans or rowSums) or
 non-vectorised summarisation functions (e.g., \code{sum}, \code{mean}, \code{min}, \code{max}).
-If supplying a custom vectorised \code{temporal_fun}, set \code{is_vectorised_temporal_fun}
-to \code{TRUE} to ensure the vectorised approach is used for performance. Note,
-vectorised summarisation functions are not possible when \code{fun=NULL} and you
-are extracting with polygon or line geometries (i.e. \code{temporal_fun} is used
-to summarise, treating each time and space value independently).}
+If supplying a custom vectorised \code{temporal_fun}, set
+\code{is_vectorised_temporal_fun} to \code{TRUE} to ensure the vectorised approach is
+used for performance. Note, vectorised summarisation functions are not
+possible when \code{fun=NULL} and you are extracting with polygon or line
+geometries (i.e. \code{temporal_fun} is used to summarise, treating each time and
+space value independently).}
 
 \item{spatial_extraction_fun}{A function used to extract points spatially for
-each time slice of the raster. Default is the default implementation of \code{extract_over_space}
-(extracts the \code{mean} of points within polygons or lines, removing NAs).}
+each time slice of the raster. Default is the default implementation of
+\code{extract_over_space} (extracts the \code{mean} of points within polygons or lines,
+removing NAs).}
 
-\item{time_buffer}{Time buffer used to adjust the time interval for data extraction.
-The function always uses the time before and after the interval to prevent errors
-when summarising the earliest and latest times. Default is 0 days.}
+\item{time_buffer}{Time buffer used to adjust the time interval for data
+extraction. The function always uses the time before and after the interval
+to prevent errors when summarising the earliest and latest times. Default is
+0 days.}
 
-\item{debug}{If TRUE, pauses the function and displays a plot for each extracted
-point. This is useful for debugging unexpected extracted values. Default is FALSE.}
+\item{debug}{If TRUE, pauses the function and displays a plot for each
+extracted point. This is useful for debugging unexpected extracted values.
+Default is FALSE.}
 
 \item{override_terraOptions}{If TRUE, overrides terra's default terraOptions
 with those specified in the envfetch's package. Default is TRUE.}
 
-\item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
-is automatically selected.}
+\item{time_column_name}{Name of the time column in the dataset. If NULL (the
+default), a column of type lubridate::interval is automatically selected.}
 
-\item{is_vectorised_summarisation_function}{Whether the summarisation is vectorised (like rowSums or rowMeans). Is only
-necessary to be TRUE if the row-wise vectorised summarisation function has not been automatically detected
-(does not use rowSums or rowMeans).}
+\item{is_vectorised_summarisation_function}{Whether the summarisation is
+vectorised (like rowSums or rowMeans). Is only necessary to be TRUE if the
+row-wise vectorised summarisation function has not been automatically
+detected (does not use rowSums or rowMeans).}
+
+\item{verbose}{Whether to print messages to the console. Defaults to TRUE.}
 
 \item{...}{Additional arguments to pass to the \code{spatial_extraction_fun}.}
 }
@@ -82,7 +91,7 @@ extracted <- d \%>\%
     ~extract_over_time(.x, r = '/path/to/netcdf.nc'),
   )
 
-# repeatedly extract and summarise data every fortnight for the last six months
+# extract and summarise data every fortnight for the past six months
 # relative to the start of the time column in `d`
 rep_extracted <- d \%>\%
   fetch(

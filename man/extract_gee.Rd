@@ -26,28 +26,29 @@ extract_gee(
 \arguments{
 \item{x}{A \code{sf} collection with a geometry column and a time column.}
 
-\item{collection_name}{A character string representing the Google Earth Engine
-image collection from which to extract data.}
+\item{collection_name}{A character string representing the Google Earth
+Engine image collection from which to extract data.}
 
-\item{bands}{A vector of character strings representing the band names to extract
-from the image collection.}
+\item{bands}{A vector of character strings representing the band names to
+extract from the image collection.}
 
 \item{scale}{A numeric value representing the scale at which to perform the
 extraction in meters. Default is 250.}
 
 \item{time_buffer}{A lubridate duration representing the amount of time to add
-before and after each time interval when filtering the image
-collection. Default is lubridate::days(20).}
+before and after each time interval when filtering the image collection.
+Default is lubridate::days(20).}
 
-\item{temporal_fun}{A function or string representing the function used to summarise
-the data extracted for each interval. Default is 'last', which returns
-the value closest to the start of the interval. Other built-in options are
-'closest' and 'next'.}
+\item{temporal_fun}{A function or string representing the function used to
+summarise the data extracted for each interval. Default is 'last', which
+returns the value closest to the start of the interval. Other built-in
+options are 'closest' and 'next'.}
 
-\item{debug}{A logical indicating whether to produce debugging plots. Default is FALSE.}
+\item{debug}{A logical indicating whether to produce debugging plots. Default
+is FALSE.}
 
-\item{initialise_gee}{A logical indicating whether to initialise Google Earth Engine
-within the function. Default is TRUE.}
+\item{initialise_gee}{A logical indicating whether to initialise Google Earth
+Engine within the function. Default is TRUE.}
 
 \item{use_gcs}{A logical indicating whether to use Google Cloud Storage for
 larger requests. Default is FALSE.}
@@ -55,27 +56,30 @@ larger requests. Default is FALSE.}
 \item{use_drive}{A logical indicating whether to use Google Drive for larger
 requests. Default is FALSE.}
 
-\item{max_chunk_time_day_range}{An integer representing the maximum number of days to include
-in each time chunk when splitting the dataset for efficient
+\item{max_chunk_time_day_range}{An integer representing the maximum number of
+days to include in each time chunk when splitting the dataset for efficient
 memory use on Google Earth Engine's end. Default is 365.}
 
-\item{max_feature_collection_size}{An integer representing the maximum number of features
-(rows) to include in each chunk when splitting the
-dataset for efficient memory use on Google Earth Engine's end.
-Default is 5000.}
+\item{max_feature_collection_size}{An integer representing the maximum number
+of features (rows) to include in each chunk when splitting the dataset for
+efficient memory use on Google Earth Engine's end. Default is 5000.}
 
-\item{ee_reducer_fun}{A Google Earth Engine reducer function representing the function
-used to aggregate the data extracted from each image. Default is
+\item{ee_reducer_fun}{A Google Earth Engine reducer function representing the
+function used to aggregate the data extracted from each image. Default is
 rgee::ee$Reducer$mean().}
 
-\item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
-is automatically selected.}
+\item{time_column_name}{Name of the time column in the dataset. If NULL (the
+default), a column of type lubridate::interval is automatically selected.}
 
-\item{...}{Additional arguments for underlying extraction function, \code{rgee::ee_extract}.}
+\item{verbose}{Whether to print messages to the console. Defaults to TRUE.}
+
+\item{...}{Additional arguments for underlying extraction function,
+\code{rgee::ee_extract}.}
 }
 \value{
-A dataframe or sf object with the same rows as the input \code{x}, and new columns
-representing the extracted data. The new column names correspond to the \code{bands} parameter.
+A dataframe or sf object with the same rows as the input \code{x}, and new
+columns representing the extracted data. The new column names correspond to
+the \code{bands} parameter.
 }
 \description{
 This function uses Google Earth Engine to extract specified bands from an
@@ -97,7 +101,7 @@ of each interval in the dataset. This function is best used within the
      )
   )
 
-# repeatedly extract and summarise data every fortnight for the last six months
+# extract and summarise data every fortnight for the last six months
 # relative to the start of the time column in `d`
 rep_extracted <- d \%>\%
   fetch(

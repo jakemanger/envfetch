@@ -13,21 +13,24 @@ get_daynight_times(
 )
 }
 \arguments{
-\item{points}{An \code{sf} object containing geometry and a time_column with datetime
-as a \code{lubridate::interval}.}
+\item{points}{An \code{sf} object containing geometry and a time_column with
+datetime as a \code{lubridate::interval}.}
 
-\item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
-is automatically selected.}
+\item{time_column_name}{Name of the time column in the dataset. If NULL (the
+default), a column of type lubridate::interval is automatically selected.}
 
-\item{save}{A logical value indicating whether to save the extracted day and night
-time information as an RDS file. Default is \code{FALSE}.}
+\item{save}{A logical value indicating whether to save the extracted day and
+night time information as an RDS file. Default is \code{FALSE}.}
 
-\item{savepath}{The path to save the RDS file, defaults to './output/extracted_day_night_stats.rds'.}
+\item{savepath}{The path to save the RDS file, defaults to
+'./output/extracted_day_night_stats.rds'.}
 
-\item{units}{A string specifying the units of time to return, defaults to 'hours'.}
+\item{units}{A string specifying the units of time to return, defaults to
+'hours'.}
 }
 \value{
-An \code{sf} object containing the original points and additional day and night time-related information.
+An \code{sf} object containing the original points and additional day and
+night time-related information.
 }
 \description{
 This function calculates time since sunrise, time since sunset, and day and
@@ -36,6 +39,10 @@ the output as an RDS file.
 }
 \examples{
 \dontrun{
-sf_with_times <- get_daynight_times(points_sf, save=TRUE, savepath='./daynight.rds', units='minutes')
+sf_with_times <- get_daynight_times(
+  points_sf,
+  save=TRUE,
+  savepath='./daynight.rds', units='minutes'
+)
 }
 }

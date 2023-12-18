@@ -11,11 +11,14 @@ find_closest_datetime(dates, x, before = NA)
 
 \item{x}{a single date or datetime}
 
-\item{before}{Leave as NA (the default) to find the closest or specify a boolean if the closest datetime should be before x (if TRUE) or after x (if FALSE)}
+\item{before}{Leave as NA (the default) to find the closest or specify a
+boolean if the closest datetime should be before x (if TRUE) or after x (if
+FALSE)}
 }
 \value{
 A logical vector of length dates.
 }
 \description{
-Finds the closest matching datetime before (before=TRUE), after (before=FALSE) or either (default or if before=NA)
+Finds the closest matching datetime before (before=TRUE), after
+(before=FALSE) or either (default or if before=NA)
 }

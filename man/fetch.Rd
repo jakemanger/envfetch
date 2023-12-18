@@ -17,36 +17,100 @@ fetch(
 )
 }
 \arguments{
-\item{x}{A tibble with a \code{sf} "geometry" and a column with time (a \code{lubridate} interval or date), detected automatically or specified by the \code{time_column_name} parameter.}
+\item{x}{A tibble with a \code{sf} "geometry" and a column with time (a
+\code{lubridate} interval or date), detected automatically or specified by the
+\code{time_column_name} parameter.}
 
-\item{...}{Anonymous functions you would like to use on each row of the dataset.}
+\item{...}{
+  Arguments passed on to \code{\link[=extract_over_time]{extract_over_time}}, \code{\link[=extract_gee]{extract_gee}}
+  \describe{
+    \item{\code{r}}{A file path to a raster file or a SpatRaster object from the terra
+package. This is the raster data.
+source from which the data will be extracted.}
+    \item{\code{subds}}{positive integer or character to select a sub-dataset to extract
+from. If zero or "", all sub-datasets are extracted.}
+    \item{\code{temporal_fun}}{A function used to summarise multiple data points
+found within a time interval. Default is \code{rowMeans(x, na.rm=TRUE)}. The user
+can supply vectorised summarisation functions (using rowMeans or rowSums) or
+non-vectorised summarisation functions (e.g., \code{sum}, \code{mean}, \code{min}, \code{max}).
+If supplying a custom vectorised \code{temporal_fun}, set
+\code{is_vectorised_temporal_fun} to \code{TRUE} to ensure the vectorised approach is
+used for performance. Note, vectorised summarisation functions are not
+possible when \code{fun=NULL} and you are extracting with polygon or line
+geometries (i.e. \code{temporal_fun} is used to summarise, treating each time and
+space value independently).}
+    \item{\code{spatial_extraction_fun}}{A function used to extract points spatially for
+each time slice of the raster. Default is the default implementation of
+\code{extract_over_space} (extracts the \code{mean} of points within polygons or lines,
+removing NAs).}
+    \item{\code{time_buffer}}{Time buffer used to adjust the time interval for data
+extraction. The function always uses the time before and after the interval
+to prevent errors when summarising the earliest and latest times. Default is
+0 days.}
+    \item{\code{debug}}{If TRUE, pauses the function and displays a plot for each
+extracted point. This is useful for debugging unexpected extracted values.
+Default is FALSE.}
+    \item{\code{override_terraOptions}}{If TRUE, overrides terra's default terraOptions
+with those specified in the envfetch's package. Default is TRUE.}
+    \item{\code{is_vectorised_summarisation_function}}{Whether the summarisation is
+vectorised (like rowSums or rowMeans). Is only necessary to be TRUE if the
+row-wise vectorised summarisation function has not been automatically
+detected (does not use rowSums or rowMeans).}
+    \item{\code{collection_name}}{A character string representing the Google Earth
+Engine image collection from which to extract data.}
+    \item{\code{bands}}{A vector of character strings representing the band names to
+extract from the image collection.}
+    \item{\code{scale}}{A numeric value representing the scale at which to perform the
+extraction in meters. Default is 250.}
+    \item{\code{initialise_gee}}{A logical indicating whether to initialise Google Earth
+Engine within the function. Default is TRUE.}
+    \item{\code{use_gcs}}{A logical indicating whether to use Google Cloud Storage for
+larger requests. Default is FALSE.}
+    \item{\code{use_drive}}{A logical indicating whether to use Google Drive for larger
+requests. Default is FALSE.}
+    \item{\code{max_chunk_time_day_range}}{An integer representing the maximum number of
+days to include in each time chunk when splitting the dataset for efficient
+memory use on Google Earth Engine's end. Default is 365.}
+    \item{\code{max_feature_collection_size}}{An integer representing the maximum number
+of features (rows) to include in each chunk when splitting the dataset for
+efficient memory use on Google Earth Engine's end. Default is 5000.}
+    \item{\code{ee_reducer_fun}}{A Google Earth Engine reducer function representing the
+function used to aggregate the data extracted from each image. Default is
+rgee::ee$Reducer$mean().}
+  }}
 
-\item{use_cache}{Whether to cache your progress. Allows you to continue where you left off in case of an error or the process is interrupted.
-Also avoids recomputing extractions between R sessions.}
+\item{use_cache}{Whether to cache your progress. Allows you to continue where
+you left off in case of an error or the process is interrupted. Also avoids
+recomputing extractions between R sessions.}
 
-\item{out_dir}{A directory to output your result. Is ignored if out_filename = NA.}
+\item{out_dir}{A directory to output your result. Is ignored if
+out_filename = NA.}
 
-\item{out_filename}{The path to output the result. Set to NA (the default) to not save the result and only return the result.}
+\item{out_filename}{The path to output the result. Set to NA (the default) to
+not save the result and only return the result.}
 
 \item{overwrite}{Overwrite output file if exists.}
 
-\item{cache_dir}{A directory to output cached progress. Is ignored if use_cache = FALSE.}
+\item{cache_dir}{A directory to output cached progress. Is ignored if
+use_cache = FALSE.}
 
-\item{time_column_name}{Name of the time column in the dataset. If NULL (the default), a column of type lubridate::interval
-is automatically selected.}
+\item{time_column_name}{Name of the time column in the dataset. If NULL
+(the default), a column of type lubridate::interval is automatically
+selected.}
 
-\item{.time_rep}{A \code{time_rep} object. Used to repeat data extraction along repeating time intervals before and after the original datetime.
-This can be relative to the start or the end of the input time interval (specified by the \code{relative_to_start} argument of \code{time_rep}). Defaults to the start.}
-
-\item{verbose}{Whether to print progress and what stage of the extraction you are. Default is TRUE.}
+\item{.time_rep}{A \code{time_rep} object. Used to repeat data extraction along
+repeating time intervals before and after the original datetime. This can be
+relative to the start or the end of the input time interval (specified by the
+\code{relative_to_start} argument of \code{time_rep}). Defaults to the start.}
 }
 \value{
-tibble An augmented tibble with additional data fetched using supplied functions.
+tibble An augmented tibble with additional data fetched using
+supplied functions.
 }
 \description{
 This function passes your data through your supplied extraction functions,
-caches progress, so that if your function crashes somewhere, you can continue where you left off,
-shows progress and estimated time to completion and
+caches progress, so that if your function crashes somewhere, you can continue
+where you left off, shows progress and estimated time to completion and
 allows you to repeat sampling across different times.
 }
 \examples{
@@ -62,7 +126,7 @@ extracted <- d \%>\%
      )
   )
 
-# repeatedly extract and summarise data every fortnight for the last six months
+# extract and summarise data every fortnight for the last six months
 # relative to the start of the time column in `d`
 rep_extracted <- d \%>\%
   fetch(
