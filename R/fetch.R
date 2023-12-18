@@ -78,7 +78,7 @@ fetch <- function(
   verbose <- ifelse("verbose" %in% names(args), args$verbose, TRUE)
 
   if (verbose)
-    cli::cli_h1(cli::col_black('🥏 🐕 Fetching your data'))
+    cli::cli_h1(cli::col_black('\U0001F94F \U0001F415 Fetching your data'))
 
   if (!dir.exists(out_dir)) dir.create(out_dir)
   if (use_cache && !dir.exists(cache_dir)) dir.create(cache_dir)
@@ -162,13 +162,13 @@ fetch <- function(
       out <- out[,!(colnames(out) %in% colnames(unique_x))]
       out <- sf::st_drop_geometry(out)
       if (verbose)
-        cli::cli_alert_success(cli::col_green(paste('🐶 Completed', '{fun_string}')))
+        cli::cli_alert_success(cli::col_green(paste('\U0001F436 Completed', '{fun_string}')))
 
       if (use_cache)
         saveRDS(out, outpath)
     } else {
       if (verbose)
-        cli::cli_alert_success(cli::col_green(paste('🕳️🦴 Dug up cached result of', '{fun_string}')))
+        cli::cli_alert_success(cli::col_green(paste('\U0001F573\UFE0F \U0001F9B4 Dug up cached result of', '{fun_string}')))
       out <- readRDS(outpath)
     }
     return(out)
@@ -245,7 +245,7 @@ fetch <- function(
   }
 
   if (verbose)
-    cli::cli_h1(cli::col_black('🐩 Fetched'))
+    cli::cli_h1(cli::col_black('\U0001F429 Fetched'))
 
   return(x)
 }
