@@ -42,7 +42,12 @@
 #' row-wise vectorised summarisation function has not been automatically
 #' detected (does not use rowSums or rowMeans).
 #' @param verbose Whether to print messages to the console. Defaults to TRUE.
+#' @param trim_raster Whether to trim the raster to time bounds as a performance
+#' optimisation. Defaults to TRUE.
+#' @param subset_raster_indices  Whether to subset raster by time indices as a
+#' performance optimisation. Defaults to TRUE.
 #' @param ... Additional arguments to pass to the `spatial_extraction_fun`.
+#'
 #' @return A modified version of the input 'x' with additional columns
 #' containing the extracted data.
 #'
