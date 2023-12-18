@@ -27,7 +27,8 @@ Suggests:
     microbenchmark,
     rnaturalearthdata,
     rnaturalearth,
-    suncalc
+    suncalc,
+    exactextractr
 Config/testthat/edition: 3
 Imports: 
     cli,
@@ -36,9 +37,11 @@ Imports:
     lubridate,
     magrittr,
     purrr,
+    rlang,
     rgee,
     stringr,
     terra,
+    tibble,
     tidyr,
     sf,
     stars
