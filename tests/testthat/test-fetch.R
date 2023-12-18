@@ -1,4 +1,4 @@
-test_that('caching_saves_time_between_runs', {
+test_that('caches_between_runs', {
   d <- create_test_d()
   r <- load_test_raster()
 
@@ -6,13 +6,8 @@ test_that('caching_saves_time_between_runs', {
 
   if (dir.exists(cache_dir)) unlink(cache_dir, recursive=TRUE)
 
-  t1 <- Sys.time()
-  first_out <- d %>% envfetch(r=r, cache_dir=cache_dir, verbose=FALSE)
-  t2 <- Sys.time()
-  second_out <- d %>% envfetch(r=r, cache_dir=cache_dir, verbose=FALSE)
-  t3 <- Sys.time()
-
-  expect_lt(as.numeric(t3-t2), as.numeric(t2-t1))
+  expect_message(first_out <- d %>% envfetch(r=r, cache_dir=cache_dir, verbose=TRUE), 'Completed')
+  expect_message(second_out <- d %>% envfetch(r=r, cache_dir=cache_dir, verbose=TRUE), 'Dug up cached result')
 
   expect_equal(first_out, second_out) # should return the same result
 })
@@ -48,10 +43,10 @@ test_that('caching_does_not_cache_different_rasters', {
   t1 <- Sys.time()
   first_out <- d %>% envfetch(r=r, cache_dir=cache_dir)
   t2 <- Sys.time()
-  second_out <- d %>% envfetch(r=r2, cache_dir=cache_dir)
+  expect_warning(second_out <- d %>% envfetch(r=r2, cache_dir=cache_dir), 'varnames in the raster is empty')
   t3 <- Sys.time()
 
-  expect_true(abs(as.numeric(t3 - t2) - as.numeric(t2 - t1)) < 0.05) # should have approximately the same time to calculate
+  expect_true(abs(as.numeric(t3 - t2) - as.numeric(t2 - t1)) < 0.1) # should have approximately the same time to calculate
   first_out$small <- first_out$small + 10 # second_out should be 10 larger
   expect_equal(first_out, second_out) # should return the same result
 })

@@ -50,12 +50,12 @@ envfetch_vs_terra <- function(temporal_fun, polygons=FALSE) {
 }
 
 test_that('correct_result_returned_points_mean', {
-  envfetch_vs_terra(temporal_fun=mean)
+  expect_warning(envfetch_vs_terra(temporal_fun=mean), 'returning NA')
 })
 
 test_that('correct_result_returned_points_mean_na_rm', {
   fun <- function(x) {mean(x, na.rm=TRUE)}
-  envfetch_vs_terra(temporal_fun=fun)
+  expect_warning(envfetch_vs_terra(temporal_fun=fun), 'returning NA')
 })
 
 test_that('correct_result_returned_points_sum', {
@@ -68,12 +68,12 @@ test_that('correct_result_returned_points_sum_na_rm', {
 })
 
 test_that('correct_result_returned_polygons_mean', {
-  envfetch_vs_terra(temporal_fun=mean, polygons=TRUE)
+  expect_warning(envfetch_vs_terra(temporal_fun=mean, polygons=TRUE), 'returning NA')
 })
 
 test_that('correct_result_returned_polygons_mean_na_rm', {
   fun <- function(x) {mean(x, na.rm=TRUE)}
-  envfetch_vs_terra(temporal_fun=fun, polygons=TRUE)
+  expect_warning(envfetch_vs_terra(temporal_fun=fun, polygons=TRUE), 'returning NA')
 })
 
 test_that('correct_result_returned_polygons_sum', {
@@ -119,3 +119,37 @@ test_that('chunking_doesnt_change_output', {
 
   expect_equal(chunked_out, out)
 })
+
+# test_that('terra_and_stars_backend_match', {
+#   d <- create_test_d()
+#   r <- load_test_raster()
+#
+#   terra_out <- d %>%
+#     fetch(
+#       ~extract_over_time(
+#         .x,
+#         r,
+#         spatial_fun = mean,
+#         na.rm = TRUE
+#       ),
+#       .time_rep=time_rep(interval=lubridate::days(14), n_start=-1),
+#       use_cache=FALSE,
+#       out_filename=NA
+#     )
+#
+#   stars_out <- d %>%
+#     fetch(
+#       ~extract_over_time(
+#         .x,
+#         r,
+#         spatial_fun = mean,
+#         extraction_fun = stars::st_extract,
+#         na.rm = TRUE
+#       ),
+#       .time_rep=time_rep(interval=lubridate::days(14), n_start=-1),
+#       use_cache=FALSE,
+#       out_filename=NA
+#     )
+#
+#   expect_equal(terra_out, stars_out)
+# })
