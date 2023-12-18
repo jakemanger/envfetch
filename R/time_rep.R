@@ -28,7 +28,7 @@
 #' # periods before and ending 42 periods after the original datetime
 #' time_rep(lubridate::days(14), -2, 3)
 time_rep <- function(interval, n_start=-1, n_end=0, relative_to_start=TRUE) {
-  stopifnot(lubridate:::is.period(interval))
+  stopifnot(lubridate::is.period(interval))
   stopifnot(n_start %% 1 == 0)
   stopifnot(n_end %% 1 == 0)
   stopifnot(is.logical(relative_to_start))

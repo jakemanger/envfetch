@@ -361,25 +361,6 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
   min_date_on_rgee <- min(date_info$time_start)
   max_date_on_rgee <- max(date_info$time_end)
 
-
-  if (min_date_on_rgee > min_datetime) {
-    warning(
-      paste0(
-        'Minimum date of ', min_datetime, ' in input is less than the',
-        ' minimum date of the image collection, ', collection_name,
-        '(', min_date_on_rgee, ')'
-      )
-    )
-  }
-  if (max_date_on_rgee < max_datetime) {
-    warning(
-      paste0(
-        'Maximum date of ', max_datetime, ' in input is more than the',
-        ' maximum date of the image collection, ', collection_name,
-        '(', max_date_on_rgee, ')'
-      )
-    )
-  }
   if (max_date_on_rgee < min_datetime) {
     stop(
       paste0(
@@ -395,6 +376,24 @@ check_dataset <- function(min_datetime, max_datetime, collection_name) {
         'Maximum date of ', max_datetime, ' in input is less than the',
         ' minimum date of the image collection, ', collection_name,
         '(', min_date_on_rgee, ')'
+      )
+    )
+  }
+  if (min_date_on_rgee > min_datetime) {
+    warning(
+      paste0(
+        'Minimum date of ', min_datetime, ' in input is less than the',
+        ' minimum date of the image collection, ', collection_name,
+        '(', min_date_on_rgee, ')'
+      )
+    )
+  }
+  if (max_date_on_rgee < max_datetime) {
+    warning(
+      paste0(
+        'Maximum date of ', max_datetime, ' in input is more than the',
+        ' maximum date of the image collection, ', collection_name,
+        '(', max_date_on_rgee, ')'
       )
     )
   }

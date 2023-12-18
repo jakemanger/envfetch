@@ -176,7 +176,12 @@ calculate_daynight_times <- function(
 #'
 #' @examples
 #' \dontrun{
-#' time_since_sunrise <- get_time_since_sunrise(start = Sys.time(), lat = 51.5074, lon = 0.1278, units = 'minutes')
+#' time_since_sunrise <- get_time_since_sunrise(
+#'   start = Sys.time(),
+#'   lat = 51.5074,
+#'   lon = 0.1278,
+#'   units = 'minutes'
+#' )
 #' }
 get_time_since_sunrise <- function(
     start,
@@ -207,7 +212,12 @@ get_time_since_sunrise <- function(
 #'
 #' @examples
 #' \dontrun{
-#' time_since_sunset <- get_time_since_sunset(start = Sys.time(), lat = 51.5074, lon = 0.1278, units = 'minutes')
+#' time_since_sunset <- get_time_since_sunset(
+#'   start = Sys.time(),
+#'   lat = 51.5074,
+#'   lon = 0.1278,
+#'   units = 'minutes'
+#' )
 #' }
 get_time_since_sunset <- function(
     start,
@@ -240,7 +250,13 @@ get_time_since_sunset <- function(
 #'
 #' @examples
 #' \dontrun{
-#' day_night_hours <- get_day_night_hours(start = Sys.time(), finish = Sys.time() + lubridate::hours(24), lat = 51.5074, lon = 0.1278, units = 'minutes')
+#' day_night_hours <- get_day_night_hours(
+#'   start = Sys.time(),
+#'   finish = Sys.time() + lubridate::hours(24),
+#'   lat = 51.5074,
+#'   lon = 0.1278,
+#'   units = 'minutes'
+#' )
 #' }
 get_day_night_hours <- function(
     start,
