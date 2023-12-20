@@ -128,7 +128,7 @@ extract_over_space <- function(
         chunk <- resample_raster(chunk, resample_scale, resample_fun)
       }
 
-      ex <- extraction_fun(x = chunk, y = unique_x, spatial_fun=spatial_fun, na.rm=na.rm, ...)
+      ex <- extraction_fun(x = chunk, y = unique_x, fun=spatial_fun, na.rm=na.rm, ...)
       # update progress bar after each extraction
       if (verbose)
         cli::cli_progress_update(id=pb)
@@ -149,7 +149,7 @@ extract_over_space <- function(
     # gc()
 
     # perform extraction normally if raster fits in RAM
-    extracted <- extraction_fun(x = r, y = unique_x, spatial_fun=spatial_fun, na.rm=na.rm, ...)
+    extracted <- extraction_fun(x = r, y = unique_x, fun=spatial_fun, na.rm=na.rm, ...)
   }
 
   if (verbose)
