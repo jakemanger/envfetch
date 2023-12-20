@@ -24,7 +24,7 @@
 #' space value independently).
 #' @param spatial_extraction_fun A function used to extract points spatially for
 #' each time slice of the raster. Default is the default implementation of
-#' `extract_over_space` (extracts the `mean` of points within polygons or lines,
+#' `extract_over_space` (extracts the `mean` of geometries within rasters,
 #' removing NAs).
 #' @param time_buffer Time buffer used to adjust the time interval for data
 #' extraction. The function always uses the time before and after the interval
