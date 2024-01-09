@@ -158,7 +158,7 @@ extract_over_time <- function(
 
   # prepare data for summarisation
   new_col_names <- terra::varnames(r)
-  if (new_col_names == '') {
+  if (length(new_col_names) == 1 && new_col_names == '') {
     new_col_names <- unique(sapply(strsplit(names(r), '_'), '[[', 1))
     warning(paste('varnames in the raster is empty. Assuming these are:', paste(new_col_names, collapse=', ')))
   }

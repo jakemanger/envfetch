@@ -33,6 +33,9 @@
 #' `rgee::ee$Reducer` function (e.g. `rgee::ee$Reducer$sum()`). See
 #' https://r-spatial.github.io/rgee/reference/ee_extract.html". For different
 #' behaviour with multiple sources, provide a list of functions or strings.
+#' @param scale Numeric vector specifying scales to aggregate rasters to before
+#' extraction. Use `NULL` for no aggregation. For multiple sources, provide a
+#' list of vectors.
 #' @param use_cache Logical flag indicating whether to use caching. Default is
 #' `TRUE`.
 #' @param out_dir Output directory for files. Default is `./output/`.
