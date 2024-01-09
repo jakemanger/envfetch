@@ -91,6 +91,10 @@ vectorised (like rowSums or rowMeans). Is only necessary to be TRUE if the
 row-wise vectorised summarisation function has not been automatically
 detected (does not use rowSums or rowMeans).}
     \item{\code{verbose}}{Whether to print messages to the console. Defaults to TRUE.}
+    \item{\code{trim_raster}}{Whether to trim the raster to time bounds as a performance
+optimisation. Defaults to TRUE.}
+    \item{\code{subset_raster_indices}}{Whether to subset raster by time indices as a
+performance optimisation. Defaults to TRUE.}
     \item{\code{scale}}{A numeric value representing the scale at which to perform the
 extraction in meters. Default is 250.}
     \item{\code{use_gcs}}{A logical indicating whether to use Google Cloud Storage for

@@ -102,5 +102,7 @@ create_time_lags <- function(
     row_num = unlist(row_num)
   )
 
+  gc()
+
   return(x)
 }

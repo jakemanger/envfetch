@@ -108,6 +108,7 @@ envfetch <- function(
   bands=NULL,
   temporal_fun='mean',
   spatial_fun='mean',
+  scale=NULL,
   use_cache=TRUE,
   out_dir=file.path('./output/'),
   out_filename=NA,
@@ -127,6 +128,7 @@ envfetch <- function(
   }
 
   bands <- parse_input(bands, num_rasters)
+  scale <- parse_input(scale, num_rasters)
   temporal_fun <- parse_input(temporal_fun, num_rasters)
   spatial_fun <- parse_input(spatial_fun, num_rasters)
 
@@ -148,15 +150,15 @@ envfetch <- function(
       }
 
       if (spatial_fun[[i]] == "mean") {
-        spatial_fun[[i]] <- function(x) { mean(x, na.rm=TRUE) }
+        spatial_fun[[i]] <- function(x, na.rm=TRUE) { mean(x, na.rm=na.rm) }
       } else if (spatial_fun[[i]]== "sum") {
-        spatial_fun[[i]] <- function(x) { sum(x, na.rm=TRUE) }
+        spatial_fun[[i]] <- function(x, na.rm=TRUE) { sum(x, na.rm=na.rm) }
       }
 
       if (temporal_fun[[i]] == 'mean') {
-        temporal_fun[[i]] <- function(x) { rowMeans(x, na.rm=TRUE) }
+        temporal_fun[[i]] <- function(x, na.rm=TRUE) { rowMeans(x, na.rm=na.rm) }
       } else if (temporal_fun[[i]] == 'sum') {
-        temporal_fun[[i]] <- function(x) { rowSums(x, na.rm=TRUE) }
+        temporal_fun[[i]] <- function(x, na.rm=TRUE) { rowSums(x, na.rm=na.rm) }
       }
 
       if (is.null(bands[[i]])) {
@@ -170,7 +172,7 @@ envfetch <- function(
           time_column_name <- find_time_column_name(x)
         }
         time <- x %>% sf::st_drop_geometry() %>% dplyr::pull(time_column_name)
-        if (!lubridate::is.interval(time) && is_date(time) && all(is.na(.time_rep))) {
+        if (!lubridate::is.interval(time) && is_date(time) && all(is.na(.time_rep)) && is.null(scale[[i]])) {
           # if the user wants to extract single time slices, use the optimised
           # approach of stars
           functions <- c(
@@ -185,7 +187,7 @@ envfetch <- function(
       # otherwise, use our approach for summarising multiple time slices
       functions <- c(
         functions,
-        create_extract_over_time_function(r[[i]], subds, temporal_fun[[i]], spatial_fun[[i]])
+        create_extract_over_time_function(r[[i]], subds, temporal_fun[[i]], spatial_fun[[i]], scale[[i]])
       )
     } else {
 
@@ -221,7 +223,7 @@ envfetch <- function(
 
       functions <- c(
         functions,
-        create_extract_gee_function(r[[i]], bands[[i]], temporal_fun[[i]], spatial_fun[[i]])
+        create_extract_gee_function(r[[i]], bands[[i]], temporal_fun[[i]], spatial_fun[[i]], scale[[i]])
       )
     }
   }
@@ -267,11 +269,12 @@ parse_input <- function(input, num_rasters) {
   return(input)
 }
 
-create_extract_over_time_function <- function(r, subds, temporal_fun, spatial_fun) {
+create_extract_over_time_function <- function(r, subds, temporal_fun, spatial_fun, scale) {
   force(r)
   force(subds)
   force(temporal_fun)
   force(spatial_fun)
+  force(scale)
 
   return(
     ~extract_over_time(
@@ -280,6 +283,7 @@ create_extract_over_time_function <- function(r, subds, temporal_fun, spatial_fu
       subds = subds,
       temporal_fun = temporal_fun,
       spatial_fun = spatial_fun,
+      scale = scale,
       ...
     )
   )
@@ -301,11 +305,12 @@ create_st_extract_function <- function(r, bands, spatial_fun) {
   )
 }
 
-create_extract_gee_function <- function(r, bands, temporal_fun, spatial_fun) {
+create_extract_gee_function <- function(r, bands, temporal_fun, spatial_fun, scale) {
   force(r)
   force(bands)
   force(temporal_fun)
   force(spatial_fun)
+  force(scale)
 
   return(
     ~extract_gee(
@@ -314,7 +319,8 @@ create_extract_gee_function <- function(r, bands, temporal_fun, spatial_fun) {
       bands = bands,
       temporal_fun = temporal_fun,
       ee_reducer_fun = spatial_fun,
-      initialise_gee=FALSE,
+      initialise_gee = FALSE,
+      scale = scale,
       ...
     )
   )

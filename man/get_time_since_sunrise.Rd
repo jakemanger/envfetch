@@ -23,6 +23,11 @@ This function calculates the time elapsed since sunrise given a specific locatio
 }
 \examples{
 \dontrun{
-time_since_sunrise <- get_time_since_sunrise(start = Sys.time(), lat = 51.5074, lon = 0.1278, units = 'minutes')
+time_since_sunrise <- get_time_since_sunrise(
+  start = Sys.time(),
+  lat = 51.5074,
+  lon = 0.1278,
+  units = 'minutes'
+)
 }
 }

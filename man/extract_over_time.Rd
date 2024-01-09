@@ -21,6 +21,8 @@ extract_over_time(
   time_column_name = NULL,
   is_vectorised_summarisation_function = FALSE,
   verbose = TRUE,
+  trim_raster = TRUE,
+  subset_raster_indices = TRUE,
   ...
 )
 }
@@ -47,7 +49,7 @@ space value independently).}
 
 \item{spatial_extraction_fun}{A function used to extract points spatially for
 each time slice of the raster. Default is the default implementation of
-\code{extract_over_space} (extracts the \code{mean} of points within polygons or lines,
+\code{extract_over_space} (extracts the \code{mean} of geometries within rasters,
 removing NAs).}
 
 \item{time_buffer}{Time buffer used to adjust the time interval for data
@@ -71,6 +73,12 @@ row-wise vectorised summarisation function has not been automatically
 detected (does not use rowSums or rowMeans).}
 
 \item{verbose}{Whether to print messages to the console. Defaults to TRUE.}
+
+\item{trim_raster}{Whether to trim the raster to time bounds as a performance
+optimisation. Defaults to TRUE.}
+
+\item{subset_raster_indices}{Whether to subset raster by time indices as a
+performance optimisation. Defaults to TRUE.}
 
 \item{...}{Additional arguments to pass to the \code{spatial_extraction_fun}.}
 }

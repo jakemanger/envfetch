@@ -25,6 +25,12 @@ This function calculates the number of day and night hours for a given time rang
 }
 \examples{
 \dontrun{
-day_night_hours <- get_day_night_hours(start = Sys.time(), finish = Sys.time() + lubridate::hours(24), lat = 51.5074, lon = 0.1278, units = 'minutes')
+day_night_hours <- get_day_night_hours(
+  start = Sys.time(),
+  finish = Sys.time() + lubridate::hours(24),
+  lat = 51.5074,
+  lon = 0.1278,
+  units = 'minutes'
+)
 }
 }

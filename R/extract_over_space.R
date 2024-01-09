@@ -25,11 +25,10 @@
 #' `terra::extract`.
 #' @param max_ram_frac_per_chunk The maximum fraction of available memory to use
 #' for each extraction chunk.
-#' @param resample_scale The scale to resample your raster to (in units of the
-#' original raster). Leave as NULL (the default) if you do not want any
-#' resampling.
-#' @param resample_fun The function to use for resampling. See `method` in
-#' \link[terra]{resample}.
+#' @param scale The scale to aggregate your raster to (in units of the
+#' original raster). Note this will be rounded to fit the nearest aggregation
+#' factor (number of cells in each direction). Leave as NULL (the default) if
+#' you do not want any aggregation. See \link[terra]{aggregate}.
 #' @param verbose Whether to print messages to the console. Defaults to TRUE.
 #'
 #' @return A matrix or list where each column corresponds to a raster layer and
@@ -58,8 +57,7 @@ extract_over_space <- function(
   chunk=TRUE,
   max_ram_frac_per_chunk=1.0,
   extraction_fun=terra::extract,
-  resample_scale=NULL,
-  resample_fun=NULL,
+  scale=NULL,
   verbose=TRUE,
   ...
 ) {
@@ -122,10 +120,10 @@ extract_over_space <- function(
 
     extractions <- lapply(r_chunks, function(chunk) {
       # run garbage collector to free up memory between extractions
-      # gc()
+      gc()
 
-      if (!is.null(resample_scale)) {
-        chunk <- resample_raster(chunk, resample_scale, resample_fun)
+      if (!is.null(scale)) {
+        chunk <- aggregate_raster(chunk, scale, spatial_fun)
       }
 
       ex <- extraction_fun(x = chunk, y = unique_x, fun=spatial_fun, na.rm=na.rm, ...)
@@ -142,11 +140,11 @@ extract_over_space <- function(
     id_cols <- grep("^ID(\\.\\d+)?$", colnames(extracted))
     extracted <- extracted[, -id_cols[-1]]
   } else {
-    if (!is.null(resample_scale)) {
-      chunk <- resample_raster(chunk, resample_scale, resample_fun)
+    if (!is.null(scale)) {
+      r <- aggregate_raster(r, scale, spatial_fun)
     }
     # in case of a crash before hand make sure to free up memory
-    # gc()
+    gc()
 
     # perform extraction normally if raster fits in RAM
     extracted <- extraction_fun(x = r, y = unique_x, fun=spatial_fun, na.rm=na.rm, ...)
@@ -157,7 +155,7 @@ extract_over_space <- function(
 
   # a final garbage collection so later extractions have cleared up memory
   # beforehand
-  # gc()
+  gc()
 
   # rename ID
   colnames(extracted)[colnames(extracted) == 'ID'] <- 'envfetch__duplicate_spatial_ID'
@@ -179,30 +177,52 @@ extract_over_space <- function(
   return(x[,c(cols_to_return, 'ID')])
 }
 
-resample_raster <- function(r, res, resample_fun=NULL) {
+aggregate_raster <- function(r, scale, spatial_fun=NULL) {
+  cli::cli_warn('Aggregation support is experimental')
+
   # Get the current resolution of the raster r
   current_res <- terra::res(r)
 
-  cli::cli_alert(cli::col_black(paste('resampling raster from res of', current_res, 'to', res)))
+  if (terra::linearUnits(r) == 0) { # is in unprojected crs
+    cli::cli_warn(
+      'Raster has an unprojected CRS (longitude/latitude). Treating `scale` in
+      units of degrees for longitude/latitude.'
+    )
 
-  # if the current resolution is different from the desired one
-  if (current_res[1] != resample_scale || current_res[2] != resample_scale) {
+    if (any(scale > 10)) {
+      cli::cli_warn(
+          'A `scale` greater than 10 degrees is a very low resolution for a
+          raster file. Ensure `scale` is intended to be in units of degrees for
+          this raster.'
+      )
+    }
 
-    # create a new empty raster with the desired resolution
-    ext <- terra::ext(r)
-    ncol_new <- ceiling((terra::xmax(ext) - terra::xmin(ext)) / resample_scale)
-    nrow_new <- ceiling((terra::ymax(ext) - terra::ymin(ext)) / resample_scale)
-
-    template_raster <- terra::raster(ext, ncol = ncol_new, nrow = nrow_new, crs = terra::crs(r))
-
-    # perform the resampling
-    if (is.null(resample_fun)) {
-      cli::cli_alert(cli::col_black('using default resampling function'))
-      r <- terra::resample(r, template_raster)
-    } else {
-      cli::cli_alert(cli::col_black(paste('using a', resample_fun, 'resampling function')))
-      r <- terra::resample(r, template_raster, method=resample_fun)
+    if (any(scale > 180)) {
+      stop('`scale` cannot be greater than 180 degrees.')
     }
   }
-  return(r)
+
+  # get the aggregation factor
+  agg_fact <- scale / current_res
+  rounded_agg_fact <- round(agg_fact)
+  if (!all(rounded_agg_fact == agg_fact)) {
+    cli::cli_warn(
+      paste0(
+        'Aggregating to a resolution of ',
+        current_res * rounded_agg_fact,
+        ' using an aggregation factor of ',
+        rounded_agg_fact,
+        ' (the nearest aggregation factor to get closest to desired scale of ',
+        scale,
+        ')'
+      )
+    )
+  }
+  # update to rounded values
+  agg_fact <- rounded_agg_fact
+  scale <- current_res * rounded_agg_fact
+
+  cli::cli_alert(cli::col_black(paste('aggregating raster from res of', paste(current_res, collapse=', '), 'to', paste(scale, collapse=', '))))
+
+  return(terra::aggregate(r, fact=agg_fact, fun=spatial_fun))
 }

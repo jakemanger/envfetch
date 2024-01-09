@@ -26,6 +26,10 @@
 #' each time slice of the raster. Default is the default implementation of
 #' `extract_over_space` (extracts the `mean` of geometries within rasters,
 #' removing NAs).
+#' @param scale The scale to aggregate your raster to (in units of the
+#' original raster). Note this will be rounded to fit the nearest aggregation
+#' factor (number of cells in each direction). Leave as NULL (the default) if
+#' you do not want any aggregation. See \link[terra]{aggregate}.
 #' @param time_buffer Time buffer used to adjust the time interval for data
 #' extraction. The function always uses the time before and after the interval
 #' to prevent errors when summarising the earliest and latest times. Default is
@@ -79,6 +83,7 @@ extract_over_time <- function(
       ...
     )
   },
+  scale=NULL,
   time_buffer=lubridate::days(0),
   debug=FALSE,
   override_terraOptions=TRUE,
@@ -127,6 +132,7 @@ extract_over_time <- function(
     x = x,
     r = r,
     verbose = verbose,
+    scale = scale,
     ...
   )
 

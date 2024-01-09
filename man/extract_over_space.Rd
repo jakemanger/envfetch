@@ -78,6 +78,6 @@ Progress of the extraction is displayed.
 }
 \examples{
 # Assuming 'some_raster' is a terra::SpatRaster object and 'some_sp' is a
-spatial object:
+# spatial object:
 # result <- extract_over_space(x=some_sp, r=some_raster)
 }

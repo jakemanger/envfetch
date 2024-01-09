@@ -41,7 +41,7 @@ geometries (i.e. \code{temporal_fun} is used to summarise, treating each time an
 space value independently).}
     \item{\code{spatial_extraction_fun}}{A function used to extract points spatially for
 each time slice of the raster. Default is the default implementation of
-\code{extract_over_space} (extracts the \code{mean} of points within polygons or lines,
+\code{extract_over_space} (extracts the \code{mean} of geometries within rasters,
 removing NAs).}
     \item{\code{time_buffer}}{Time buffer used to adjust the time interval for data
 extraction. The function always uses the time before and after the interval
@@ -56,6 +56,10 @@ with those specified in the envfetch's package. Default is TRUE.}
 vectorised (like rowSums or rowMeans). Is only necessary to be TRUE if the
 row-wise vectorised summarisation function has not been automatically
 detected (does not use rowSums or rowMeans).}
+    \item{\code{trim_raster}}{Whether to trim the raster to time bounds as a performance
+optimisation. Defaults to TRUE.}
+    \item{\code{subset_raster_indices}}{Whether to subset raster by time indices as a
+performance optimisation. Defaults to TRUE.}
     \item{\code{collection_name}}{A character string representing the Google Earth
 Engine image collection from which to extract data.}
     \item{\code{bands}}{A vector of character strings representing the band names to
