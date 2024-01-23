@@ -81,6 +81,7 @@ extract_gee <- function(
   temporal_fun='last',
   debug=FALSE,
   initialise_gee=TRUE,
+  initialise_gee_every=30,
   use_gcs=FALSE,
   use_drive=FALSE,
   max_chunk_time_day_range=183,
@@ -128,8 +129,21 @@ extract_gee <- function(
   if (verbose)
     pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks))
 
+  # initialize a counter for the number of requests
+  request_counter <- 0
+
   # run extractions over each chunk
   extracteds <- lapply(pts_chunks, function(chunk) {
+    # increment the request counter
+    request_counter <<- request_counter + 1
+
+    # check if the counter has reached the threshold
+    if ((request_counter %% initialise_gee_every == 0)) {
+      rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
+      # reset the counter after reinitialization
+      request_counter <<- 0
+    }
+
     p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
 
     # get min and max dates from the x tibble
