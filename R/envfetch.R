@@ -52,6 +52,7 @@
 #' Engine within the function. Default is TRUE.
 #' @param ... Additional arguments for underlying extraction functions.
 #' @inheritDotParams extract_over_time -x -r -subds -temporal_fun -spatial_extraction_fun
+#' @inheritDotParams extract_over_space -chunk -max_ram_frac_per_chunk
 #' @inheritDotParams extract_gee -x -collection_name -bands -temporal_fun -initialise_gee -ee_reducer_fun
 #'
 #' @details
@@ -152,10 +153,12 @@ envfetch <- function(
         stop("The provided spatial_fun for local file extraction is a rgee::ee$Reducer object. Use a function like mean instead.")
       }
 
-      if (spatial_fun[[i]] == "mean") {
-        spatial_fun[[i]] <- function(x, na.rm=TRUE) { mean(x, na.rm=na.rm) }
-      } else if (spatial_fun[[i]]== "sum") {
-        spatial_fun[[i]] <- function(x, na.rm=TRUE) { sum(x, na.rm=na.rm) }
+      if (!is.null(spatial_fun[[i]])) {
+        if (spatial_fun[[i]] == "mean") {
+          spatial_fun[[i]] <- function(x, na.rm=TRUE) { mean(x, na.rm=na.rm) }
+        } else if (spatial_fun[[i]]== "sum") {
+          spatial_fun[[i]] <- function(x, na.rm=TRUE) { sum(x, na.rm=na.rm) }
+        }
       }
 
       if (temporal_fun[[i]] == 'mean') {
