@@ -100,7 +100,7 @@ extract_over_space <- function(
     # split raster into chunks based on available RAM
     times <- terra::time(r)
 
-    num_chunks <- ceiling(ram_required / ram_available_per_chunk)
+    num_chunks <- min(ceiling(ram_required / ram_available_per_chunk), length(times))
     chunk_size <- ceiling(length(times) / num_chunks)
     if (verbose)
       cli::cli_alert(cli::col_black(paste('Splitting job into', num_chunks, 'chunks')))
