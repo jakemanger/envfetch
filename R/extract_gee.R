@@ -259,6 +259,8 @@ extract_gee <- function(
 }
 
 non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
+  x$envfetch__order_before_summarisation <- 1:nrow(x)
+
   pb <- cli::cli_progress_bar('Summarising extracted data with temporal_fun', total=nrow(x))
 
   x_time_column <- x[[time_column_name]]
@@ -317,6 +319,10 @@ non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nm
   results <- purrr::map(1:nrow(x), summarise)
 
   x <- do.call(rbind, results)
+
+  x <- x %>%
+    dplyr::arrange(envfetch__order_before_summarisation) %>%
+    dplyr::select(!c(envfetch__order_before_summarisation))
 
   return(x)
 }

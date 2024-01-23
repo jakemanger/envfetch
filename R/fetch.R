@@ -247,6 +247,11 @@ fetch <- function(
   if (verbose)
     cli::cli_h1(cli::col_black('\U0001F429 Fetched'))
 
+  # a bug check to make sure that rows weren't re-arranged
+  if (!all(x$row_num == 1:nrow(x))) {
+    stop("The 'row_num' column is not consecutive from 1 to the number of rows. Please submit a bug report to https://github.com/jakemanger/envfetch/issues/new")
+  }
+
   return(x)
 }
 

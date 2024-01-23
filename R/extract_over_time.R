@@ -128,6 +128,7 @@ extract_over_time <- function(
   tms <- terra::time(r)
 
   # start extraction
+
   extracted <- spatial_extraction_fun(
     x = x,
     r = r,
@@ -201,6 +202,8 @@ extract_over_time <- function(
 }
 
 vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
+  x$envfetch__order_before_summarisation <- 1:nrow(x)
+
   # directly access time ranges without pipes
   time_ranges <- x[[time_column_name]]
   time_range_starts <- lubridate::int_start(time_ranges)
@@ -210,6 +213,7 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
   unique_time_ranges <- unique(time_ranges)
 
   pb <- cli::cli_progress_bar("Summarising extracted data", total = length(unique_time_ranges))
+
 
   summarise <- function(range) {
     i <- which(time_ranges == range)
@@ -240,10 +244,16 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
 
   x <- do.call(rbind, results)
 
+  x <- x %>%
+    dplyr::arrange(envfetch__order_before_summarisation) %>%
+    dplyr::select(!c(envfetch__order_before_summarisation))
+
   return(x)
 }
 
 non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row) {
+  x$envfetch__order_before_summarisation <- 1:nrow(x)
+
   pb <- cli::cli_progress_bar("Summarising extracted data", total = nrow(x))
 
   time_ranges <- x[[time_column_name]]
@@ -274,6 +284,10 @@ non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, n
   results <- purrr::map(1:nrow(x), summarise)
 
   x <- do.call(rbind, results)
+
+  x <- x %>%
+    dplyr::arrange(envfetch__order_before_summarisation) %>%
+    dplyr::select(!c(envfetch__order_before_summarisation))
 
   return(x)
 }
