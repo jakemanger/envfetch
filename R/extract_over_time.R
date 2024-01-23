@@ -345,7 +345,7 @@ load_raster <- function(r, subds, verbose) {
   file_path <- ifelse(nchar(file_path) > 103, paste0(strtrim(file_path, 100), '...'), file_path)
 
   if (verbose)
-    cli::cli_alert(cli::col_black(paste('Loading raster at', file_path)))
+    cli::cli_alert(cli::col_black(paste('Loading raster at', file_path, collapse=',\n')))
 
   return(r)
 }
