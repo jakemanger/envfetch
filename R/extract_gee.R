@@ -29,9 +29,9 @@
 #' larger requests. Default is FALSE.
 #' @param use_drive A logical indicating whether to use Google Drive for larger
 #' requests. Default is FALSE.
-#' @param max_chunk_time_day_range An integer representing the maximum number of
-#' days to include in each time chunk when splitting the dataset for efficient
-#' memory use on Google Earth Engine's end. Default is 365.
+#' @param max_chunk_time_day_range An string representing the maximum number of
+#' time units to include in each time chunk when splitting the dataset for
+#' efficient memory use on Google Earth Engine's end. Default is '6 months'.
 #' @param max_feature_collection_size An integer representing the maximum number
 #' of features (rows) to include in each chunk when splitting the dataset for
 #' efficient memory use on Google Earth Engine's end. Default is 5000.
@@ -84,14 +84,13 @@ extract_gee <- function(
   initialise_gee_every=30,
   use_gcs=FALSE,
   use_drive=FALSE,
-  max_chunk_time_day_range=183,
+  max_chunk_time_day_range='6 months',
   max_feature_collection_size=500,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   time_column_name=NULL,
   verbose=TRUE,
   ...
 ) {
-
   if (initialise_gee)
     rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
@@ -117,6 +116,10 @@ extract_gee <- function(
   # otherwise, gee will need to extract raster data from the full time range of
   # the dataset
   x$start_time <- x %>% dplyr::pull(time_column_name) %>% lubridate::int_start() %>% as.Date()
+
+  if (verbose)
+    cli::cli_alert(cli::col_black('Splitting up data into multiple chunks for extraction'))
+
   pts_chunks <- split_time_chunks(x, 'start_time', max_rows=max_feature_collection_size, max_time_range=max_chunk_time_day_range)
 
   # figure out min and max datetime found on gee
@@ -206,6 +209,8 @@ extract_gee <- function(
     if (verbose)
       cli::cli_progress_update(id=pb)
 
+    gc()
+
     return(extracted)
   })
 
@@ -274,6 +279,8 @@ extract_gee <- function(
 
 non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
   x$envfetch__order_before_summarisation <- 1:nrow(x)
+
+  gc()
 
   pb <- cli::cli_progress_bar('Summarising extracted data with temporal_fun', total=nrow(x))
 
@@ -351,27 +358,49 @@ get_date_from_gee_colname <- function(my_string) {
   return(date)
 }
 
-split_time_chunks <- function(df, time_col='start_time', max_time_range, max_rows) {
+split_time_chunks <- function(df, time_col='start_time', max_time_range='6 months', max_rows) {
+  # split up data into time chunk groups
+  min_time <- min(df[[time_col]])
+  max_time <- max(df[[time_col]])
 
-  # initialize an empty list to hold the chunks
-  list_of_dfs <- list()
+  breaks <- unique(
+    c(
+      seq(
+        lubridate::as_datetime(min_time),
+        lubridate::as_datetime(max_time),
+        max_time_range
+      ),
+      max_time
+    )
+  )
 
-  while (nrow(df) > 0) {
-    # get the index of the last row within the max time range
-    last_row_in_range <- sum(df[[time_col]] <= (df[[time_col]][1] + lubridate::days(max_time_range)))
+  # split df into groups by datetimes
+  list_of_dfs <- df %>%
+    mutate(
+      group = cut(
+        get(time_col),
+        breaks = breaks,
+        include.lowest = TRUE,
+        right = FALSE
+      )
+    ) %>%
+    group_by(group) %>%
+    group_split()
 
-    # if that is greater than the max number of rows, get only the first max_rows
-    if (last_row_in_range > max_rows) {
-      last_row_in_range <- max_rows
-    }
-
-    # make a chunk and remove it from the df
-    chunk <- df[1:last_row_in_range,]
-    df <- df[-(1:last_row_in_range),]
-
-    # append the chunk to the list
-    list_of_dfs <- c(list_of_dfs, list(chunk))
-  }
+  # split each group further if it's larger than max_rows
+  list_of_dfs <- list_of_dfs %>%
+    lapply(function(sub_df) {
+      n <- nrow(sub_df)
+      if (n <= max_rows) {
+        list(sub_df)
+      } else {
+        group_size <- ceiling(n / max_rows)
+        sub_df %>%
+          mutate(subgroup = rep(1:group_size, each = max_rows, length.out = n)) %>%
+          group_split(subgroup)
+      }
+    }) %>%
+    unlist(recursive = FALSE)
 
   return(list_of_dfs)
 }
