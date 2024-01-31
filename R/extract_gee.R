@@ -85,7 +85,7 @@ extract_gee <- function(
   use_gcs=FALSE,
   use_drive=FALSE,
   max_chunk_time_day_range='6 months',
-  max_feature_collection_size=500,
+  max_feature_collection_size=5000,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   time_column_name=NULL,
   verbose=TRUE,
@@ -366,8 +366,8 @@ split_time_chunks <- function(df, time_col='start_time', max_time_range='6 month
   breaks <- unique(
     c(
       seq(
-        lubridate::as_datetime(min_time),
-        lubridate::as_datetime(max_time),
+        min_time,
+        max_time,
         max_time_range
       ),
       max_time
