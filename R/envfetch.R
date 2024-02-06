@@ -19,7 +19,7 @@
 #' list of vectors.
 #' @param temporal_fun Function or string used to summarize data for each time
 #' interval. Is ignored if time is a date or datetime. Default is
-#' `mean(x, na.rm=TRUE)`. For Google Earth Engine, the string `'last'` returns
+#' `mean(x, na.rm=TRUE)`. the string `'last'` returns
 #' the value before the start of the time interval, `'next'` returns the value
 #' after the start of the time interval and `'closest'` finds the closest value
 #' to the start of the time interval. For multiple sources, provide a list of
@@ -113,6 +113,7 @@ envfetch <- function(
   temporal_fun='mean',
   spatial_fun='mean',
   scale=NULL,
+  max_feature_collection_size=5000,
   use_cache=TRUE,
   out_dir=file.path('./output/'),
   out_filename=NA,
@@ -133,12 +134,19 @@ envfetch <- function(
 
   bands <- parse_input(bands, num_rasters)
   scale <- parse_input(scale, num_rasters)
+  max_feature_collection_size <- parse_input(max_feature_collection_size, num_rasters)
   temporal_fun <- parse_input(temporal_fun, num_rasters)
   spatial_fun <- parse_input(spatial_fun, num_rasters)
 
   functions <- c()
 
   for (i in 1:num_rasters) {
+    if (temporal_fun[[i]] == 'mean') {
+      temporal_fun[[i]] <- function(x, na.rm=TRUE) { rowMeans(x, na.rm=na.rm) }
+    } else if (temporal_fun[[i]] == 'sum') {
+      temporal_fun[[i]] <- function(x, na.rm=TRUE) { rowSums(x, na.rm=na.rm) }
+    }
+
     if (inherits(r[[i]], "SpatRaster") || inherits(r[[i]], "stars") || any(file.exists(r[[i]]))) {
 
       if (
@@ -161,11 +169,6 @@ envfetch <- function(
         }
       }
 
-      if (temporal_fun[[i]] == 'mean') {
-        temporal_fun[[i]] <- function(x, na.rm=TRUE) { rowMeans(x, na.rm=na.rm) }
-      } else if (temporal_fun[[i]] == 'sum') {
-        temporal_fun[[i]] <- function(x, na.rm=TRUE) { rowSums(x, na.rm=na.rm) }
-      }
 
       if (is.null(bands[[i]])) {
         subds=0
@@ -221,15 +224,9 @@ envfetch <- function(
         spatial_fun[[i]] <- rgee::ee$Reducer$sum
       }
 
-      if (temporal_fun[[i]] == 'mean') {
-        temporal_fun[[i]] <- function(x) { mean(x, na.rm=TRUE) }
-      } else if (temporal_fun[[i]] == 'sum') {
-        temporal_fun[[i]] <- function(x) { sum(x, na.rm=TRUE) }
-      }
-
       functions <- c(
         functions,
-        create_extract_gee_function(r[[i]], bands[[i]], temporal_fun[[i]], spatial_fun[[i]], scale[[i]])
+        create_extract_gee_function(r[[i]], bands[[i]], temporal_fun[[i]], spatial_fun[[i]], scale[[i]], max_feature_collection_size[[i]])
       )
     }
   }
@@ -311,12 +308,13 @@ create_st_extract_function <- function(r, bands, spatial_fun) {
   )
 }
 
-create_extract_gee_function <- function(r, bands, temporal_fun, spatial_fun, scale) {
+create_extract_gee_function <- function(r, bands, temporal_fun, spatial_fun, scale, max_feature_collection_size) {
   force(r)
   force(bands)
   force(temporal_fun)
   force(spatial_fun)
   force(scale)
+  force(max_feature_collection_size)
 
   return(
     ~extract_gee(
@@ -327,6 +325,7 @@ create_extract_gee_function <- function(r, bands, temporal_fun, spatial_fun, sca
       ee_reducer_fun = spatial_fun,
       initialise_gee = FALSE,
       scale = scale,
+      max_feature_collection_size = max_feature_collection_size,
       ...
     )
   )

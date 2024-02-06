@@ -185,15 +185,19 @@ extract_over_time <- function(
   if (verbose && contains_rowSums_or_rowMeans(temporal_fun))
     cli::cli_alert(cli::col_black('Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.'))
 
-  if (contains_rowSums_or_rowMeans(temporal_fun) || is_vectorised_summarisation_function) {
+  if (
+    contains_rowSums_or_rowMeans(temporal_fun)
+    || is_vectorised_summarisation_function
+    || (is.character(temporal_fun) && temporal_fun %in% c('last', 'next'))
+  ) {
     if (multi_values_in_extraction_per_row)
       stop('You cannot use a vectorised row summarisation function with fun=NULL when extracting with polygons or lines. Use a non-vectorised alternative for the `temporal_fun` instead, e.g. `sum`, `mean` or `function(x) {mean(x, na.rm=TRUE)}')
 
-    x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names)
+    x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, time_buffer)
   } else {
     if (verbose)
       cli::cli_alert(cli::col_black('Detected a custom row summarisation function. Running on each row one by one.'))
-    x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row)
+    x <- non_vectorised_summarisation(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, time_buffer, multi_values_in_extraction_per_row)
   }
 
   sf::st_geometry(x) <- geometry
@@ -201,20 +205,71 @@ extract_over_time <- function(
   return(x)
 }
 
-vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
+last <- function(x) {
+  get_last_non_na <- function(x) {
+    # Return the last non-NA value if present, else return NA
+    not_na <- !is.na(x)
+    if (any(not_na)) {
+      which_not_na <- which(not_na)
+      return(x[which_not_na[length(which_not_na)]])
+    } else {
+      warning('last value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
+      return(NA)
+    }
+  }
+  return(apply(x, 1, get_last_non_na))
+}
+
+first <- function(x) {
+  get_first_non_na <- function(x) {
+    # Return the first non-NA value if present, else return NA
+    not_na <- !is.na(x)
+    if (any(not_na)) {
+      which_not_na <- which(not_na)
+      return(x[which_not_na[1]])
+    } else {
+      warning('next value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
+      return(NA)
+    }
+  }
+  return(apply(x, 1, get_first_non_na))
+}
+
+vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, time_buffer) {
   x$envfetch__order_before_summarisation <- 1:nrow(x)
 
   # directly access time ranges without pipes
   time_ranges <- x[[time_column_name]]
   time_range_starts <- lubridate::int_start(time_ranges)
   time_range_ends <- lubridate::int_end(time_ranges)
+
+  # modify time ranges and temporal_fun if using 'last' or 'next'
+  if (is.character(temporal_fun)) {
+    if (temporal_fun == 'last') {
+      time_range_ends <- time_range_starts
+      time_range_starts <- time_range_ends - time_buffer
+      time_ranges <- lubridate::interval(
+        start=time_range_starts,
+        end=time_range_ends
+      )
+      temporal_fun <- last
+    } else if (temporal_fun == 'next') {
+      time_range_starts <- time_range_ends
+      time_range_ends <- time_range_starts + time_buffer
+      time_ranges <- lubridate::interval(
+        start=time_range_starts,
+        end=time_range_ends
+      )
+      temporal_fun <- first
+    }
+  }
+
   # convert to characters for lookup speed
   time_ranges <- as.character(time_ranges)
   unique_time_ranges <- unique(time_ranges)
 
+  # do the summarisation
   pb <- cli::cli_progress_bar("Summarising extracted data", total = length(unique_time_ranges))
-
-
   summarise <- function(range) {
     i <- which(time_ranges == range)
 
@@ -224,15 +279,15 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
 
     for (col_name in new_col_names) {
       col_names_to_summarise <- tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
-      cols_to_summarise <- colnames(extracted)[col_names_to_summarise]
+      # cols_to_summarise <- colnames(extracted)[col_names_to_summarise]
 
-      to_summarise <- extracted[i, cols_to_summarise]
+      to_summarise <- extracted[i, col_names_to_summarise]
       if (is.vector(to_summarise)) {
         # if there is just one time slice, use that
         temp_df[col_name] <- to_summarise
       } else {
         # if there is more than one, run the temporal fun on it
-        temp_df[col_name] <- temporal_fun(extracted[i, cols_to_summarise])
+        temp_df[col_name] <- temporal_fun(extracted[i, col_names_to_summarise])
       }
     }
 
@@ -251,15 +306,36 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
   return(x)
 }
 
-non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, multi_values_in_extraction_per_row) {
+non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, nms, time_column_name, new_col_names, time_buffer, multi_values_in_extraction_per_row) {
   x$envfetch__order_before_summarisation <- 1:nrow(x)
-
-  pb <- cli::cli_progress_bar("Summarising extracted data", total = nrow(x))
 
   time_ranges <- x[[time_column_name]]
   time_range_starts <- lubridate::int_start(time_ranges)
   time_range_ends <- lubridate::int_end(time_ranges)
 
+  # modify time ranges and temporal_fun if using 'last' or 'next'
+  if (is.character(temporal_fun)) {
+    if (temporal_fun == 'last') {
+      time_range_ends <- time_range_starts
+      time_range_starts <- time_range_ends - time_buffer
+      time_ranges <- lubridate::interval(
+        start=time_range_starts,
+        end=time_range_ends
+      )
+      temporal_fun <- last
+    } else if (temporal_fun == 'next') {
+      time_range_starts <- time_range_ends
+      time_range_ends <- time_range_starts + time_buffer
+      time_ranges <- lubridate::interval(
+        start=time_range_starts,
+        end=time_range_ends
+      )
+      temporal_fun <- first
+    }
+  }
+
+  # do the summarisation
+  pb <- cli::cli_progress_bar("Summarising extracted data", total = nrow(x))
   summarise <- function(i) {
     mn = time_range_starts[i]
     mx = time_range_ends[i]
@@ -267,12 +343,12 @@ non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, n
 
     for (col_name in new_col_names) {
       col_names_to_summarise <- tms >= mn & tms <= mx & stringr::str_starts(nms, col_name)
-      cols_to_summarise <- colnames(extracted)[col_names_to_summarise]
+      # cols_to_summarise <- colnames(extracted)[col_names_to_summarise]
 
       if (multi_values_in_extraction_per_row) {
-        data_to_summarise <- unlist(extracted[IDs == i, cols_to_summarise])
+        data_to_summarise <- unlist(extracted[IDs == i, col_names_to_summarise])
       } else {
-        data_to_summarise <- unlist(extracted[i, cols_to_summarise])
+        data_to_summarise <- unlist(extracted[i, col_names_to_summarise])
       }
 
       temp_df[col_name] <- temporal_fun(data_to_summarise)

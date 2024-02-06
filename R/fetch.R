@@ -75,6 +75,9 @@ fetch <- function(
   # capture the supplied ... arguments as a list to preserve names
   args <- c(...)
 
+  # preemptive garbage collection in case of previous run that got interrupted
+  gc()
+
   verbose <- ifelse("verbose" %in% names(args), args$verbose, TRUE)
 
   if (verbose)

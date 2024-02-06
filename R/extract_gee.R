@@ -89,6 +89,7 @@ extract_gee <- function(
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   time_column_name=NULL,
   verbose=TRUE,
+  is_vectorised_summarisation_function=FALSE,
   ...
 ) {
   if (initialise_gee)
@@ -202,10 +203,6 @@ extract_gee <- function(
     # as x after bind_rows
     extracted <- sf::st_drop_geometry(extracted)
 
-    # temporarily set NAs to NaN to distinguish between NAs introduced by
-    # bind_rows and NAs from missing data (this case). See below.
-    extracted[is.na(extracted)] <- NaN
-
     if (verbose)
       cli::cli_progress_update(id=pb)
 
@@ -216,13 +213,6 @@ extract_gee <- function(
 
   # combine extracted data into tibble
   extracted <- dplyr::bind_rows(extracteds)
-  # NAs are created by bind rows without the same number of columns,
-  # so we use this trick to make sure we don't mix up no data from the
-  # data with NAs introduced by bind_rows. NAs introduced by bind_rows are
-  # set to 'No sample', as we did not sample them and NAs from missing data are
-  # set to NA.
-  extracted[is.na(extracted) & !is.nan(as.matrix(extracted))] <- 'No sample'
-  extracted[is.nan(as.matrix(extracted))] <- NA
 
   if (ncol(extracted) == 2) {
     warning('No data found in extraction from Google Earth Engine. Please check your arguments.')
@@ -261,8 +251,22 @@ extract_gee <- function(
   x[, new_col_names] <- NA
   x <- sf::st_drop_geometry(x)
 
-  # summarise
-  x <- non_vectorised_summarisation_gee(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names)
+  # do summarisation
+  if (verbose && contains_rowSums_or_rowMeans(temporal_fun))
+    cli::cli_alert(cli::col_black('Detected a vectorised row summarisation function. Using optimised summarisation approach with multiple rows as inputs.'))
+
+  if (
+    contains_rowSums_or_rowMeans(temporal_fun)
+    || is_vectorised_summarisation_function
+    || (is.character(temporal_fun) && temporal_fun %in% c('last', 'next'))
+  ) {
+    x <- vectorised_summarisation(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names, time_buffer)
+  } else {
+    if (verbose)
+      cli::cli_alert(cli::col_black('Detected a custom row summarisation function. Running on each row one by one.'))
+    # x <- non_vectorised_summarisation_gee(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names)
+    x <- non_vectorised_summarisation(x, extracted, NA, temporal_fun, tms, nms, time_column_name, new_col_names, time_buffer, FALSE)
+  }
 
   # add back geometry
   sf::st_geometry(x) <- geometry
@@ -273,77 +277,6 @@ extract_gee <- function(
 
   # remove unnecessary columns
   x <- x %>% dplyr::select(-c('original_order', 'start_time'))
-
-  return(x)
-}
-
-non_vectorised_summarisation_gee <- function(x, extracted, temporal_fun, tms, nms, time_column_name, new_col_names) {
-  x$envfetch__order_before_summarisation <- 1:nrow(x)
-
-  gc()
-
-  pb <- cli::cli_progress_bar('Summarising extracted data with temporal_fun', total=nrow(x))
-
-  x_time_column <- x[[time_column_name]]
-  time_range_starts <- lubridate::int_start(x_time_column)
-
-  summarise <- function(i) {
-    mn = time_range_starts[i]
-    temp_df <- x[i, ]
-
-    for (col_name in new_col_names) {
-      row_times <- tms[nms == col_name]
-      row_values <- extracted[i, nms == col_name]
-      indx <- is.na(row_values) | row_values != 'No sample'
-      row_times <- row_times[indx]
-      row_values <- row_values[indx]
-      row_values <- as.numeric(row_values)
-
-      # using a r function for the summarisation step
-      if (!is.character(temporal_fun)) {
-        index <- lubridate::`%within%`(row_times, x_time_column[i])
-        if (length(index) == 0) {
-          warning('No value returned within requested time range. Perhaps you would like to use the "closest", "last" or "next" summarisation functions instead. Returning NA')
-        }
-        temp_df[col_name] <- temporal_fun(row_values[index])
-      } # using a 'closest', 'next' or 'after' function for summarisation.
-      else if (is.character(temporal_fun) && temporal_fun == 'last') {
-        last_index <- find_closest_datetime(row_times, mn, before=TRUE)
-        value <- row_values[last_index]
-        if (length(value) == 0) {
-          warning('last value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
-          value <- NA
-        }
-        temp_df[col_name] <- value
-      } else if (is.character(temporal_fun) && temporal_fun == 'next') {
-        next_index <- find_closest_datetime(row_times, mn, before=FALSE)
-        value <- row_values[next_index]
-        if (length(value) == 0) {
-          warning('next value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
-          value <- NA
-        }
-        temp_df[col_name] <- value
-      } else if (is.character(temporal_fun) && temporal_fun == 'closest') {
-        closest_index <- find_closest_datetime(row_times, mn, before=NA)
-        value <- row_values[closest_index]
-        if (length(value) == 0) {
-          warning('closest value not found in extracted data. Increase your time_buffer to get a correct result. Returning NA')
-          value <- NA
-        }
-        temp_df[col_name] <- value
-      }
-    }
-    cli::cli_progress_update(id=pb)
-    return(temp_df)
-  }
-
-  results <- purrr::map(1:nrow(x), summarise)
-
-  x <- do.call(rbind, results)
-
-  x <- x %>%
-    dplyr::arrange(envfetch__order_before_summarisation) %>%
-    dplyr::select(!c(envfetch__order_before_summarisation))
 
   return(x)
 }
@@ -359,6 +292,12 @@ get_date_from_gee_colname <- function(my_string) {
 }
 
 split_time_chunks <- function(df, time_col='start_time', max_time_range='6 months', max_rows) {
+  if (nrow(df) == 1) {
+    # if there is just one datapoint, we just need one list item
+    # return that now for speed and because the below code will fail otherwise
+    return(list(df))
+  }
+
   # split up data into time chunk groups
   min_time <- min(df[[time_col]])
   max_time <- max(df[[time_col]])
@@ -376,7 +315,7 @@ split_time_chunks <- function(df, time_col='start_time', max_time_range='6 month
 
   # split df into groups by datetimes
   list_of_dfs <- df %>%
-    mutate(
+    dplyr::mutate(
       group = cut(
         get(time_col),
         breaks = breaks,
@@ -384,8 +323,8 @@ split_time_chunks <- function(df, time_col='start_time', max_time_range='6 month
         right = FALSE
       )
     ) %>%
-    group_by(group) %>%
-    group_split()
+    dplyr::group_by(group) %>%
+    dplyr::group_split()
 
   # split each group further if it's larger than max_rows
   list_of_dfs <- list_of_dfs %>%
