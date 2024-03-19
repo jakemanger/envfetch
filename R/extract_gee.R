@@ -79,19 +79,32 @@ extract_gee <- function(
   scale=250,
   time_buffer=lubridate::days(20),
   temporal_fun='last',
+  lazy=TRUE,
   debug=FALSE,
   initialise_gee=TRUE,
-  initialise_gee_every=30,
   use_gcs=FALSE,
-  use_drive=FALSE,
-  max_chunk_time_day_range='6 months',
-  max_feature_collection_size=5000,
+  use_drive=TRUE,
+  max_chunk_time_day_range='12 months',
+  max_feature_collection_size=10000,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   time_column_name=NULL,
   verbose=TRUE,
   is_vectorised_summarisation_function=FALSE,
   ...
 ) {
+  if (!use_gcs && !use_drive && nrow(x) > 20000) {
+    # see https://github.com/r-spatial/rgee/issues/185
+    warning(paste('Detected', nrow(x), 'rows of data to extract without use_gcs or use_drive being TRUE. Use these to prevent gee server-side issues with larger datasets.'))
+  }
+
+  if (!use_gcs && !use_drive && lazy) {
+    stop('Lazy == TRUE requires use_gcs or use_drive to also be TRUE')
+  }
+
+  if (lazy) {
+    future::plan(future::sequential)
+  }
+
   if (initialise_gee)
     rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
@@ -130,24 +143,15 @@ extract_gee <- function(
   # make sure timezones are the same
   rgee_datetime_bounds <- lubridate::with_tz(rgee_datetime_bounds, tzone=lubridate::tz(min_datetime))
 
+  cli::cli_alert(cli::col_black(paste('Split task into', length(pts_chunks), 'chunks')))
+
   if (verbose)
-    pb <- cli::cli_progress_bar('Extracting with Google Earth Engine', total=length(pts_chunks))
+    pb <- cli::cli_progress_bar('Sending extraction tasks to Google Earth Engine', total=length(pts_chunks))
 
-  # initialize a counter for the number of requests
-  request_counter <- 0
+  future_extracteds <- list()
 
-  # run extractions over each chunk
-  extracteds <- lapply(pts_chunks, function(chunk) {
-    # increment the request counter
-    request_counter <<- request_counter + 1
-
-    # check if the counter has reached the threshold
-    if ((request_counter %% initialise_gee_every == 0)) {
-      rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
-      # reset the counter after reinitialization
-      request_counter <<- 0
-    }
-
+  for (i in seq_along(pts_chunks)) {
+    chunk <- pts_chunks[[i]]
     p_feature <- rgee::sf_as_ee(sf::st_geometry(chunk))
 
     # get min and max dates from the x tibble
@@ -175,41 +179,36 @@ extract_gee <- function(
 
     via <- 'getInfo'
 
-    if (use_gcs)
-      via <- 'gcs'
-
     if (use_drive)
       via <- 'drive'
+
+    if (use_gcs)
+      via <- 'gcs'
 
     # if supplied as rgee::ee$Reducer$mean instead of rgee::ee$Reducer$mean()
     if (is.function(ee_reducer_fun)) {
       ee_reducer_fun <- ee_reducer_fun()
     }
 
-    # finally do the extraction
-    extracted <- rgee::ee_extract(
+    future_extracteds[[i]] <- rgee::ee_extract(
       x = ic,
       y = p_feature,
       scale = scale,
       fun = ee_reducer_fun,
-      lazy = FALSE,
-      sf = TRUE,
+      lazy = lazy,
+      sf = FALSE,
       quiet = !debug,
       via = via,
       ...
     )
 
-    # drop geometry as it uses too much ram and data will be in the same order
-    # as x after bind_rows
-    extracted <- sf::st_drop_geometry(extracted)
+    cli::cli_progress_update(id=pb)
+  }
 
-    if (verbose)
-      cli::cli_progress_update(id=pb)
-
-    gc()
-
-    return(extracted)
-  })
+  # get extracted values over each chunk
+  if (lazy) {
+    extracteds <- lapply(cli_progress_along(future_extracteds, 'Downloading extracted files from GEE'), rgee::ee_utils_future_value)
+  }
 
   # combine extracted data into tibble
   extracted <- dplyr::bind_rows(extracteds)

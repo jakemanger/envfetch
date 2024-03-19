@@ -113,7 +113,7 @@ envfetch <- function(
   temporal_fun='mean',
   spatial_fun='mean',
   scale=NULL,
-  max_feature_collection_size=5000,
+  max_feature_collection_size=10000,
   use_cache=TRUE,
   out_dir=file.path('./output/'),
   out_filename=NA,

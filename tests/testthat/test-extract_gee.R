@@ -23,7 +23,7 @@ test_that("correct_results_returned_last", {
       .x,
       collection_name='MODIS/061/MOD13Q1',
       bands=c('NDVI', 'DetailedQA'),
-      initialise_gee=FALSE
+      initialise_gee=FALSE,
     ),
     time_column_name='time',
     out_filename=NA,
@@ -64,7 +64,48 @@ test_that("correct_results_returned_mean", {
       collection_name='MODIS/061/MOD13Q1',
       bands=c('NDVI', 'DetailedQA'),
       initialise_gee=FALSE,
-      temporal_fun=mean
+      temporal_fun=mean,
+    ),
+    time_column_name='time',
+    out_filename=NA,
+    use_cache=FALSE
+  )
+
+  # data provided by NASA's AppEEARS: https://appeears.earthdatacloud.nasa.gov/task/point
+  correct_mean_ndvis <- c(4229.5, 1139.5, 4463, 1155.5)
+  expect_equal(
+    out$NDVI,
+    correct_mean_ndvis
+  )
+})
+
+test_that("correct_results_returned_mean_not_lazy", {
+  point1 <- sf::st_point(c(115.798, -31.95)) # uwa
+  point2 <- sf::st_point(c(131.034571, -25.345269)) # uluru
+  points <- sf::st_sfc(point1, point2, point1, point2)
+  dates <- lubridate::ymd(
+    c('2020-01-01', '2020-01-01', '2021-01-01', '2021-01-01'),
+    tz='Australia/Perth'
+  )
+  points <- sf::st_sf(
+    points,
+    time=lubridate::interval(
+      start=dates - lubridate::weeks(2),
+      end=dates + lubridate::days(1)
+    ),
+    crs=4326
+  )
+
+  rgee::ee_Initialize()
+
+  out <- points %>% fetch(
+    ~extract_gee(
+      .x,
+      collection_name='MODIS/061/MOD13Q1',
+      bands=c('NDVI', 'DetailedQA'),
+      initialise_gee=FALSE,
+      temporal_fun=mean,
+      lazy=FALSE
     ),
     time_column_name='time',
     out_filename=NA,
