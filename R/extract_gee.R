@@ -102,7 +102,7 @@ extract_gee <- function(
   }
 
   if (lazy) {
-    future::plan(future::sequential)
+    future::plan(future::multisession)
   }
 
   if (initialise_gee)
