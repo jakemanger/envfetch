@@ -27,6 +27,16 @@
 #' repeating time intervals before and after the original datetime. This can be
 #' relative to the start or the end of the input time interval (specified by the
 #' `relative_to_start` argument of `time_rep`). Defaults to the start.
+#' @param batch_size The maximum number of rows or geometries to extract and
+#' summarise at a time. Each batch will be cached to continue extraction in case
+#' of interruptions. Larger batch sizes may result in overuse of rgee on the
+#' server-side and hangs. Set `batch_size` to `1`, `NA` or `<1` for no batching.
+#' Use `funs_to_use_batch_size` to define what functions batch_size will be
+#' used with.
+#' @param funs_to_use_batch_size A vector with the names of functions you want
+#' to use batch_size for. Batch size is useful for some functions
+#' (rgee: `'extract_gee'`) but not others (local: `'extract_over_time'`).
+#' Defaults to `c('extract_gee')`.
 #' @inheritDotParams extract_over_time -verbose
 #' @inheritDotParams extract_gee -verbose
 #'
@@ -70,7 +80,9 @@ fetch <- function(
     overwrite=TRUE,
     cache_dir=file.path(out_dir, 'cache/'),
     time_column_name=NULL,
-    .time_rep=NA
+    .time_rep=NA,
+    batch_size=200000,
+    funs_to_use_batch_size=c('extract_gee')
 ) {
   # capture the supplied ... arguments as a list to preserve names
   args <- c(...)
@@ -121,8 +133,6 @@ fetch <- function(
   # remove unnecessary columns so caching can work here and to make things work faster
   x <- x %>% dplyr::select(-dplyr::any_of(c(extra_cols)))
 
-  # create hash of input unique name to cache progress of extracted point data (so you can continue if you lose progress)
-  input_hash <- rlang::hash(x)
 
   # split ... arguments and functions
   is_function <- sapply(args, function(x) {is.function(x) || purrr::is_formula(x)})
@@ -140,8 +150,16 @@ fetch <- function(
 
   unique_x <- x[!duplicated(x$envfetch__duplicate_ID),]
 
+  # calculate number of batches
+  n_batches <- nrow(unique_x) / batch_size
+  if (n_batches < 1 || is.infinite(n_batches) || is.na(n_batches))
+    n_batches <- 1
+  n_batches <- ceiling(n_batches)
+
   # loop through the supplied functions
   outs <- lapply(funcs, function(fun) {
+    full_out <- data.frame()
+
     if (purrr::is_formula(fun)) {
       fun_string <- paste(as.character(fun), collapse='')
       # convert the formula to a function
@@ -151,30 +169,59 @@ fetch <- function(
       fun_string <- gsub("\\s+", " ", fun_string)
     }
 
-    if (use_cache) {
-      outpath <- get_cache_path(fun, input_hash, fun_string, cache_dir)
+    # if not in funs_to_use_batch_size, don't do batching
+    if (!grepl(paste(funs_to_use_batch_size, collapse='|'), fun_string)) {
+      n_batches <- 1
     }
 
-    if (!use_cache || (use_cache && !file.exists(outpath))) {
-      if (verbose)
-        cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
+    if (n_batches > 1)
+      cli::cli_alert_info(cli::col_blue('Splitting task into {n_batches} batches'))
 
-      # Use do.call to pass not_funcs as additional arguments to fun
-      out <- do.call(fun, c(list(.x = unique_x), not_funcs))
+    for (i in cli::cli_progress_along(1:n_batches, format='Extracting and summarising batch {cli::pb_current}')) {
+      if (n_batches > 1) {
+        # define start and end rows of batch
+        start_i <- 1 + ((i-1) * batch_size)
+        end_i <- i * batch_size
+        if (i == n_batches)
+          end_i <- nrow(unique_x)
 
-      out <- out[,!(colnames(out) %in% colnames(unique_x))]
-      out <- sf::st_drop_geometry(out)
-      if (verbose)
-        cli::cli_alert_success(cli::col_green(paste('\U0001F436 Completed', '{fun_string}')))
+        # get batch
+        batch <- unique_x[start_i:end_i,]
+      } else {
+        batch <- unique_x
+      }
 
-      if (use_cache)
-        saveRDS(out, outpath)
-    } else {
-      if (verbose)
-        cli::cli_alert_success(cli::col_green(paste('\U0001F573\UFE0F \U0001F9B4 Dug up cached result of', '{fun_string}')))
-      out <- readRDS(outpath)
+      # create hash of input unique name to cache progress of extracted point data (so you can continue if you lose progress)
+      input_hash <- rlang::hash(batch)
+
+      if (use_cache) {
+        outpath <- get_cache_path(fun, input_hash, fun_string, cache_dir)
+      }
+
+      if (!use_cache || (use_cache && !file.exists(outpath))) {
+        if (verbose)
+          cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
+
+        # Use do.call to pass not_funcs as additional arguments to fun
+        out <- do.call(fun, c(list(.x = batch), not_funcs))
+
+        out <- out[,!(colnames(out) %in% colnames(batch))]
+        out <- sf::st_drop_geometry(out)
+        if (verbose)
+          cli::cli_alert_success(cli::col_green(paste('\U0001F436 Completed', '{fun_string}')))
+
+        if (use_cache)
+          saveRDS(out, outpath)
+      } else {
+        if (verbose)
+          cli::cli_alert_success(cli::col_green(paste('\U0001F573\UFE0F \U0001F9B4 Dug up cached result of', '{fun_string}')))
+        out <- readRDS(outpath)
+      }
     }
-    return(out)
+
+    full_out <- rbind(full_out, out)
+
+    return(full_out)
   })
 
   unique_x <- dplyr::bind_cols(c(unique_x, outs))

@@ -79,30 +79,31 @@ extract_gee <- function(
   scale=250,
   time_buffer=lubridate::days(20),
   temporal_fun='last',
-  lazy=TRUE,
+  lazy=FALSE,
   debug=FALSE,
   initialise_gee=TRUE,
   use_gcs=FALSE,
-  use_drive=TRUE,
-  max_chunk_time_day_range='12 months',
-  max_feature_collection_size=10000,
+  use_drive=FALSE,
+  max_chunk_time_day_range='6 months',
+  max_feature_collection_size=5000,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   time_column_name=NULL,
   verbose=TRUE,
   is_vectorised_summarisation_function=FALSE,
   ...
 ) {
-  if (!use_gcs && !use_drive && nrow(x) > 20000) {
-    # see https://github.com/r-spatial/rgee/issues/185
-    warning(paste('Detected', nrow(x), 'rows of data to extract without use_gcs or use_drive being TRUE. Use these to prevent gee server-side issues with larger datasets.'))
+  if (nrow(x) > 20000) {
+    warning(
+      paste(
+        'GEE can slow down progress on the server side after extracting many',
+        'geometries in a row. Consider splitting your extraction task into',
+        'fewer geometries at a time with the `batch_size` argument to envfetch.'
+      )
+    )
   }
 
   if (!use_gcs && !use_drive && lazy) {
     stop('Lazy == TRUE requires use_gcs or use_drive to also be TRUE')
-  }
-
-  if (lazy) {
-    future::plan(future::multisession)
   }
 
   if (initialise_gee)
@@ -148,7 +149,7 @@ extract_gee <- function(
   if (verbose)
     pb <- cli::cli_progress_bar('Sending extraction tasks to Google Earth Engine', total=length(pts_chunks))
 
-  future_extracteds <- list()
+  extracteds <- list()
 
   for (i in seq_along(pts_chunks)) {
     chunk <- pts_chunks[[i]]
@@ -190,24 +191,37 @@ extract_gee <- function(
       ee_reducer_fun <- ee_reducer_fun()
     }
 
-    future_extracteds[[i]] <- rgee::ee_extract(
-      x = ic,
-      y = p_feature,
-      scale = scale,
-      fun = ee_reducer_fun,
-      lazy = lazy,
-      sf = FALSE,
-      quiet = !debug,
-      via = via,
-      ...
-    )
+    if (lazy) {
+      extracteds[[i]] <- rgee::ee_extract(
+        x = ic,
+        y = p_feature,
+        scale = scale,
+        fun = ee_reducer_fun,
+        lazy = lazy,
+        sf = FALSE,
+        quiet = !debug,
+        via = via,
+        ...
+      )
+    } else {
+      extracteds[[i]] <- rgee::ee_extract(
+        x = ic,
+        y = p_feature,
+        scale = scale,
+        fun = ee_reducer_fun,
+        lazy = lazy,
+        sf = FALSE,
+        quiet = !debug,
+        via = via,
+        ...
+      )
+    }
 
     cli::cli_progress_update(id=pb)
   }
 
-  # get extracted values over each chunk
-  if (lazy) {
-    extracteds <- lapply(cli_progress_along(future_extracteds, 'Downloading extracted files from GEE'), rgee::ee_utils_future_value)
+  for (i in seq_along(pts_chunks)) {
+    extracteds[[i]] <- extracteds[[i]] %>% rgee::ee_utils_future_value()
   }
 
   # combine extracted data into tibble
@@ -334,8 +348,8 @@ split_time_chunks <- function(df, time_col='start_time', max_time_range='6 month
       } else {
         group_size <- ceiling(n / max_rows)
         sub_df %>%
-          mutate(subgroup = rep(1:group_size, each = max_rows, length.out = n)) %>%
-          group_split(subgroup)
+          dplyr::mutate(subgroup = rep(1:group_size, each = max_rows, length.out = n)) %>%
+          dplyr::group_split(subgroup)
       }
     }) %>%
     unlist(recursive = FALSE)

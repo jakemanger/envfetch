@@ -52,6 +52,7 @@
 #' Engine within the function. Default is TRUE.
 #' @param ... Additional arguments for underlying extraction functions.
 #' @inheritDotParams extract_over_time -x -r -subds -temporal_fun -spatial_extraction_fun
+#' @inheritDotParams fetch -batch_size -funs_to_use_batch_size
 #' @inheritDotParams extract_over_space -chunk -max_ram_frac_per_chunk
 #' @inheritDotParams extract_gee -x -collection_name -bands -temporal_fun -initialise_gee -ee_reducer_fun
 #'
@@ -113,7 +114,7 @@ envfetch <- function(
   temporal_fun='mean',
   spatial_fun='mean',
   scale=NULL,
-  max_feature_collection_size=10000,
+  max_feature_collection_size=5000,
   use_cache=TRUE,
   out_dir=file.path('./output/'),
   out_filename=NA,
@@ -206,8 +207,8 @@ envfetch <- function(
 
         args <- c(...)
 
-        use_gcs <- ifelse("use_gcs" %in% names(args), args$use_gcs, FALSE)
-        use_drive <- ifelse("use_drive" %in% names(args), args$use_drive, FALSE)
+        use_gcs <- ifelse("use_gcs" %in% names(args), args['use_gcs'], FALSE)
+        use_drive <- ifelse("use_drive" %in% names(args), args['use_drive'], FALSE)
 
         rgee::ee_Initialize(gcs = use_gcs, drive = use_drive)
 
