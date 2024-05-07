@@ -77,8 +77,9 @@ is_date <- function(x) {
 }
 
 date_to_interval <- function(x) {
+  x <- lubridate::as_date(x)
   time_column <- lubridate::interval(
-    lubridate::floor_date(x),
-    x + lubridate::days(1) - lubridate::seconds(1)
+    lubridate::floor_date(x, unit='day'),
+    lubridate::floor_date(x, unit='day') + lubridate::days(1) - lubridate::milliseconds(1)
   )
 }
