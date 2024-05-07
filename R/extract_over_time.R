@@ -159,14 +159,14 @@ extract_over_time <- function(
 
   # prepare data for summarisation
   new_col_names <- terra::varnames(r)
-  col_names_from_names <- unique(sapply(strsplit(names(r), '_'), '[[', 1))
+  col_names_from_names <- unique(sub("_[^_]*$", "", names(r)))
   if (length(new_col_names) == 1 && new_col_names == '') {
     new_col_names <- col_names_from_names
     warning(paste('`varnames` in the raster is empty. Assuming these are:', paste(new_col_names, collapse=', ')))
   }
   if (!all(new_col_names == col_names_from_names)) {
     new_col_names <- col_names_from_names
-    warning(paste('`varnames` in the raster is not the prefix of `names`. Correcting `varnames` to:', paste(new_col_names, collapse=', ')))
+    warning(paste('Correcting `varnames` to:', paste(new_col_names, collapse=', '), ' as `varnames` in the raster don\'t match the prefix found in `names`.'))
   }
   # initialise variables with NA
   x[, new_col_names] <- NA
