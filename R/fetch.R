@@ -235,12 +235,11 @@ fetch <- function(
     by = "envfetch__duplicate_ID"
   ) %>% dplyr::select(-dplyr::all_of(c('envfetch__duplicate_ID')))
 
+
   if (length(.time_rep) > 1) {
     # now take those time lagged x and set them as columns for their
     # original point
     cols_to_get_vals_from <- colnames(x)[!(colnames(x) %in% c(extra_cols, col_names_used_in_func))]
-    extra_col_vals <- original_x %>% dplyr::select(dplyr::all_of(c(extra_cols))) %>%
-      sf::st_drop_geometry()
     x <- x %>%
       dplyr::select(-dplyr::any_of(c(time_column_name))) %>%
       tidyr::pivot_wider(
@@ -249,21 +248,29 @@ fetch <- function(
         names_glue={"{.value}{ifelse(lag_amount != '', '_', '')}{lag_amount}"} # don't have an extra '_' at end if there was no lag for that row
       )
 
-    if (length(extra_cols) > 0) {
-      # add back any extra columns not used in the pivot_wider
-      extra_col_vals <- extra_col_vals %>% dplyr::select(
-        dplyr::all_of(
-          colnames(extra_col_vals)[!(colnames(extra_col_vals) %in% colnames(x))]
-        )
-      )
-      x <- x %>% dplyr::bind_cols(
-        extra_col_vals
-      )
-    }
-
     x_colnames <- colnames(x)
     colnames(x)[x_colnames == 'envfetch__original_time_column'] <- time_column_name
   }
+
+  # add back any extra columns not used in the pivot_wider
+  if (length(extra_cols) > 0) {
+    extra_col_vals <- original_x %>% dplyr::select(dplyr::all_of(c(extra_cols))) %>%
+      sf::st_drop_geometry()
+    extra_col_vals <- extra_col_vals %>% dplyr::select(
+      dplyr::all_of(
+        colnames(extra_col_vals)[!(colnames(extra_col_vals) %in% colnames(x))]
+      )
+    )
+    x <- x %>% dplyr::bind_cols(
+      extra_col_vals
+    )
+  }
+  # make sure column order is the same as input
+  original_column_order <- colnames(original_x)
+  current_column_order <- colnames(x)
+  new_colnames <- current_column_order[!(current_column_order %in% original_column_order)]
+  x <- x[,c(original_column_order, new_colnames)]
+
   # remove columns with all NA values
   x <- x %>%
     dplyr::select(dplyr::where(function(x) any(!is.na(x))))
@@ -301,6 +308,8 @@ fetch <- function(
   if (!all(x$row_num == 1:nrow(x))) {
     stop("The 'row_num' column is not consecutive from 1 to the number of rows. Please submit a bug report to https://github.com/jakemanger/envfetch/issues/new")
   }
+  # drop row_num as we don't need it after check above
+  x <- x %>% dplyr::select(-dplyr::any_of(c('row_num')))
 
   return(x)
 }

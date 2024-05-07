@@ -196,38 +196,3 @@ envfetch_vs_terra_over_time <- function(temporal_fun, polygons=FALSE) {
   expect_equal(out$small_1_0, terra_result_matrix[,2])
   expect_equal(out$small_2_1, terra_result_matrix[,3])
 }
-
-
-# test_that('terra_and_stars_backend_match', {
-#   d <- create_test_d()
-#   r <- load_test_raster()
-#
-#   terra_out <- d %>%
-#     fetch(
-#       ~extract_over_time(
-#         .x,
-#         r,
-#         spatial_fun = mean,
-#         na.rm = TRUE
-#       ),
-#       .time_rep=time_rep(interval=lubridate::days(14), n_start=-1),
-#       use_cache=FALSE,
-#       out_filename=NA
-#     )
-#
-#   stars_out <- d %>%
-#     fetch(
-#       ~extract_over_time(
-#         .x,
-#         r,
-#         spatial_fun = mean,
-#         extraction_fun = stars::st_extract,
-#         na.rm = TRUE
-#       ),
-#       .time_rep=time_rep(interval=lubridate::days(14), n_start=-1),
-#       use_cache=FALSE,
-#       out_filename=NA
-#     )
-#
-#   expect_equal(terra_out, stars_out)
-# })

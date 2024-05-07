@@ -26,6 +26,22 @@ test_that('extraction_works_with_datetimes', {
   res <- d %>% envfetch(r=r, use_cache = FALSE)
 })
 
+test_that('extra_cols_are_appended_back', {
+  d <- create_test_d()
+  d$extra_col_1 <- paste0('extra_col_info_', 1:nrow(d))
+  d$extra_col_2 <- paste0('second_extra_col_info_', 1:nrow(d))
+  r <- load_test_raster()
+  res <- d %>% envfetch(r=r, use_cache = FALSE)
+
+  expect_equal(d$extra_col_1, res$extra_col_1)
+  expect_equal(d$extra_col_2, res$extra_col_2)
+  # only extra columns should be 'small' in this case
+  original_column_order <- colnames(d)
+  current_column_order <- colnames(res)
+  new_colnames <- current_column_order[!(current_column_order %in% original_column_order)]
+  expect_equal(new_colnames, c('small'))
+})
+
 test_that('caches_between_runs', {
   d <- create_test_d()
   r <- load_test_raster()
