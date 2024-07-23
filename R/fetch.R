@@ -150,6 +150,13 @@ fetch <- function(
 
   unique_x <- x[!duplicated(x$envfetch__duplicate_ID),]
 
+  # sort unique_x by time for efficiency later
+  if (verbose)
+    cli::cli_alert_info(paste('Sorting data by time for efficient processing'))
+
+  unique_x <- unique_x %>% dplyr::arrange(lubridate::int_start(!!rlang::sym(time_column_name)))
+
+
   # calculate number of batches
   n_batches <- nrow(unique_x) / batch_size
   if (n_batches < 1 || is.infinite(n_batches) || is.na(n_batches))
@@ -199,8 +206,11 @@ fetch <- function(
       }
 
       if (!use_cache || (use_cache && !file.exists(outpath))) {
-        if (verbose)
+        if (verbose) {
           cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
+          cli::cli_alert(paste0('Giving function input of ', nrow(batch), ' with data from ', min(lubridate::int_start(batch)) , ' to ', max(lubridate::int_end(batch))))
+        }
+
 
         # Use do.call to pass not_funcs as additional arguments to fun
         out <- do.call(fun, c(list(.x = batch), not_funcs))
