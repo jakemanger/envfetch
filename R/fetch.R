@@ -37,6 +37,8 @@
 #' to use batch_size for. Batch size is useful for some functions
 #' (rgee: `'extract_gee'`) but not others (local: `'extract_over_time'`).
 #' Defaults to `c('extract_gee')`.
+#' @param do_initial_sort Whether to initially sort the unique input data `x` by
+#' time for efficiency during later extraction processes. Defaults to TRUE.
 #' @inheritDotParams extract_over_time -verbose
 #' @inheritDotParams extract_gee -verbose
 #'
@@ -82,7 +84,8 @@ fetch <- function(
     time_column_name=NULL,
     .time_rep=NA,
     batch_size=20000,
-    funs_to_use_batch_size=c('extract_gee')
+    funs_to_use_batch_size=c('extract_gee'),
+    do_initial_sort=TRUE
 ) {
   # capture the supplied ... arguments as a list to preserve names
   args <- c(...)
@@ -150,11 +153,13 @@ fetch <- function(
 
   unique_x <- x[!duplicated(x$envfetch__duplicate_ID),]
 
-  # sort unique_x by time for efficiency later
-  # if (verbose)
-  #   cli::cli_alert_info(paste('Sorting data by time for efficient processing'))
-  #
-  # unique_x <- unique_x %>% dplyr::arrange(lubridate::int_start(!!rlang::sym(time_column_name)))
+  if (do_initial_sort) {
+    # sort unique_x by time for efficiency later
+    if (verbose)
+      cli::cli_alert_info(paste('Sorting data by time for efficient processing'))
+
+    unique_x <- unique_x %>% dplyr::arrange(lubridate::int_start(!!rlang::sym(time_column_name)))
+  }
 
 
   # calculate number of batches
@@ -208,7 +213,16 @@ fetch <- function(
       if (!use_cache || (use_cache && !file.exists(outpath))) {
         if (verbose) {
           cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
-          cli::cli_alert(paste0('Giving function input of ', nrow(batch), ' with data from ', min(lubridate::int_start(batch[, time_column_name])) , ' to ', max(lubridate::int_end(batch[, time_column_name]))))
+          cli::cli_alert(
+            paste0(
+              'Giving function input of ',
+              nrow(batch),
+              ' with data from ',
+              min(lubridate::int_start(batch[[time_column_name]])) ,
+              ' to ',
+              max(lubridate::int_end(batch[[time_column_name]]))
+            )
+          )
         }
 
 
