@@ -2,28 +2,36 @@ test_that('extraction_works_with_intervals', {
   d <- create_test_d()
   r <- load_test_raster()
 
-  res <- d %>% envfetch(r=list(r, r), use_cache = FALSE)
+  expect_no_error(
+    { res <- d %>% envfetch(r=list(r, r), use_cache = FALSE) }
+  )
 })
 
 test_that('extraction_works_with_dates', {
   d <- create_test_d()
   r <- load_test_raster()
   d$time_column <- lubridate::int_start(d$time_column)
-  res <- d %>% envfetch(r=r, use_cache = FALSE)
+  expect_no_error(
+    { res <- d %>% envfetch(r=r, use_cache = FALSE) }
+  )
 })
 
 test_that('extraction_works_with_dates_as_strings', {
   d <- create_test_d()
   r <- load_test_raster()
   d$time_column <- as.character(lubridate::int_start(d$time_column))
-  res <- d %>% envfetch(r=r, use_cache = FALSE)
+  expect_no_error(
+    { res <- d %>% envfetch(r=r, use_cache = FALSE) }
+  )
 })
 
 test_that('extraction_works_with_datetimes', {
   d <- create_test_d()
   r <- load_test_raster()
   d$time_column <- lubridate::int_start(d$time_column) + lubridate::seconds(10)
-  res <- d %>% envfetch(r=r, use_cache = FALSE)
+  expect_no_error(
+    { res <- d %>% envfetch(r=r, use_cache = FALSE) }
+  )
 })
 
 test_that('extra_cols_are_appended_back', {
@@ -31,7 +39,9 @@ test_that('extra_cols_are_appended_back', {
   d$extra_col_1 <- paste0('extra_col_info_', 1:nrow(d))
   d$extra_col_2 <- paste0('second_extra_col_info_', 1:nrow(d))
   r <- load_test_raster()
-  res <- d %>% envfetch(r=r, use_cache = FALSE)
+  expect_no_error(
+    { res <- d %>% envfetch(r=r, use_cache = FALSE) }
+  )
 
   expect_equal(d$extra_col_1, res$extra_col_1)
   expect_equal(d$extra_col_2, res$extra_col_2)

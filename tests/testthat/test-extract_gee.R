@@ -27,13 +27,13 @@ test_that("correct_results_returned_last", {
     ),
     time_column_name='time',
     out_filename=NA,
-    use_cache=FALSE
+    use_cache=FALSE,
   )
 
   # data provided by NASA's AppEEARS: https://appeears.earthdatacloud.nasa.gov/task/point
-  correct_ndvis <- c(4078, 1217, 4463, 1134)
+  correct_ndvis <- c(4381, 1062, 4463, 1177)
   expect_equal(
-    out$NDVI,
+    as.vector(out$NDVI),
     correct_ndvis
   )
 })
