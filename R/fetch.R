@@ -151,10 +151,10 @@ fetch <- function(
   unique_x <- x[!duplicated(x$envfetch__duplicate_ID),]
 
   # sort unique_x by time for efficiency later
-  if (verbose)
-    cli::cli_alert_info(paste('Sorting data by time for efficient processing'))
-
-  unique_x <- unique_x %>% dplyr::arrange(lubridate::int_start(!!rlang::sym(time_column_name)))
+  # if (verbose)
+  #   cli::cli_alert_info(paste('Sorting data by time for efficient processing'))
+  #
+  # unique_x <- unique_x %>% dplyr::arrange(lubridate::int_start(!!rlang::sym(time_column_name)))
 
 
   # calculate number of batches
