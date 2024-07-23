@@ -222,8 +222,11 @@ extract_gee <- function(
     cli::cli_progress_update(id=pb)
   }
 
-  for (i in seq_along(pts_chunks)) {
-    extracteds[[i]] <- extracteds[[i]] %>% rgee::ee_utils_future_value()
+  if (lazy) {
+    # if using lazy async, get values after future has finished all tasks
+    for (i in seq_along(pts_chunks)) {
+      extracteds[[i]] <- extracteds[[i]] %>% rgee::ee_utils_future_value()
+    }
   }
 
   # combine extracted data into tibble
