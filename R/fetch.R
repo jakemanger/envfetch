@@ -81,7 +81,7 @@ fetch <- function(
     cache_dir=file.path(out_dir, 'cache/'),
     time_column_name=NULL,
     .time_rep=NA,
-    batch_size=200000,
+    batch_size=20000,
     funs_to_use_batch_size=c('extract_gee')
 ) {
   # capture the supplied ... arguments as a list to preserve names

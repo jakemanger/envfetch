@@ -15,6 +15,7 @@ extract_over_time(
      extract_over_space(x = x, r = r,
     ...)
  },
+  scale = NULL,
   time_buffer = lubridate::days(0),
   debug = FALSE,
   override_terraOptions = TRUE,
@@ -51,6 +52,11 @@ space value independently).}
 each time slice of the raster. Default is the default implementation of
 \code{extract_over_space} (extracts the \code{mean} of geometries within rasters,
 removing NAs).}
+
+\item{scale}{The scale to aggregate your raster to (in units of the
+original raster). Note this will be rounded to fit the nearest aggregation
+factor (number of cells in each direction). Leave as NULL (the default) if
+you do not want any aggregation. See \link[terra]{aggregate}.}
 
 \item{time_buffer}{Time buffer used to adjust the time interval for data
 extraction. The function always uses the time before and after the interval

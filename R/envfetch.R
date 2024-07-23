@@ -51,10 +51,10 @@
 #' @param init_gee A logical indicating whether to initialise Google Earth
 #' Engine within the function. Default is TRUE.
 #' @param ... Additional arguments for underlying extraction functions.
-#' @inheritDotParams extract_over_time -x -r -subds -temporal_fun -spatial_extraction_fun
-#' @inheritDotParams fetch -batch_size -funs_to_use_batch_size
-#' @inheritDotParams extract_over_space -chunk -max_ram_frac_per_chunk
-#' @inheritDotParams extract_gee -x -collection_name -bands -temporal_fun -initialise_gee -ee_reducer_fun
+#' @inheritDotParams extract_over_time -x -r
+#' @inheritDotParams fetch
+#' @inheritDotParams extract_over_space
+#' @inheritDotParams extract_gee -x
 #'
 #' @details
 #' `envfetch` serves as a high-level wrapper for specific data extraction

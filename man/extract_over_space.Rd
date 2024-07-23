@@ -12,8 +12,7 @@ extract_over_space(
   chunk = TRUE,
   max_ram_frac_per_chunk = 1,
   extraction_fun = terra::extract,
-  resample_scale = NULL,
-  resample_fun = NULL,
+  scale = NULL,
   verbose = TRUE,
   ...
 )
@@ -42,12 +41,10 @@ for each extraction chunk.}
 \item{extraction_fun}{The extraction function to use. Default is
 \code{terra::extract}.}
 
-\item{resample_scale}{The scale to resample your raster to (in units of the
-original raster). Leave as NULL (the default) if you do not want any
-resampling.}
-
-\item{resample_fun}{The function to use for resampling. See \code{method} in
-\link[terra]{resample}.}
+\item{scale}{The scale to aggregate your raster to (in units of the
+original raster). Note this will be rounded to fit the nearest aggregation
+factor (number of cells in each direction). Leave as NULL (the default) if
+you do not want any aggregation. See \link[terra]{aggregate}.}
 
 \item{verbose}{Whether to print messages to the console. Defaults to TRUE.}
 

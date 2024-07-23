@@ -11,15 +11,17 @@ extract_gee(
   scale = 250,
   time_buffer = lubridate::days(20),
   temporal_fun = "last",
+  lazy = FALSE,
   debug = FALSE,
   initialise_gee = TRUE,
   use_gcs = FALSE,
   use_drive = FALSE,
-  max_chunk_time_day_range = 183,
-  max_feature_collection_size = 500,
+  max_chunk_time_day_range = "3 months",
+  max_feature_collection_size = 5000,
   ee_reducer_fun = rgee::ee$Reducer$mean(),
   time_column_name = NULL,
   verbose = TRUE,
+  is_vectorised_summarisation_function = FALSE,
   ...
 )
 }
@@ -56,9 +58,9 @@ larger requests. Default is FALSE.}
 \item{use_drive}{A logical indicating whether to use Google Drive for larger
 requests. Default is FALSE.}
 
-\item{max_chunk_time_day_range}{An integer representing the maximum number of
-days to include in each time chunk when splitting the dataset for efficient
-memory use on Google Earth Engine's end. Default is 365.}
+\item{max_chunk_time_day_range}{An string representing the maximum number of
+time units to include in each time chunk when splitting the dataset for
+efficient memory use on Google Earth Engine's end. Default is '6 months'.}
 
 \item{max_feature_collection_size}{An integer representing the maximum number
 of features (rows) to include in each chunk when splitting the dataset for
@@ -72,6 +74,11 @@ rgee::ee$Reducer$mean().}
 default), a column of type lubridate::interval is automatically selected.}
 
 \item{verbose}{Whether to print messages to the console. Defaults to TRUE.}
+
+\item{is_vectorised_summarisation_function}{Whether the summarisation is
+vectorised (like rowSums or rowMeans). Is only necessary to be TRUE if the
+row-wise vectorised summarisation function has not been automatically
+detected (does not use rowSums or rowMeans).}
 
 \item{...}{Additional arguments for underlying extraction function,
 \code{rgee::ee_extract}.}

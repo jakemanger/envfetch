@@ -84,7 +84,7 @@ extract_gee <- function(
   initialise_gee=TRUE,
   use_gcs=FALSE,
   use_drive=FALSE,
-  max_chunk_time_day_range='6 months',
+  max_chunk_time_day_range='3 months',
   max_feature_collection_size=5000,
   ee_reducer_fun=rgee::ee$Reducer$mean(),
   time_column_name=NULL,
@@ -166,6 +166,8 @@ extract_gee <- function(
     # format the datetimes for gee
     min_datetime <- format(min_datetime, "%Y-%m-%dT%H:%M:%S")
     max_datetime <- format(max_datetime, "%Y-%m-%dT%H:%M:%S")
+
+    cli::cli_alert(paste0('Asking GEE to extract ', nrow(chunk), ' points from ', min_datetime, ' to ', max_datetime))
 
     # first filter by min and max date +- the time buffer
     # and filter spatially

@@ -13,7 +13,9 @@ fetch(
   overwrite = TRUE,
   cache_dir = file.path(out_dir, "cache/"),
   time_column_name = NULL,
-  .time_rep = NA
+  .time_rep = NA,
+  batch_size = 20000,
+  funs_to_use_batch_size = c("extract_gee")
 )
 }
 \arguments{
@@ -43,6 +45,10 @@ space value independently).}
 each time slice of the raster. Default is the default implementation of
 \code{extract_over_space} (extracts the \code{mean} of geometries within rasters,
 removing NAs).}
+    \item{\code{scale}}{The scale to aggregate your raster to (in units of the
+original raster). Note this will be rounded to fit the nearest aggregation
+factor (number of cells in each direction). Leave as NULL (the default) if
+you do not want any aggregation. See \link[terra]{aggregate}.}
     \item{\code{time_buffer}}{Time buffer used to adjust the time interval for data
 extraction. The function always uses the time before and after the interval
 to prevent errors when summarising the earliest and latest times. Default is
@@ -64,17 +70,15 @@ performance optimisation. Defaults to TRUE.}
 Engine image collection from which to extract data.}
     \item{\code{bands}}{A vector of character strings representing the band names to
 extract from the image collection.}
-    \item{\code{scale}}{A numeric value representing the scale at which to perform the
-extraction in meters. Default is 250.}
     \item{\code{initialise_gee}}{A logical indicating whether to initialise Google Earth
 Engine within the function. Default is TRUE.}
     \item{\code{use_gcs}}{A logical indicating whether to use Google Cloud Storage for
 larger requests. Default is FALSE.}
     \item{\code{use_drive}}{A logical indicating whether to use Google Drive for larger
 requests. Default is FALSE.}
-    \item{\code{max_chunk_time_day_range}}{An integer representing the maximum number of
-days to include in each time chunk when splitting the dataset for efficient
-memory use on Google Earth Engine's end. Default is 365.}
+    \item{\code{max_chunk_time_day_range}}{An string representing the maximum number of
+time units to include in each time chunk when splitting the dataset for
+efficient memory use on Google Earth Engine's end. Default is '6 months'.}
     \item{\code{max_feature_collection_size}}{An integer representing the maximum number
 of features (rows) to include in each chunk when splitting the dataset for
 efficient memory use on Google Earth Engine's end. Default is 5000.}
@@ -106,6 +110,18 @@ selected.}
 repeating time intervals before and after the original datetime. This can be
 relative to the start or the end of the input time interval (specified by the
 \code{relative_to_start} argument of \code{time_rep}). Defaults to the start.}
+
+\item{batch_size}{The maximum number of rows or geometries to extract and
+summarise at a time. Each batch will be cached to continue extraction in case
+of interruptions. Larger batch sizes may result in overuse of rgee on the
+server-side and hangs. Set \code{batch_size} to \code{1}, \code{NA} or \verb{<1} for no batching.
+Use \code{funs_to_use_batch_size} to define what functions batch_size will be
+used with.}
+
+\item{funs_to_use_batch_size}{A vector with the names of functions you want
+to use batch_size for. Batch size is useful for some functions
+(rgee: \code{'extract_gee'}) but not others (local: \code{'extract_over_time'}).
+Defaults to \code{c('extract_gee')}.}
 }
 \value{
 tibble An augmented tibble with additional data fetched using

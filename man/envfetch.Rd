@@ -10,6 +10,8 @@ envfetch(
   bands = NULL,
   temporal_fun = "mean",
   spatial_fun = "mean",
+  scale = NULL,
+  max_feature_collection_size = 5000,
   use_cache = TRUE,
   out_dir = file.path("./output/"),
   out_filename = NA,
@@ -36,7 +38,7 @@ list of vectors.}
 
 \item{temporal_fun}{Function or string used to summarize data for each time
 interval. Is ignored if time is a date or datetime. Default is
-\code{mean(x, na.rm=TRUE)}. For Google Earth Engine, the string \code{'last'} returns
+\code{mean(x, na.rm=TRUE)}. the string \code{'last'} returns
 the value before the start of the time interval, \code{'next'} returns the value
 after the start of the time interval and \code{'closest'} finds the closest value
 to the start of the time interval. For multiple sources, provide a list of
@@ -51,6 +53,10 @@ earth engine, you must specify a google earth engine reducer
 \code{rgee::ee$Reducer} function (e.g. \code{rgee::ee$Reducer$sum()}). See
 https://r-spatial.github.io/rgee/reference/ee_extract.html". For different
 behaviour with multiple sources, provide a list of functions or strings.}
+
+\item{scale}{Numeric vector specifying scales to aggregate rasters to before
+extraction. Use \code{NULL} for no aggregation. For multiple sources, provide a
+list of vectors.}
 
 \item{use_cache}{Logical flag indicating whether to use caching. Default is
 \code{TRUE}.}
@@ -75,8 +81,14 @@ is \code{NA}.}
 Engine within the function. Default is TRUE.}
 
 \item{...}{
-  Arguments passed on to \code{\link[=extract_over_time]{extract_over_time}}, \code{\link[=extract_gee]{extract_gee}}
+  Arguments passed on to \code{\link[=extract_over_time]{extract_over_time}}, \code{\link[=fetch]{fetch}}, \code{\link[=extract_over_space]{extract_over_space}}, \code{\link[=extract_gee]{extract_gee}}
   \describe{
+    \item{\code{subds}}{positive integer or character to select a sub-dataset to extract
+from. If zero or "", all sub-datasets are extracted.}
+    \item{\code{spatial_extraction_fun}}{A function used to extract points spatially for
+each time slice of the raster. Default is the default implementation of
+\code{extract_over_space} (extracts the \code{mean} of geometries within rasters,
+removing NAs).}
     \item{\code{time_buffer}}{Time buffer used to adjust the time interval for data
 extraction. The function always uses the time before and after the interval
 to prevent errors when summarising the earliest and latest times. Default is
@@ -95,18 +107,42 @@ detected (does not use rowSums or rowMeans).}
 optimisation. Defaults to TRUE.}
     \item{\code{subset_raster_indices}}{Whether to subset raster by time indices as a
 performance optimisation. Defaults to TRUE.}
-    \item{\code{scale}}{A numeric value representing the scale at which to perform the
-extraction in meters. Default is 250.}
+    \item{\code{batch_size}}{The maximum number of rows or geometries to extract and
+summarise at a time. Each batch will be cached to continue extraction in case
+of interruptions. Larger batch sizes may result in overuse of rgee on the
+server-side and hangs. Set \code{batch_size} to \code{1}, \code{NA} or \verb{<1} for no batching.
+Use \code{funs_to_use_batch_size} to define what functions batch_size will be
+used with.}
+    \item{\code{funs_to_use_batch_size}}{A vector with the names of functions you want
+to use batch_size for. Batch size is useful for some functions
+(rgee: \code{'extract_gee'}) but not others (local: \code{'extract_over_time'}).
+Defaults to \code{c('extract_gee')}.}
+    \item{\code{chunk}}{Logical. If \code{TRUE}, the raster will be split into chunks based
+on available RAM and processed chunk by chunk. If \code{FALSE}, the raster will be
+processed as a whole. Default is \code{TRUE}.}
+    \item{\code{na.rm}}{Whether to remove NA values when summarising with the
+\code{spatial_fun} function.}
+    \item{\code{extraction_fun}}{The extraction function to use. Default is
+\code{terra::extract}.}
+    \item{\code{max_ram_frac_per_chunk}}{The maximum fraction of available memory to use
+for each extraction chunk.}
+    \item{\code{collection_name}}{A character string representing the Google Earth
+Engine image collection from which to extract data.}
+    \item{\code{initialise_gee}}{A logical indicating whether to initialise Google Earth
+Engine within the function. Default is TRUE.}
     \item{\code{use_gcs}}{A logical indicating whether to use Google Cloud Storage for
 larger requests. Default is FALSE.}
     \item{\code{use_drive}}{A logical indicating whether to use Google Drive for larger
 requests. Default is FALSE.}
-    \item{\code{max_chunk_time_day_range}}{An integer representing the maximum number of
-days to include in each time chunk when splitting the dataset for efficient
-memory use on Google Earth Engine's end. Default is 365.}
+    \item{\code{max_chunk_time_day_range}}{An string representing the maximum number of
+time units to include in each time chunk when splitting the dataset for
+efficient memory use on Google Earth Engine's end. Default is '6 months'.}
     \item{\code{max_feature_collection_size}}{An integer representing the maximum number
 of features (rows) to include in each chunk when splitting the dataset for
 efficient memory use on Google Earth Engine's end. Default is 5000.}
+    \item{\code{ee_reducer_fun}}{A Google Earth Engine reducer function representing the
+function used to aggregate the data extracted from each image. Default is
+rgee::ee$Reducer$mean().}
   }}
 }
 \value{
