@@ -208,7 +208,7 @@ fetch <- function(
       if (!use_cache || (use_cache && !file.exists(outpath))) {
         if (verbose) {
           cli::cli_alert_info(cli::col_blue(paste('Running', '{fun_string}')))
-          cli::cli_alert(paste0('Giving function input of ', nrow(batch), ' with data from ', min(lubridate::int_start(batch)) , ' to ', max(lubridate::int_end(batch))))
+          cli::cli_alert(paste0('Giving function input of ', nrow(batch), ' with data from ', min(lubridate::int_start(batch[, time_column_name])) , ' to ', max(lubridate::int_end(batch[, time_column_name]))))
         }
 
 
