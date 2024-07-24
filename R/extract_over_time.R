@@ -164,7 +164,7 @@ extract_over_time <- function(
     new_col_names <- col_names_from_names
     warning(paste('`varnames` in the raster is empty. Assuming these are:', paste(new_col_names, collapse=', ')))
   }
-  if (!all(new_col_names == col_names_from_names)) {
+  if (!all(new_col_names == col_names_from_names) || length(unique(new_col_names)) != length(new_col_names)) {
     new_col_names <- col_names_from_names
     warning(paste('Correcting `varnames` to:', paste(new_col_names, collapse=', '), ' as `varnames` in the raster don\'t match the prefix found in `names`.'))
   }

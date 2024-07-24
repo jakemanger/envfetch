@@ -15,7 +15,8 @@ fetch(
   time_column_name = NULL,
   .time_rep = NA,
   batch_size = 20000,
-  funs_to_use_batch_size = c("extract_gee")
+  funs_to_use_batch_size = c("extract_gee"),
+  do_initial_sort = TRUE
 )
 }
 \arguments{
@@ -122,6 +123,9 @@ used with.}
 to use batch_size for. Batch size is useful for some functions
 (rgee: \code{'extract_gee'}) but not others (local: \code{'extract_over_time'}).
 Defaults to \code{c('extract_gee')}.}
+
+\item{do_initial_sort}{Whether to initially sort the unique input data \code{x} by
+time for efficiency during later extraction processes. Defaults to TRUE.}
 }
 \value{
 tibble An augmented tibble with additional data fetched using

@@ -117,6 +117,8 @@ used with.}
 to use batch_size for. Batch size is useful for some functions
 (rgee: \code{'extract_gee'}) but not others (local: \code{'extract_over_time'}).
 Defaults to \code{c('extract_gee')}.}
+    \item{\code{do_initial_sort}}{Whether to initially sort the unique input data \code{x} by
+time for efficiency during later extraction processes. Defaults to TRUE.}
     \item{\code{chunk}}{Logical. If \code{TRUE}, the raster will be split into chunks based
 on available RAM and processed chunk by chunk. If \code{FALSE}, the raster will be
 processed as a whole. Default is \code{TRUE}.}
