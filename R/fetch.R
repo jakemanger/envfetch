@@ -261,6 +261,8 @@ fetch <- function(
 
   unique_x <- dplyr::bind_cols(c(unique_x, outs))
 
+  rm(outs)  # free up some memory
+
   # add back duplicate rows using the data from the duplicate that was
   # used in the extraction
   cols_to_remove <- colnames(x)[!(colnames(x) %in% c('envfetch__duplicate_ID'))]
@@ -269,6 +271,8 @@ fetch <- function(
     unique_x %>% dplyr::select(-dplyr::any_of(cols_to_remove)),
     by = "envfetch__duplicate_ID"
   ) %>% dplyr::select(-dplyr::all_of(c('envfetch__duplicate_ID')))
+
+  rm(unique_x)  # free up some memory
 
 
   if (length(.time_rep) > 1) {
