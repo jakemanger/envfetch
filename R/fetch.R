@@ -20,6 +20,8 @@
 #' @param overwrite Overwrite output file if exists.
 #' @param cache_dir A directory to output cached progress. Is ignored if
 #' use_cache = FALSE.
+#' @param cache_files Paths to cached files. Specify these if the cache system
+#' hasn't automatically detected your cache. Is ignored if use_cache = FALSE.
 #' @param time_column_name Name of the time column in the dataset. If NULL
 #' (the default), a column of type lubridate::interval is automatically
 #' selected.
@@ -81,6 +83,7 @@ fetch <- function(
     out_filename=NA,
     overwrite=TRUE,
     cache_dir=file.path(out_dir, 'cache/'),
+    cache_files=NA,
     time_column_name=NULL,
     .time_rep=NA,
     batch_size=20000,
@@ -168,6 +171,8 @@ fetch <- function(
     n_batches <- 1
   n_batches <- ceiling(n_batches)
 
+  cache_files_indx <- 1
+
   # loop through the supplied functions
   outs <- lapply(funcs, function(fun) {
     full_out <- data.frame()
@@ -207,7 +212,12 @@ fetch <- function(
       input_hash <- rlang::hash(batch)
 
       if (use_cache) {
-        outpath <- get_cache_path(fun, input_hash, fun_string, cache_dir)
+        if ((length(cache_files) >= 1 && is.na(cache_files)) || (length(cache_files) < cache_files_indx)) {
+          outpath <- get_cache_path(fun, input_hash, fun_string, cache_dir)
+        } else {
+          outpath <- cache_files[cache_files_indx]
+        }
+        cache_files_indx <<- cache_files_indx + 1
       }
 
       if (!use_cache || (use_cache && !file.exists(outpath))) {
@@ -229,8 +239,9 @@ fetch <- function(
         # Use do.call to pass not_funcs as additional arguments to fun
         out <- do.call(fun, c(list(.x = batch), not_funcs))
 
-        out <- out[,!(colnames(out) %in% colnames(batch))]
         out <- sf::st_drop_geometry(out)
+        out <- out[,!(colnames(out) %in% colnames(batch))]
+
         if (verbose)
           cli::cli_alert_success(cli::col_green(paste('\U0001F436 Completed', '{fun_string}')))
 
@@ -241,9 +252,9 @@ fetch <- function(
           cli::cli_alert_success(cli::col_green(paste('\U0001F573\UFE0F \U0001F9B4 Dug up cached result of', '{fun_string}')))
         out <- readRDS(outpath)
       }
-    }
 
-    full_out <- rbind(full_out, out)
+      full_out <- rbind(full_out, out)
+    }
 
     return(full_out)
   })

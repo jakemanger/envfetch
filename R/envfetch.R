@@ -120,6 +120,7 @@ envfetch <- function(
   out_filename=NA,
   overwrite=TRUE,
   cache_dir=file.path(out_dir, 'cache/'),
+  cache_files=NA,
   time_column_name=NULL,
   .time_rep=NA,
   init_gee=TRUE,
@@ -240,6 +241,7 @@ envfetch <- function(
     out_filename = out_filename,
     overwrite = overwrite,
     cache_dir = cache_dir,
+    cache_files = cache_files,
     time_column_name = time_column_name,
     .time_rep = .time_rep,
     ...
