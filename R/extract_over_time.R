@@ -158,16 +158,16 @@ extract_over_time <- function(
     cli::cli_alert(cli::col_black('Summarising extracted data over specified times'))
 
   # prepare data for summarisation
-  new_col_names <- terra::varnames(r)
+  new_col_names <- unique(terra::varnames(r))
   col_names_from_names <- unique(sub("_[^_]*$", "", names(r)))
   if (length(new_col_names) == 1 && new_col_names == '') {
     new_col_names <- col_names_from_names
     warning(paste('`varnames` in the raster is empty. Assuming these are:', paste(new_col_names, collapse=', ')))
   }
-  if (!all(new_col_names == col_names_from_names) || length(unique(new_col_names)) != length(new_col_names)) {
-    new_col_names <- col_names_from_names
-    warning(paste('Correcting `varnames` to:', paste(new_col_names, collapse=', '), ' as `varnames` in the raster don\'t match the prefix found in `names`.'))
-  }
+  # if (!all(new_col_names == col_names_from_names) || length(unique(new_col_names)) != length(new_col_names)) {
+  #   new_col_names <- col_names_from_names
+  #   warning(paste('Correcting `varnames` to:', paste(new_col_names, collapse=', '), ' as `varnames` in the raster don\'t match the prefix found in `names`.'))
+  # }
   # initialise variables with NA
   x[, new_col_names] <- NA
   multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)

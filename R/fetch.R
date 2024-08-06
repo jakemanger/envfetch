@@ -259,6 +259,9 @@ fetch <- function(
     return(full_out)
   })
 
+  # drop unique_x geometry as we don't need it after the extraction
+  unique_x <- sf::st_drop_geometry(unique_x)
+
   unique_x <- dplyr::bind_cols(c(unique_x, outs))
 
   rm(outs)  # free up some memory
@@ -273,7 +276,6 @@ fetch <- function(
   ) %>% dplyr::select(-dplyr::all_of(c('envfetch__duplicate_ID')))
 
   rm(unique_x)  # free up some memory
-
 
   if (length(.time_rep) > 1) {
     # now take those time lagged x and set them as columns for their
