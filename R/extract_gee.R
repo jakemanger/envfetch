@@ -31,7 +31,7 @@
 #' requests. Default is FALSE.
 #' @param max_chunk_time_day_range An string representing the maximum number of
 #' time units to include in each time chunk when splitting the dataset for
-#' efficient memory use on Google Earth Engine's end. Default is '6 months'.
+#' efficient memory use on Google Earth Engine's end. Default is '3 months'.
 #' @param max_feature_collection_size An integer representing the maximum number
 #' of features (rows) to include in each chunk when splitting the dataset for
 #' efficient memory use on Google Earth Engine's end. Default is 5000.
@@ -193,6 +193,25 @@ extract_gee <- function(
       ee_reducer_fun <- ee_reducer_fun()
     }
 
+    extracteds[[i]] <- tryCatch({
+      rgee::ee_extract(
+        x = ic,
+        y = p_feature,
+        scale = scale,
+        fun = ee_reducer_fun,
+        lazy = lazy,
+        sf = FALSE,
+        quiet = !debug,
+        via = via,
+        ...
+      )
+    }, error = function(e) {
+      if (inherits(e, "EEException") && grepl("User memory limit exceeded", e$message)) {
+        stop("User memory limit exceeded on Google Earth Engine. Consider reducing max_chunk_time_day_range or max_feature_collection_size values.")
+      }
+      NULL # return NULL or any other value to continue the loop
+    })
+
     if (lazy) {
       extracteds[[i]] <- rgee::ee_extract(
         x = ic,
@@ -309,7 +328,7 @@ get_date_from_gee_colname <- function(my_string) {
   return(date)
 }
 
-split_time_chunks <- function(df, time_col='start_time', max_time_range='6 months', max_rows) {
+split_time_chunks <- function(df, time_col='start_time', max_time_range='3 months', max_rows) {
   if (nrow(df) == 1) {
     # if there is just one datapoint, we just need one list item
     # return that now for speed and because the below code will fail otherwise
