@@ -40,7 +40,7 @@
 #' (rgee: `'extract_gee'`) but not others (local: `'extract_over_time'`).
 #' Defaults to `c('extract_gee')`.
 #' @param do_initial_sort Whether to initially sort the unique input data `x` by
-#' time for efficiency during later extraction processes. Defaults to TRUE.
+#' space and time for efficiency during later extraction processes. Defaults to TRUE.
 #' @inheritDotParams extract_over_time -verbose
 #' @inheritDotParams extract_gee -verbose
 #'
@@ -88,7 +88,8 @@ fetch <- function(
     .time_rep=NA,
     batch_size=20000,
     funs_to_use_batch_size=c('extract_gee'),
-    do_initial_sort=TRUE
+    do_initial_sort=TRUE,
+    use_space_in_initial_sort=TRUE
 ) {
   # capture the supplied ... arguments as a list to preserve names
   args <- c(...)
@@ -157,11 +158,16 @@ fetch <- function(
   unique_x <- x[!duplicated(x$envfetch__duplicate_ID),]
 
   if (do_initial_sort) {
-    # sort unique_x by time for efficiency later
     if (verbose)
-      cli::cli_alert_info(paste('Sorting data by time for efficient processing'))
+      cli::cli_alert_info(paste('Sorting data by space and time for efficient processing'))
 
-    unique_x <- unique_x %>% dplyr::arrange(lubridate::int_start(!!rlang::sym(time_column_name)))
+    if (use_space_in_initial_sort) {
+      xy <- sf::st_coordinates(sf::st_centroid(unique_x))
+      unique_x <- unique_x[order(xy[,'X'], xy[,'Y'], as.numeric(lubridate::int_start(unique_x[[time_column_name]]))),]
+      rm(xy)
+    } else {
+      unique_x <- unique_x[order(as.numeric(lubridate::int_start(unique_x[[time_column_name]]))),]
+    }
   }
 
 
@@ -194,7 +200,7 @@ fetch <- function(
     if (n_batches > 1)
       cli::cli_alert_info(cli::col_blue('Splitting task into {n_batches} batches'))
 
-    for (i in cli::cli_progress_along(1:n_batches, format='Extracting and summarising batch {cli::pb_current}')) {
+    for (i in cli::cli_progress_along(1:n_batches, format='Extracting and summarising batch {cli::pb_current} of {n_batches}')) {
       if (n_batches > 1) {
         # define start and end rows of batch
         start_i <- 1 + ((i-1) * batch_size)
@@ -227,7 +233,7 @@ fetch <- function(
             paste0(
               'Giving function input of ',
               nrow(batch),
-              ' with data from ',
+              ' rows with data from ',
               min(lubridate::int_start(batch[[time_column_name]])) ,
               ' to ',
               max(lubridate::int_end(batch[[time_column_name]]))
