@@ -50,6 +50,8 @@
 #' is `NA`.
 #' @param init_gee A logical indicating whether to initialise Google Earth
 #' Engine within the function. Default is TRUE.
+#' @inheritParams fetch
+#' @inheritParams extract_gee
 #' @param ... Additional arguments for underlying extraction functions.
 #' @inheritDotParams extract_over_time -x -r
 #' @inheritDotParams fetch

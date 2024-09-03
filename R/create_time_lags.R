@@ -16,6 +16,8 @@
 #'
 #' @return A tibble with the original data and additional time-lagged rows.
 #'
+#' @importFrom rlang :=
+#'
 #' @examples
 #' \dontrun{
 #' lagged_tibble <- create_time_lags(

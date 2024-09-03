@@ -21,6 +21,9 @@
 #' summarise the data extracted for each interval. Default is 'last', which
 #' returns the value closest to the start of the interval. Other built-in
 #' options are 'closest' and 'next'.
+#' @param lazy A logical indicating whether to download Google Earth Engine data
+#' lazily with future::sequential objects to evaluate the task in the future.
+#' Defaults to FALSE.
 #' @param debug A logical indicating whether to produce debugging plots. Default
 #' is FALSE.
 #' @param initialise_gee A logical indicating whether to initialise Google Earth
@@ -45,6 +48,7 @@
 #' @return A dataframe or sf object with the same rows as the input `x`, and new
 #' columns representing the extracted data. The new column names correspond to
 #' the `bands` parameter.
+#' @importFrom rlang .data
 #' @export
 #'
 #' @examples
@@ -267,7 +271,7 @@ extract_gee <- function(
     print(
       ggplot2::ggplot(data = world) +
         ggplot2::geom_sf() +
-        ggplot2::geom_sf(data = x, ggplot2::aes(color = missing_status), size = 2) +
+        ggplot2::geom_sf(data = x, ggplot2::aes_string(color = 'missing_status'), size = 2) +
         ggplot2::scale_color_manual(values = c("blue", "orange", "red")) +
         ggplot2::labs(color = "Missing Data") +
         ggplot2::theme_minimal()
@@ -310,7 +314,7 @@ extract_gee <- function(
 
   # return x to its original order and assign back the time column
   x[,time_column_name] <- time_column_after_sort
-  x <- x %>% dplyr::arrange(original_order)
+  x <- x %>% dplyr::arrange(.data$original_order)
 
   # remove unnecessary columns
   x <- x %>% dplyr::select(-c('original_order', 'start_time'))
@@ -350,18 +354,35 @@ split_time_chunks <- function(df, time_col='start_time', max_time_range='3 month
     )
   )
 
-  # split df into groups by datetimes
-  list_of_dfs <- df %>%
-    dplyr::mutate(
-      group = cut(
-        get(time_col),
-        breaks = breaks,
-        include.lowest = TRUE,
-        right = FALSE
-      )
-    ) %>%
-    dplyr::group_by(group) %>%
-    dplyr::group_split()
+  list_of_dfs <- tryCatch(
+    expr = {
+      # split df into groups by datetimes
+      list_of_dfs <- df %>%
+        dplyr::mutate(
+          group = cut(
+            get(time_col),
+            breaks = breaks,
+            include.lowest = TRUE,
+            right = FALSE
+          )
+        ) %>%
+        dplyr::group_by(.data$group) %>%
+        dplyr::group_split()
+      return(list_of_dfs)
+    },
+    error = function(cond) {
+      message(paste('group_split() received error:', conditionMessage(cond)))
+      return(NA)
+    },
+    warning = function(cond) {
+      message(paste('group_split() received warning:', conditionMessage(cond)))
+      return(NULL)
+    }
+  )
+
+  if (is.na(list_of_dfs) || is.null(list_of_dfs)) {
+    browser()
+  }
 
   # split each group further if it's larger than max_rows
   list_of_dfs <- list_of_dfs %>%
@@ -373,7 +394,7 @@ split_time_chunks <- function(df, time_col='start_time', max_time_range='3 month
         group_size <- ceiling(n / max_rows)
         sub_df %>%
           dplyr::mutate(subgroup = rep(1:group_size, each = max_rows, length.out = n)) %>%
-          dplyr::group_split(subgroup)
+          dplyr::group_split(.data$subgroup)
       }
     }) %>%
     unlist(recursive = FALSE)

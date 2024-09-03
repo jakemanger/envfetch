@@ -46,6 +46,10 @@ summarise the data extracted for each interval. Default is 'last', which
 returns the value closest to the start of the interval. Other built-in
 options are 'closest' and 'next'.}
 
+\item{lazy}{A logical indicating whether to download Google Earth Engine data
+lazily with future::sequential objects to evaluate the task in the future.
+Defaults to FALSE.}
+
 \item{debug}{A logical indicating whether to produce debugging plots. Default
 is FALSE.}
 
@@ -60,7 +64,7 @@ requests. Default is FALSE.}
 
 \item{max_chunk_time_day_range}{An string representing the maximum number of
 time units to include in each time chunk when splitting the dataset for
-efficient memory use on Google Earth Engine's end. Default is '6 months'.}
+efficient memory use on Google Earth Engine's end. Default is '3 months'.}
 
 \item{max_feature_collection_size}{An integer representing the maximum number
 of features (rows) to include in each chunk when splitting the dataset for

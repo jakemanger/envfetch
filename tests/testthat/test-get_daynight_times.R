@@ -1,7 +1,7 @@
 test_that("times_calculated_correctly", {
   point <- sf::st_point(c(115.798, -31.95))
   points <- sf::st_sfc(point)
-  points <- sf::st_sf(points, time=lubridate::ymd('2023-07-11', tz='Australia/Perth'))
+  points <- sf::st_sf(points, time=lubridate::ymd('2023-07-11'))
 
   out <- points %>% fetch(
     ~get_daynight_times(.x),
@@ -10,8 +10,8 @@ test_that("times_calculated_correctly", {
     use_cache=FALSE
   )
 
-  expect_equal(out$time_since_sunrises, 16.6983333)
-  expect_equal(out$time_since_sunsets, 6.5305556)
-  expect_equal(out$day_hours, 10.1802778)
-  expect_equal(out$night_hours, 13.8194444)
+  expect_equal(out$time_since_sunrises, 0.70222222)
+  expect_equal(out$time_since_sunsets, 14.5305556)
+  expect_equal(out$day_hours, 10.1844442)
+  expect_equal(out$night_hours, 13.8155556)
 })

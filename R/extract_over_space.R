@@ -63,7 +63,7 @@ extract_over_space <- function(
 ) {
   # drop duplicate rows that don't need to be extracted multiple times
   geometry_column_name <- attr(x, "sf_column")
-  x <- x %>% dplyr::group_by(across(c(!!geometry_column_name))) %>%
+  x <- x %>% dplyr::group_by(dplyr::across(c(!!geometry_column_name))) %>%
     dplyr::mutate(envfetch__duplicate_spatial_ID = dplyr::cur_group_id()) %>%
     dplyr::ungroup()
 

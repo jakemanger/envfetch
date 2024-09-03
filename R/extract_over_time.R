@@ -54,6 +54,7 @@
 #'
 #' @return A modified version of the input 'x' with additional columns
 #' containing the extracted data.
+#' @importFrom rlang .data
 #'
 #' @examples
 #' \dontrun{
@@ -172,7 +173,7 @@ extract_over_time <- function(
   x[, new_col_names] <- NA
   multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)
   # remove ID column from extracted values
-  IDs <- extracted %>% dplyr::select(ID)
+  IDs <- extracted %>% dplyr::select('ID')
   extracted <- extracted %>% dplyr::select(-c('ID'))
   # make sure that the order of the columns in extracted have not changed
   stopifnot(all(colnames(extracted) == nms))
@@ -300,8 +301,8 @@ vectorised_summarisation <- function(x, extracted, temporal_fun, tms, nms, time_
   x <- do.call(rbind, results)
 
   x <- x %>%
-    dplyr::arrange(envfetch__order_before_summarisation) %>%
-    dplyr::select(!c(envfetch__order_before_summarisation))
+    dplyr::arrange(.data$envfetch__order_before_summarisation) %>%
+    dplyr::select(!c('envfetch__order_before_summarisation'))
 
   return(x)
 }
@@ -362,8 +363,8 @@ non_vectorised_summarisation <- function(x, extracted, IDs, temporal_fun, tms, n
   x <- do.call(rbind, results)
 
   x <- x %>%
-    dplyr::arrange(envfetch__order_before_summarisation) %>%
-    dplyr::select(!c(envfetch__order_before_summarisation))
+    dplyr::arrange(.data$envfetch__order_before_summarisation) %>%
+    dplyr::select(!c('envfetch__order_before_summarisation'))
 
   return(x)
 }

@@ -17,6 +17,7 @@ envfetch(
   out_filename = NA,
   overwrite = TRUE,
   cache_dir = file.path(out_dir, "cache/"),
+  cache_files = NA,
   time_column_name = NULL,
   .time_rep = NA,
   init_gee = TRUE,
@@ -58,6 +59,10 @@ behaviour with multiple sources, provide a list of functions or strings.}
 extraction. Use \code{NULL} for no aggregation. For multiple sources, provide a
 list of vectors.}
 
+\item{max_feature_collection_size}{An integer representing the maximum number
+of features (rows) to include in each chunk when splitting the dataset for
+efficient memory use on Google Earth Engine's end. Default is 5000.}
+
 \item{use_cache}{Logical flag indicating whether to use caching. Default is
 \code{TRUE}.}
 
@@ -70,6 +75,9 @@ list of vectors.}
 \code{TRUE}.}
 
 \item{cache_dir}{Directory for caching files. Default is \verb{./output/cache/}.}
+
+\item{cache_files}{Paths to cached files. Specify these if the cache system
+hasn't automatically detected your cache. Is ignored if use_cache = FALSE.}
 
 \item{time_column_name}{Name of the time column in \code{x}. Use \code{NULL} to
 auto-select a time column of type \code{lubridate::interval}. Default is NULL.}
@@ -118,7 +126,11 @@ to use batch_size for. Batch size is useful for some functions
 (rgee: \code{'extract_gee'}) but not others (local: \code{'extract_over_time'}).
 Defaults to \code{c('extract_gee')}.}
     \item{\code{do_initial_sort}}{Whether to initially sort the unique input data \code{x} by
-time for efficiency during later extraction processes. Defaults to TRUE.}
+space (if \code{use_space_in_initial_sort} is \code{TRUE}) and time for efficiency
+during later extraction processes. Defaults to TRUE.}
+    \item{\code{use_space_in_initial_sort}}{Whether to initially sort the unique input
+data \code{x} by space in addition to time for efficiency during later extraction
+processes. Defaults to FALSE.}
     \item{\code{chunk}}{Logical. If \code{TRUE}, the raster will be split into chunks based
 on available RAM and processed chunk by chunk. If \code{FALSE}, the raster will be
 processed as a whole. Default is \code{TRUE}.}
@@ -130,6 +142,9 @@ processed as a whole. Default is \code{TRUE}.}
 for each extraction chunk.}
     \item{\code{collection_name}}{A character string representing the Google Earth
 Engine image collection from which to extract data.}
+    \item{\code{lazy}}{A logical indicating whether to download Google Earth Engine data
+lazily with future::sequential objects to evaluate the task in the future.
+Defaults to FALSE.}
     \item{\code{initialise_gee}}{A logical indicating whether to initialise Google Earth
 Engine within the function. Default is TRUE.}
     \item{\code{use_gcs}}{A logical indicating whether to use Google Cloud Storage for
@@ -138,10 +153,7 @@ larger requests. Default is FALSE.}
 requests. Default is FALSE.}
     \item{\code{max_chunk_time_day_range}}{An string representing the maximum number of
 time units to include in each time chunk when splitting the dataset for
-efficient memory use on Google Earth Engine's end. Default is '6 months'.}
-    \item{\code{max_feature_collection_size}}{An integer representing the maximum number
-of features (rows) to include in each chunk when splitting the dataset for
-efficient memory use on Google Earth Engine's end. Default is 5000.}
+efficient memory use on Google Earth Engine's end. Default is '3 months'.}
     \item{\code{ee_reducer_fun}}{A Google Earth Engine reducer function representing the
 function used to aggregate the data extracted from each image. Default is
 rgee::ee$Reducer$mean().}

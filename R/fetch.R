@@ -40,7 +40,11 @@
 #' (rgee: `'extract_gee'`) but not others (local: `'extract_over_time'`).
 #' Defaults to `c('extract_gee')`.
 #' @param do_initial_sort Whether to initially sort the unique input data `x` by
-#' space and time for efficiency during later extraction processes. Defaults to TRUE.
+#' space (if `use_space_in_initial_sort` is `TRUE`) and time for efficiency
+#' during later extraction processes. Defaults to TRUE.
+#' @param use_space_in_initial_sort Whether to initially sort the unique input
+#' data `x` by space in addition to time for efficiency during later extraction
+#' processes. Defaults to FALSE.
 #' @inheritDotParams extract_over_time -verbose
 #' @inheritDotParams extract_gee -verbose
 #'
@@ -151,7 +155,7 @@ fetch <- function(
   not_funcs <- args[!is_function]
   funcs <- args[is_function]
 
-  x <- x %>% dplyr::group_by(across(dplyr::all_of(c(time_column_name, geometry_column_name)))) %>%
+  x <- x %>% dplyr::group_by(dplyr::across(dplyr::all_of(c(time_column_name, geometry_column_name)))) %>%
     dplyr::mutate(envfetch__duplicate_ID = dplyr::cur_group_id()) %>%
     dplyr::ungroup()
 
@@ -388,5 +392,5 @@ get_cache_path <- function(fun, input_hash, fun_string, cache_dir) {
     return(out)
   })
 
-  return(file.path(cache_dir, paste0(input_hash, '_', rlang::hash(capture.output(c(fun_string, function_args))), '.rds')))
+  return(file.path(cache_dir, paste0(input_hash, '_', rlang::hash(utils::capture.output(c(fun_string, function_args))), '.rds')))
 }

@@ -12,11 +12,13 @@ fetch(
   out_filename = NA,
   overwrite = TRUE,
   cache_dir = file.path(out_dir, "cache/"),
+  cache_files = NA,
   time_column_name = NULL,
   .time_rep = NA,
   batch_size = 20000,
   funs_to_use_batch_size = c("extract_gee"),
-  do_initial_sort = TRUE
+  do_initial_sort = TRUE,
+  use_space_in_initial_sort = TRUE
 )
 }
 \arguments{
@@ -71,6 +73,9 @@ performance optimisation. Defaults to TRUE.}
 Engine image collection from which to extract data.}
     \item{\code{bands}}{A vector of character strings representing the band names to
 extract from the image collection.}
+    \item{\code{lazy}}{A logical indicating whether to download Google Earth Engine data
+lazily with future::sequential objects to evaluate the task in the future.
+Defaults to FALSE.}
     \item{\code{initialise_gee}}{A logical indicating whether to initialise Google Earth
 Engine within the function. Default is TRUE.}
     \item{\code{use_gcs}}{A logical indicating whether to use Google Cloud Storage for
@@ -79,7 +84,7 @@ larger requests. Default is FALSE.}
 requests. Default is FALSE.}
     \item{\code{max_chunk_time_day_range}}{An string representing the maximum number of
 time units to include in each time chunk when splitting the dataset for
-efficient memory use on Google Earth Engine's end. Default is '6 months'.}
+efficient memory use on Google Earth Engine's end. Default is '3 months'.}
     \item{\code{max_feature_collection_size}}{An integer representing the maximum number
 of features (rows) to include in each chunk when splitting the dataset for
 efficient memory use on Google Earth Engine's end. Default is 5000.}
@@ -103,6 +108,9 @@ not save the result and only return the result.}
 \item{cache_dir}{A directory to output cached progress. Is ignored if
 use_cache = FALSE.}
 
+\item{cache_files}{Paths to cached files. Specify these if the cache system
+hasn't automatically detected your cache. Is ignored if use_cache = FALSE.}
+
 \item{time_column_name}{Name of the time column in the dataset. If NULL
 (the default), a column of type lubridate::interval is automatically
 selected.}
@@ -125,7 +133,12 @@ to use batch_size for. Batch size is useful for some functions
 Defaults to \code{c('extract_gee')}.}
 
 \item{do_initial_sort}{Whether to initially sort the unique input data \code{x} by
-time for efficiency during later extraction processes. Defaults to TRUE.}
+space (if \code{use_space_in_initial_sort} is \code{TRUE}) and time for efficiency
+during later extraction processes. Defaults to TRUE.}
+
+\item{use_space_in_initial_sort}{Whether to initially sort the unique input
+data \code{x} by space in addition to time for efficiency during later extraction
+processes. Defaults to FALSE.}
 }
 \value{
 tibble An augmented tibble with additional data fetched using

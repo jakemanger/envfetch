@@ -24,10 +24,11 @@ test_that("correct_results_returned_last", {
       collection_name='MODIS/061/MOD13Q1',
       bands=c('NDVI', 'DetailedQA'),
       initialise_gee=FALSE,
+      temporal_fun='last'
     ),
     time_column_name='time',
     out_filename=NA,
-    use_cache=FALSE,
+    use_cache=FALSE
   )
 
   # data provided by NASA's AppEEARS: https://appeears.earthdatacloud.nasa.gov/task/point
