@@ -163,12 +163,16 @@ extract_over_time <- function(
   col_names_from_names <- unique(sub("_[^_]*$", "", names(r)))
   if (length(new_col_names) == 1 && new_col_names == '') {
     new_col_names <- col_names_from_names
-    warning(paste('`varnames` in the raster is empty. Assuming these are:', paste(new_col_names, collapse=', ')))
+    warning(paste('`varnames` in the raster is empty. Assuming these are:', paste(new_col_names, collapse=', '), '. If this isn\'t the desired behaviour, update the raster file with the desired `varnames` or `names` and re-run `envfetch`.'))
   }
-  if (!all(new_col_names == col_names_from_names) || length(unique(new_col_names)) != length(new_col_names)) {
+
+  # if not all `names` prefixes values are in `varnames`
+  # use the `names` prefixes - usually more reliable
+  if (!all(new_col_names %in% col_names_from_names)) {
     new_col_names <- col_names_from_names
-    warning(paste('Correcting `varnames` to:', paste(new_col_names, collapse=', '), ' as `varnames` in the raster don\'t match the prefix found in `names`.'))
+    warning(paste('Correcting `varnames` to:', paste(new_col_names, collapse=', '), ' as `varnames` in the raster don\'t match the prefix found in `names`. If this isn\'t the desired behaviour, update the raster file with the desired `varnames` or `names` and re-run `envfetch`.'))
   }
+
   # initialise variables with NA
   x[, new_col_names] <- NA
   multi_values_in_extraction_per_row <- any(table(extracted$ID) > 1)
