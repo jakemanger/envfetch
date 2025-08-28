@@ -87,8 +87,8 @@ However, for this example, we can generate this using the `throw` function.
 library(envfetch)
 
 d <- throw(
-  offset=c(115, -40),
-  cellsize=3,
+  offset=c(128, -30),
+  cellsize=1,
   n=10,
   time_interval=lubridate::interval(start='2017-01-01', end='2017-01-02'),
 )
@@ -181,6 +181,77 @@ rep_extracted <- d |>
        time_buffer=16,
      ),
     .time_rep=time_rep(interval=lubridate::days(14), n_start=-12),
+  )
+```
+
+
+## Integrate other packages and create your own fetch function
+
+In some cases, you may want to combine envfetch with other third party tools. Below, we will illustrate how to do this with the [weatherOz](https://github.com/ropensci/weatherOz) R package. Visit the link to see their project details and licensing.
+
+```{r}
+# install.packages("weatherOz", repos = "https://ropensci.r-universe.dev")
+library(weatherOz)
+library(envfetch)
+library(tidyverse)
+library(cli)
+
+# authenticate with SILO using the weatherOz package
+get_key(service = "SILO")
+
+# make a wrapper function to adapt weatherOz for envfetch data inputs 
+get_data_drill_wrapper <- function(x, summary_fn=mean) {
+  points <- sf::st_centroid(x)
+  coords <- sf::st_coordinates(points) %>%
+    as_tibble()
+
+  cli_progress_step("Fetching weather data for {nrow(coords)} location{?s}")
+
+  results <- map(1:nrow(coords), function(i) {
+    cli_progress_message("Processing location {i}/{nrow(coords)}")
+
+    start_date <- as.Date(lubridate::int_start(x$time_column[i]))
+    end_date <- as.Date(lubridate::int_end(x$time_column[i]))
+
+    result <- tryCatch({
+      dat <- get_data_drill(
+        latitude = coords$Y[i],
+        longitude = coords$X[i],
+        start_date = start_date,
+        end_date = end_date
+      )
+      # aggregate the data for this location
+      summarised <- dat %>%
+        select(-any_of(c("date", "latitude", "longitude"))) %>%
+        summarise(across(everything(), ~summary_fn(.x, na.rm = TRUE)))
+      return(summarised)
+    }, error = function(e) {
+      cli_alert_warning("Error for location {i}: {e$message}")
+      # return a row with NAs but proper structure
+      return(tibble(
+        latitude = coords$Y[i],
+        longitude = coords$X[i],
+        date = as.Date(NA),
+        max_temp = NA_real_,
+        min_temp = NA_real_,
+        rain = NA_real_
+      ))
+    })
+
+    return(result)
+  })
+
+  combined_results <- bind_rows(results)
+  combined_results <- combined_results
+  return(combined_results)
+}
+
+
+# extract with the `fetch` function from `envfetch`
+extracted_weatherOz <- d[1:5,] %>%
+  fetch(
+    ~get_data_drill_wrapper(.x),
+    use_cache = FALSE
   )
 ```
 
