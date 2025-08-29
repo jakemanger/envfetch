@@ -257,7 +257,7 @@ get_data_drill_wrapper <- function(x, summary_fn=mean) {
 # extract with the `fetch` function from `envfetch`
 extracted_weatherOz <- d %>%
   fetch(
-    ~get_data_drill_wrapper(.x),
+    ~get_data_drill_wrapper(.x, mean),
     use_cache = FALSE
   )
 ```
@@ -273,7 +273,7 @@ Here we extract data from the past six months relative to the time (start time i
 # 6 months
 extracted_weatherOz <- d %>%
   fetch(
-    ~get_data_drill_wrapper(.x),
+    ~get_data_drill_wrapper(.x, mean),
     use_cache = FALSE,
     .time_rep=time_rep(interval=lubridate::days(14), n_start=-12)
   )
