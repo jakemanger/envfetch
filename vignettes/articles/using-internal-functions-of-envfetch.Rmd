@@ -184,7 +184,7 @@ rep_extracted <- d |>
 
 In some cases, you may want to combine envfetch with other third party tools. Below, we will illustrate how to do this with the [weatherOz](https://github.com/ropensci/weatherOz) R package. Visit the link to see their project details and licensing.
 
-```{r}
+```{r, eval=FALSE}
 # install.packages("weatherOz", repos = "https://ropensci.r-universe.dev")
 library(weatherOz)
 library(envfetch)
@@ -262,7 +262,7 @@ periods, you can again add the time_rep value.
 
 Here we extract data from the past six months relative to the time (start time if an interval is provided) of each data point, with an average calculated for each two-week block, using the **`.time_rep`** variable.
 
-```{r}
+```{r, eval=FALSE}
 # extract with the `fetch` function from `envfetch`
 # and repeat extractions calculating averages for each two-week block for the last
 # 6 months
