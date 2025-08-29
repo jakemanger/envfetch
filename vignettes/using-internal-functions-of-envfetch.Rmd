@@ -213,6 +213,8 @@ get_data_drill_wrapper <- function(x, summary_fn=mean) {
     start_date <- as.Date(lubridate::int_start(x$time_column[i]))
     end_date <- as.Date(lubridate::int_end(x$time_column[i]))
 
+    # use a tryCatch as requests with no result raise errors
+    # we just want NAs in those cases.
     result <- tryCatch({
       dat <- get_data_drill(
         latitude = coords$Y[i],
@@ -222,8 +224,13 @@ get_data_drill_wrapper <- function(x, summary_fn=mean) {
       )
       # aggregate the data for this location
       summarised <- dat %>%
-        select(-any_of(c("date", "latitude", "longitude"))) %>%
-        summarise(across(everything(), ~summary_fn(.x, na.rm = TRUE)))
+        select(-any_of(c("date", "latitude", "longitude", "date", "extracted"))) %>%
+        summarise(
+          # summarise everything except elevation
+          across(-elev_m, ~ summary_fn(.x, na.rm = TRUE)),
+          # special-case elevation: strip " m", convert numeric, summarise
+          elev_m = summary_fn(as.numeric(gsub(" m$", "", elev_m)), na.rm = TRUE)
+        )
       return(summarised)
     }, error = function(e) {
       cli_alert_warning("Error for location {i}: {e$message}")
@@ -248,10 +255,26 @@ get_data_drill_wrapper <- function(x, summary_fn=mean) {
 
 
 # extract with the `fetch` function from `envfetch`
-extracted_weatherOz <- d[1:5,] %>%
+extracted_weatherOz <- d %>%
   fetch(
     ~get_data_drill_wrapper(.x),
     use_cache = FALSE
   )
 ```
 
+Then, if you want to obtain that environmental data from repeated previous time 
+periods, you can again add the time_rep value. 
+
+Here we extract data from the past six months relative to the time (start time if an interval is provided) of each data point, with an average calculated for each two-week block, using the **`.time_rep`** variable.
+
+```{r}
+# extract with the `fetch` function from `envfetch`
+# and repeat extractions calculating averages for each two-week block for the last
+# 6 months
+extracted_weatherOz <- d %>%
+  fetch(
+    ~get_data_drill_wrapper(.x),
+    use_cache = FALSE,
+    .time_rep=time_rep(interval=lubridate::days(14), n_start=-12)
+  )
+```
