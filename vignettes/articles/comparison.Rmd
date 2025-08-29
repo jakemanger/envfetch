@@ -1,10 +1,5 @@
 ---
 title: "Comparison with other extraction methods"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Comparison with other extraction methods}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}

@@ -1,10 +1,5 @@
 ---
 title: "Using internal functions of envfetch"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Using internal functions of envfetch}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}
@@ -255,7 +250,7 @@ get_data_drill_wrapper <- function(x, summary_fn=mean) {
 
 
 # extract with the `fetch` function from `envfetch`
-extracted_weatherOz <- d %>%
+extracted_weatherOz <- d[1:5,] %>%
   fetch(
     ~get_data_drill_wrapper(.x, mean),
     use_cache = FALSE
@@ -271,7 +266,7 @@ Here we extract data from the past six months relative to the time (start time i
 # extract with the `fetch` function from `envfetch`
 # and repeat extractions calculating averages for each two-week block for the last
 # 6 months
-extracted_weatherOz <- d %>%
+extracted_weatherOz <- d[1:5,] %>%
   fetch(
     ~get_data_drill_wrapper(.x, mean),
     use_cache = FALSE,
