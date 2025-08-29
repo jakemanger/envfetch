@@ -247,7 +247,9 @@ rep_extracted <- envfetch(
 
 If you would like to extend the functionality of `envfetch`, you can access and
 use the underlying functions that do caching, time repeating and extracting.
-A guide to use these functions can be found [here](./docs/articles/using-internal-functions-of-envfetch.html).
+
+You can use this to customise things or add a new custom data source, like we 
+do in the following guide [here](./docs/articles/using-internal-functions-of-envfetch.html).
 
 If you have a feature to contribute, please review our [Contributing Guide]().
 
