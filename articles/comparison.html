@@ -157,8 +157,8 @@ package:</p>
 <span>  times<span class="op">=</span><span class="va">num_benchmark_repeats</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Unit: milliseconds</span></span>
-<span><span class="co">#&gt;                      expr      min       lq    mean   median      uq      max</span></span>
-<span><span class="co">#&gt;  extract_one_time_range() 26.99031 27.26949 38.5447 27.30806 27.5409 83.61474</span></span>
+<span><span class="co">#&gt;                      expr     min       lq     mean   median       uq      max</span></span>
+<span><span class="co">#&gt;  extract_one_time_range() 25.6733 25.75902 37.21316 25.81139 27.21166 81.61044</span></span>
 <span><span class="co">#&gt;  neval</span></span>
 <span><span class="co">#&gt;      5</span></span></code></pre></div>
 <p>Taking our first approach to multiple time ranges starts to give us
@@ -195,23 +195,23 @@ three time ranges and so on.</p>
 <span><span class="va">bm</span></span>
 <span><span class="co">#&gt; Unit: milliseconds</span></span>
 <span><span class="co">#&gt;                                  expr        min         lq       mean</span></span>
-<span><span class="co">#&gt;    extract_n_time_ranges(n = 1, p, r)   29.58411   31.51580   37.49269</span></span>
-<span><span class="co">#&gt;    extract_n_time_ranges(n = 2, p, r)   55.19332   56.75854   66.98351</span></span>
-<span><span class="co">#&gt;    extract_n_time_ranges(n = 4, p, r)   96.27883  103.20650  113.99308</span></span>
-<span><span class="co">#&gt;    extract_n_time_ranges(n = 8, p, r)  194.31272  195.92156  209.42634</span></span>
-<span><span class="co">#&gt;   extract_n_time_ranges(n = 16, p, r)  366.82187  383.92414  407.16820</span></span>
-<span><span class="co">#&gt;   extract_n_time_ranges(n = 32, p, r)  731.68333  784.01402  830.84593</span></span>
-<span><span class="co">#&gt;   extract_n_time_ranges(n = 64, p, r) 1439.18213 1478.79460 1631.95159</span></span>
-<span><span class="co">#&gt;  extract_n_time_ranges(n = 128, p, r) 3185.37647 3197.85629 3507.87144</span></span>
+<span><span class="co">#&gt;    extract_n_time_ranges(n = 1, p, r)   27.32122   29.98961   35.03689</span></span>
+<span><span class="co">#&gt;    extract_n_time_ranges(n = 2, p, r)   55.66515   56.72233   63.75708</span></span>
+<span><span class="co">#&gt;    extract_n_time_ranges(n = 4, p, r)   93.55454   97.47477  109.32601</span></span>
+<span><span class="co">#&gt;    extract_n_time_ranges(n = 8, p, r)  181.11913  181.56517  195.24826</span></span>
+<span><span class="co">#&gt;   extract_n_time_ranges(n = 16, p, r)  351.77192  357.61720  385.63498</span></span>
+<span><span class="co">#&gt;   extract_n_time_ranges(n = 32, p, r)  700.52792  714.41883  782.80625</span></span>
+<span><span class="co">#&gt;   extract_n_time_ranges(n = 64, p, r) 1405.51577 1417.41011 1550.59711</span></span>
+<span><span class="co">#&gt;  extract_n_time_ranges(n = 128, p, r) 2935.50488 2982.58092 3272.84867</span></span>
 <span><span class="co">#&gt;      median         uq        max neval</span></span>
-<span><span class="co">#&gt;    31.75302   43.96961   50.64089     5</span></span>
-<span><span class="co">#&gt;    64.31719   75.98529   82.66318     5</span></span>
-<span><span class="co">#&gt;   117.31299  124.22055  128.94650     5</span></span>
-<span><span class="co">#&gt;   198.39068  198.65687  259.84986     5</span></span>
-<span><span class="co">#&gt;   392.83214  439.57057  452.69225     5</span></span>
-<span><span class="co">#&gt;   822.08943  899.72761  916.71527     5</span></span>
-<span><span class="co">#&gt;  1681.37101 1723.49403 1836.91616     5</span></span>
-<span><span class="co">#&gt;  3463.43337 3798.54295 3894.14812     5</span></span>
+<span><span class="co">#&gt;    30.26679   36.57286   51.03399     5</span></span>
+<span><span class="co">#&gt;    61.22502   69.31511   75.85776     5</span></span>
+<span><span class="co">#&gt;   111.77845  121.52495  122.29733     5</span></span>
+<span><span class="co">#&gt;   183.02433  183.34570  247.18699     5</span></span>
+<span><span class="co">#&gt;   360.51819  417.46747  440.80012     5</span></span>
+<span><span class="co">#&gt;   760.38155  867.92266  870.78030     5</span></span>
+<span><span class="co">#&gt;  1568.87625 1629.12118 1732.06223     5</span></span>
+<span><span class="co">#&gt;  3208.63130 3579.37302 3658.15323     5</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">bm</span><span class="op">)</span></span></code></pre></div>
 <p><img src="comparison_files/figure-html/unnamed-chunk-5-1.png" width="900" height="600"></p>
 <p>When your vector data has many time ranges, a faster solution is to
@@ -259,11 +259,11 @@ the data. This avoids repeating the expensive extraction operation.</p>
 <span><span class="va">bm</span></span>
 <span><span class="co">#&gt; Unit: seconds</span></span>
 <span><span class="co">#&gt;                                  expr      min       lq     mean   median</span></span>
-<span><span class="co">#&gt;  extract_n_time_ranges(n = 128, p, r) 3.074949 3.266767 3.437063 3.374511</span></span>
-<span><span class="co">#&gt;           extract_once(n = 128, p, r) 1.251207 1.277856 1.494964 1.572674</span></span>
-<span><span class="co">#&gt;        uq      max neval</span></span>
-<span><span class="co">#&gt;  3.633171 3.835917     5</span></span>
-<span><span class="co">#&gt;  1.644998 1.728082     5</span></span>
+<span><span class="co">#&gt;  extract_n_time_ranges(n = 128, p, r) 2.926524 3.052182 3.249487 3.204240</span></span>
+<span><span class="co">#&gt;           extract_once(n = 128, p, r) 1.249402 1.263920 1.474926 1.538679</span></span>
+<span><span class="co">#&gt;        uq     max neval</span></span>
+<span><span class="co">#&gt;  3.450018 3.61447     5</span></span>
+<span><span class="co">#&gt;  1.641061 1.68157     5</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">bm</span><span class="op">)</span></span></code></pre></div>
 <p><img src="comparison_files/figure-html/unnamed-chunk-6-1.png" width="900" height="600"></p>
 </div>
@@ -352,19 +352,19 @@ another.</p>
 <span><span class="va">bm</span></span>
 <span><span class="co">#&gt; Unit: seconds</span></span>
 <span><span class="co">#&gt;                                                  expr      min       lq</span></span>
-<span><span class="co">#&gt;                  extract_n_time_ranges(n = 128, p, r) 3.002476 3.040759</span></span>
-<span><span class="co">#&gt;                           extract_once(n = 128, p, r) 1.259211 1.278076</span></span>
-<span><span class="co">#&gt;              extract_only_what_we_need(n = 128, p, r) 1.497257 1.527038</span></span>
-<span><span class="co">#&gt;      extract_n_time_ranges(n = 256, large_p, large_r) 6.711828 6.738243</span></span>
-<span><span class="co">#&gt;               extract_once(n = 256, large_p, large_r) 3.461705 3.676354</span></span>
-<span><span class="co">#&gt;  extract_only_what_we_need(n = 256, large_p, large_r) 4.341040 4.341393</span></span>
+<span><span class="co">#&gt;                  extract_n_time_ranges(n = 128, p, r) 2.898048 2.992722</span></span>
+<span><span class="co">#&gt;                           extract_once(n = 128, p, r) 1.247080 1.250139</span></span>
+<span><span class="co">#&gt;              extract_only_what_we_need(n = 128, p, r) 1.503802 1.507819</span></span>
+<span><span class="co">#&gt;      extract_n_time_ranges(n = 256, large_p, large_r) 6.191492 6.262873</span></span>
+<span><span class="co">#&gt;               extract_once(n = 256, large_p, large_r) 3.495985 3.670980</span></span>
+<span><span class="co">#&gt;  extract_only_what_we_need(n = 256, large_p, large_r) 4.356828 4.477760</span></span>
 <span><span class="co">#&gt;      mean   median       uq      max neval</span></span>
-<span><span class="co">#&gt;  3.238153 3.217394 3.261558 3.668576     5</span></span>
-<span><span class="co">#&gt;  1.346286 1.290382 1.306094 1.597666     5</span></span>
-<span><span class="co">#&gt;  1.565517 1.529870 1.581039 1.692380     5</span></span>
-<span><span class="co">#&gt;  6.906071 6.783528 6.855911 7.440848     5</span></span>
-<span><span class="co">#&gt;  3.753523 3.684114 3.860559 4.084882     5</span></span>
-<span><span class="co">#&gt;  4.627472 4.401488 4.469582 5.583857     5</span></span>
+<span><span class="co">#&gt;  3.214026 3.313166 3.366471 3.499725     5</span></span>
+<span><span class="co">#&gt;  1.301947 1.271164 1.280171 1.461181     5</span></span>
+<span><span class="co">#&gt;  1.614384 1.630449 1.691392 1.738458     5</span></span>
+<span><span class="co">#&gt;  6.287967 6.305716 6.316155 6.363598     5</span></span>
+<span><span class="co">#&gt;  3.691901 3.697816 3.722416 3.872305     5</span></span>
+<span><span class="co">#&gt;  4.677025 4.478076 4.903952 5.168508     5</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">bm</span><span class="op">)</span></span></code></pre></div>
 <p><img src="comparison_files/figure-html/unnamed-chunk-7-1.png" width="900" height="600"></p>
 <p>For cases where you intend to extract single time slices not time
@@ -426,11 +426,11 @@ performance gains.</p>
 <span><span class="va">bm</span></span>
 <span><span class="co">#&gt; Unit: milliseconds</span></span>
 <span><span class="co">#&gt;                                           expr       min        lq      mean</span></span>
-<span><span class="co">#&gt;       extract_only_what_we_need(n = 128, p, r) 1466.2672 1489.6467 1536.3567</span></span>
-<span><span class="co">#&gt;  extract_only_what_we_need_vectorised(n = 128)  473.1146  479.0359  491.6464</span></span>
+<span><span class="co">#&gt;       extract_only_what_we_need(n = 128, p, r) 1473.0349 1488.8090 1521.3501</span></span>
+<span><span class="co">#&gt;  extract_only_what_we_need_vectorised(n = 128)  474.4474  474.7424  485.0261</span></span>
 <span><span class="co">#&gt;     median        uq       max neval</span></span>
-<span><span class="co">#&gt;  1514.6826 1532.3233 1678.8639     5</span></span>
-<span><span class="co">#&gt;   483.8115  500.0481  522.2221     5</span></span>
+<span><span class="co">#&gt;  1502.5743 1514.7260 1627.6064     5</span></span>
+<span><span class="co">#&gt;   489.6164  489.7206  496.6038     5</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">bm</span><span class="op">)</span></span></code></pre></div>
 <p><img src="comparison_files/figure-html/unnamed-chunk-8-1.png" width="900" height="600"></p>
 </div>
@@ -492,15 +492,15 @@ times.</p>
 <span><span class="va">bm</span></span>
 <span><span class="co">#&gt; Unit: milliseconds</span></span>
 <span><span class="co">#&gt;                                                           expr       min</span></span>
-<span><span class="co">#&gt;                  extract_only_what_we_need_vectorised(n = 128)  467.6968</span></span>
-<span><span class="co">#&gt;       extract_duplicated_only_what_we_need_vectorised(n = 128) 1141.1134</span></span>
-<span><span class="co">#&gt;             envfetch(p, r, use_cache = FALSE, verbose = FALSE) 1896.2746</span></span>
-<span><span class="co">#&gt;  envfetch(duplicated_p, r, use_cache = FALSE, verbose = FALSE) 1912.6460</span></span>
-<span><span class="co">#&gt;         lq      mean    median        uq       max neval</span></span>
-<span><span class="co">#&gt;   471.3575  474.0945  476.3459  476.8499  478.2222     5</span></span>
-<span><span class="co">#&gt;  1155.2769 1257.9210 1184.6595 1376.5480 1432.0071     5</span></span>
-<span><span class="co">#&gt;  1910.5545 1915.2025 1910.6005 1911.7315 1946.8513     5</span></span>
-<span><span class="co">#&gt;  1942.1331 1946.1087 1946.1340 1950.3132 1979.3170     5</span></span>
+<span><span class="co">#&gt;                  extract_only_what_we_need_vectorised(n = 128)  461.0525</span></span>
+<span><span class="co">#&gt;       extract_duplicated_only_what_we_need_vectorised(n = 128) 1151.4621</span></span>
+<span><span class="co">#&gt;             envfetch(p, r, use_cache = FALSE, verbose = FALSE) 1866.9160</span></span>
+<span><span class="co">#&gt;  envfetch(duplicated_p, r, use_cache = FALSE, verbose = FALSE) 1895.4213</span></span>
+<span><span class="co">#&gt;         lq     mean    median        uq       max neval</span></span>
+<span><span class="co">#&gt;   461.2781  466.869  470.4653  470.7744  470.7744     5</span></span>
+<span><span class="co">#&gt;  1170.2255 1247.749 1172.9659 1369.7235 1374.3686     5</span></span>
+<span><span class="co">#&gt;  1875.1868 1887.812 1891.0039 1901.3231 1904.6307     5</span></span>
+<span><span class="co">#&gt;  1896.4094 1909.166 1896.4235 1898.9435 1958.6333     5</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">bm</span><span class="op">)</span></span></code></pre></div>
 <p><img src="comparison_files/figure-html/unnamed-chunk-9-1.png" width="900" height="600"></p>
 <p>Similarly, if you have already extracted the data once, why extract
@@ -531,11 +531,11 @@ between R sessions. For convenience, storing data for future requests
 <span><span class="va">bm</span></span>
 <span><span class="co">#&gt; Unit: seconds</span></span>
 <span><span class="co">#&gt;                                                expr      min       lq     mean</span></span>
-<span><span class="co">#&gt;                extract_n_time_ranges(n = 128, p, r) 2.926665 2.927484 3.029165</span></span>
-<span><span class="co">#&gt;  envfetch(p, r, use_cache = FALSE, verbose = FALSE) 1.921438 1.929972 1.933158</span></span>
-<span><span class="co">#&gt;    median       uq      max neval</span></span>
-<span><span class="co">#&gt;  2.995513 3.053697 3.242467     5</span></span>
-<span><span class="co">#&gt;  1.933722 1.937266 1.943393     5</span></span>
+<span><span class="co">#&gt;                extract_n_time_ranges(n = 128, p, r) 2.764464 2.808319 2.832133</span></span>
+<span><span class="co">#&gt;  envfetch(p, r, use_cache = FALSE, verbose = FALSE) 1.883965 1.900916 1.902779</span></span>
+<span><span class="co">#&gt;    median       uq     max neval</span></span>
+<span><span class="co">#&gt;  2.851799 2.862523 2.87356     5</span></span>
+<span><span class="co">#&gt;  1.904422 1.909390 1.91520     5</span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/autoplot.html" class="external-link">autoplot</a></span><span class="op">(</span><span class="va">bm</span><span class="op">)</span></span></code></pre></div>
 <p><img src="comparison_files/figure-html/unnamed-chunk-11-1.png" width="900" height="600"></p>
 <p>Going from the most naive extraction solution with our small example
