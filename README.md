@@ -258,10 +258,10 @@ rep_extracted <- envfetch(
 
 ### Extending or improving `envfetch`
 
-If you would like to extend the functionality of `envfetch`, you can
+If you would like to extend the functionality of `envfetch` (for example, to add a new API service to extract data from), you can
 access and use the underlying functions that do caching, time repeating
-and extracting. A guide to use these functions can be found
-[here](./docs/articles/using-internal-functions-of-envfetch.html).
+and extracting. A guide to use these functions, with examples, can be found
+[here]([./docs/articles/using-internal-functions-of-envfetch.html](https://jakemanger.github.io/envfetch/articles/comparison.html)).
 
 If you have a feature to contribute, please review our [Contributing
 Guide]().
