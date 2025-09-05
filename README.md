@@ -260,15 +260,17 @@ rep_extracted <- envfetch(
 )
 ```
 
+All the above uses of `envfetch` benefit from several built-in optimisations. An
+explanation of these and how they can benefit you are found [here](https://jakemanger.github.io/envfetch/articles/comparison.html).
 
 ### Extending or improving `envfetch`
 
 If you would like to extend the functionality of `envfetch` (for example, to add a new API service to extract data from), you can
 access and use the underlying functions that do caching, time repeating
 and extracting. A guide to use these functions, with examples, can be found
-[here]([./docs/articles/using-internal-functions-of-envfetch.html](https://jakemanger.github.io/envfetch/articles/comparison.html)).
+[here](https://jakemanger.github.io/envfetch/articles/using-internal-functions-of-envfetch.html).
 
-If you have a feature to contribute, please review our [Contributing Guide]().
+If you have a feature to contribute, please submit a pull request.
 
 If you find an error or a bug we would love to hear from you! Please let us know
 what you have found by creating an issue at https://github.com/jakemanger/envfetch/issues.
