@@ -4,7 +4,7 @@ pkgdown_sha: ~
 articles:
   articles/comparison: comparison.html
   articles/using-internal-functions-of-envfetch: using-internal-functions-of-envfetch.html
-last_built: 2025-09-05T06:06Z
+last_built: 2025-09-05T06:14Z
 urls:
   reference: https://jakemanger.github.io/envfetch/reference
   article: https://jakemanger.github.io/envfetch/articles
