@@ -260,8 +260,8 @@ rep_extracted <- envfetch(
 )
 ```
 
-All the above uses of `envfetch` benefit from several built-in optimisations. An
-explanation of these and how they can benefit you are found [here](https://jakemanger.github.io/envfetch/articles/comparison.html).
+The above uses of `envfetch` benefit from several built-in optimisations. 
+These are explained with in detail, [here](https://jakemanger.github.io/envfetch/articles/comparison.html).
 
 ### Extending or improving `envfetch`
 
