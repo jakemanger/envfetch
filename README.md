@@ -139,7 +139,7 @@ library(spacetimeview)
 spacetimeview(extracted)
 ```
 
-![example_visualisation](./docs/readme_screenshot_1.png)
+![example_visualisation](./readme_screenshot_1.png)
 
 or from a data set hosted on google earth engine.
 
