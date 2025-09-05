@@ -125,7 +125,13 @@ extracted <- envfetch(x = d, r = example_nc_path)
 #> ✔ 🐶 Completed ~extract_over_time(x = .x, r = r[[i]], temporal_fun = temporal_fun[[i]], spatial_fun = spatial_fun[[i]], ...)
 #> 
 #> ── 🐩 Fetched ──────────────────────────────────────────────────────────────────────────────────────────────
+
+# visualise with spacetimeview
+library(spacetimeview)
+spacetimeview(extracted)
 ```
+
+![example_visualisation](./docs/readme_screenshot_1.png)
 
 or from a data set hosted on google earth engine.
 
